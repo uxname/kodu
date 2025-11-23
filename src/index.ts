@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 import { homedir } from "os";
 import { spawn } from "child_process";
 import prompts from "prompts";

@@ -1,17 +1,31 @@
 {
-  "name": "pakk",
+  "name": "@uxname/pp",
+  "version": "1.0.1",
+  "description": "PrintProject (pp) — A lightning-fast CLI tool to bundle your codebase into a single context file for LLMs (ChatGPT, Claude, DeepSeek). Features smart prioritization, interactive history, and gitignore support.",
   "type": "module",
-  "private": false,
+  "bin": {
+    "pp": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "dev": "bun run src/index.ts",
     "build": "bun build ./src/index.ts --outfile=./dist/index.js --target=node --minify",
     "prepublishOnly": "bun run build"
   },
+  "keywords": [
+    "cli",
+    "context",
+    "llm",
+    "ai",
+    "bundler"
+  ],
+  "author": "uxname",
+  "license": "MIT",
   "devDependencies": {
     "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
   },
   "dependencies": {
     "@types/prompts": "^2.4.9",
