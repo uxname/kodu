@@ -1,14 +1,15 @@
-# pp (PrintProject)
+**koda** is a blazing fast CLI tool designed to prepare your codebase for Large Language Models (LLMs).
+# koda
 
-**PrintProject** is a blazing fast CLI tool designed to prepare your codebase for Large Language Models (LLMs).
+**koda** is a blazing fast CLI tool designed to prepare your codebase for Large Language Models (LLMs).
 
 It scans your directory, ignores the junk (binaries, locks, `node_modules`), intelligently prioritizes critical files (
 like `package.json` or `README`), and concatenates everything into a single text output.
 
 **New:** Now includes a **Code Cleanup** tool to strip comments from your project!
 
-![License](https://img.shields.io/npm/l/@uxname/pp)
-![Version](https://img.shields.io/npm/v/@uxname/pp)
+![License](https://img.shields.io/npm/l/koda)
+![Version](https://img.shields.io/npm/v/koda)
 
 ## ✨ Features
 
@@ -20,7 +21,7 @@ like `package.json` or `README`), and concatenates everything into a single text
     - Skips files larger than 1MB by default.
 - **🧹 Code Cleanup:** Safely remove all comments from JS/TS files (`.ts`, `.js`, `.tsx`, `.jsx`) to reduce token usage
   or minify code.
-- **📜 Interactive History:** Run `pp` without arguments to select from your recent commands.
+- **📜 Interactive History:** Run `koda` without arguments to select from your recent commands.
 - **📋 clipboard-ready:** Output to a file or pipe directly to stdout.
 
 ## 📦 Installation
@@ -28,7 +29,7 @@ like `package.json` or `README`), and concatenates everything into a single text
 Install globally via npm:
 
 ```bash
-npm install -g @uxname/pp
+npm install -g koda
 ```
 
 ## 🚀 Usage
@@ -39,13 +40,13 @@ Scan the current directory and generate a text file for LLMs.
 
 ```bash
 # Basic usage
-pp
+koda
 
 # Specify output file
-pp ./backend -o context.txt
+koda ./backend -o context.txt
 
 # Pipe to clipboard (macOS)
-pp . --stdout | pbcopy
+koda . --stdout | pbcopy
 ```
 
 ### 2. Strip Comments (Cleanup)
@@ -58,28 +59,28 @@ Remove all comments (`// ...`, `/* ... */`) from JavaScript and TypeScript files
 See which files will be modified without actually touching them.
 
 ```bash
-pp strip --dry-run
+koda strip --dry-run
 ```
 
 **Execute Cleanup:**
 This will ask for confirmation before proceeding.
 
 ```bash
-pp strip
+koda strip
 # or
-pp strip ./src
+koda strip ./src
 ```
 
 **Force Execute (No Prompt):**
 Useful for scripts or CI/CD.
 
 ```bash
-pp strip -y
+koda strip -y
 ```
 
 ## ⚙️ Options & Flags
 
-### Bundle Command (`pp [path]`)
+### Bundle Command (`koda [path]`)
 
 | Flag                  | Description                                                             |
 |-----------------------|-------------------------------------------------------------------------|
@@ -88,7 +89,7 @@ pp strip -y
 | `--exclude <pattern>` | Add custom glob patterns to exclude (e.g. `--exclude "*.css"`).         |
 | `--no-gitignore`      | Disable `.gitignore` parsing (scan everything except default excludes). |
 
-### Strip Command (`pp strip [path]`)
+### Strip Command (`koda strip [path]`)
 
 | Flag             | Description                                                 |
 |------------------|-------------------------------------------------------------|
@@ -99,7 +100,7 @@ pp strip -y
 
 ## 🧠 How it Sorts (Priority Rules)
 
-`pp` sorts files to maximize LLM understanding:
+`koda` sorts files to maximize LLM understanding:
 
 1. **Manifests:** `package.json`, `Cargo.toml`, etc.
 2. **Documentation:** `README.md`, `Dockerfile`.
@@ -110,7 +111,7 @@ pp strip -y
 
 ## 🚫 Default Exclusions
 
-`pp` automatically ignores:
+`koda` automatically ignores:
 
 - **Directories:** `.git`, `node_modules`, `dist`, `build`, `coverage`, `.vscode`, `__pycache__`, etc.
 - **Files:** Lockfiles (`package-lock.json`, `yarn.lock`), `.DS_Store`, `.env`.

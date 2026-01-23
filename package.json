@@ -1,10 +1,10 @@
 {
-  "name": "@uxname/pp",
+  "name": "koda",
   "version": "1.1.2",
-  "description": "PrintProject (pp) — A lightning-fast CLI tool to bundle your codebase into a single context file for LLMs (ChatGPT, Claude, DeepSeek). Features smart prioritization, interactive history, and gitignore support.",
+  "description": "koda — A lightning-fast CLI tool to bundle your codebase into a single context file for LLMs (ChatGPT, Claude, DeepSeek). Features smart prioritization, interactive history, and gitignore support.",
   "type": "module",
   "bin": {
-    "pp": "./dist/index.js"
+    "koda": "./dist/index.js"
   },
   "files": [
     "dist",

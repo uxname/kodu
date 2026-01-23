@@ -59,9 +59,7 @@ async function runBundle(args: string[] = []): Promise<void> {
 async function main() {
   const SYSTEM_ARGS_COUNT = 2;
 
-  program
-    .version(pkg.version)
-    .description('PrintProject (pp) — Codebase bundler & utility');
+  program.version(pkg.version).description('koda — Codebase bundler & utility');
 
   program
     .command('strip [path]')
@@ -116,7 +114,7 @@ async function main() {
     if (historyArgs) {
       if (historyArgs[0] === 'strip') {
         const execPath = process.argv[0] ?? 'node';
-        const scriptPath = process.argv[1] ?? 'pp';
+        const scriptPath = process.argv[1] ?? 'koda';
         await program.parseAsync([execPath, scriptPath, ...historyArgs]);
       } else {
         await runBundle([...historyArgs, '--no-history']);

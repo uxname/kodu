@@ -4,11 +4,11 @@ import { join } from 'node:path';
 import prompts from 'prompts';
 import type { HistoryItem } from '../types';
 
-const HISTORY_FILE = join(homedir(), '.config', 'pp', 'history.json');
+const HISTORY_FILE = join(homedir(), '.config', 'koda', 'history.json');
 const MAX_HISTORY_ITEMS = 50;
 
 function ensureHistoryFileExists(): void {
-  const dir = join(homedir(), '.config', 'pp');
+  const dir = join(homedir(), '.config', 'koda');
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   if (!existsSync(HISTORY_FILE))
     writeFileSync(HISTORY_FILE, JSON.stringify([], null, 2), 'utf-8');
