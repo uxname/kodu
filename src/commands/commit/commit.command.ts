@@ -42,6 +42,9 @@ export class CommitCommand extends CommandRunner {
       : this.ui.createSpinner({ text: 'Собираю diff...' }).start();
 
     const logProgress = (text: string): void => {
+      if (ciMode) {
+        return;
+      }
       if (spinner) {
         spinner.text = text;
         return;
@@ -50,6 +53,9 @@ export class CommitCommand extends CommandRunner {
     };
 
     const finishProgress = (text: string): void => {
+      if (ciMode) {
+        return;
+      }
       if (spinner) {
         spinner.success(text);
         return;
@@ -88,12 +94,16 @@ export class CommitCommand extends CommandRunner {
       const commitMessage = await this.ai.generateCommitMessage(diff);
 
       finishProgress('Сообщение готово');
-      this.ui.log.info(`Предложение: ${commitMessage}`);
+      if (!ciMode) {
+        this.ui.log.info(`Предложение: ${commitMessage}`);
+      }
 
       console.log(commitMessage);
       if (options.output) {
         await writeFile(options.output, commitMessage, { encoding: 'utf8' });
-        this.ui.log.success(`Сообщение сохранено в ${options.output}`);
+        if (!ciMode) {
+          this.ui.log.success(`Сообщение сохранено в ${options.output}`);
+        }
       }
     } catch (error) {
       if (spinner) {

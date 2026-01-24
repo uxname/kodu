@@ -78,6 +78,9 @@ export class ReviewCommand extends CommandRunner {
       : this.ui.createSpinner({ text: 'Собираю diff из git...' }).start();
 
     const logProgress = (text: string): void => {
+      if (ciMode) {
+        return;
+      }
       if (spinner) {
         spinner.text = text;
         return;
@@ -86,6 +89,9 @@ export class ReviewCommand extends CommandRunner {
     };
 
     const finishProgress = (text: string): void => {
+      if (ciMode) {
+        return;
+      }
       if (spinner) {
         spinner.success(text);
         return;
@@ -139,12 +145,12 @@ export class ReviewCommand extends CommandRunner {
       finishProgress('Ревью готово');
 
       if (options.json && result.structured) {
-        this.renderStructured(result.structured);
-        await this.writeOutput(options.output, result.structured);
+        this.renderStructured(result.structured, ciMode);
+        await this.writeOutput(options.output, result.structured, ciMode);
         if (options.copy) {
           await this.copyJson(result.structured, ciMode);
         }
-        this.failIfIssues(result.structured);
+        this.failIfIssues(result.structured, ciMode);
         return;
       }
 
@@ -155,12 +161,12 @@ export class ReviewCommand extends CommandRunner {
       }
 
       console.log(result.text);
-      await this.writeOutput(options.output, result.text);
+      await this.writeOutput(options.output, result.text, ciMode);
 
       if (options.copy) {
         await this.copyText(result.text, ciMode);
       }
-      this.failIfIssues(result.structured);
+      this.failIfIssues(result.structured, ciMode);
     } catch (error) {
       if (spinner) {
         spinner.error('Ошибка ревью');
@@ -177,6 +183,7 @@ export class ReviewCommand extends CommandRunner {
   private async writeOutput(
     target: string | undefined,
     payload: unknown,
+    ciMode?: boolean,
   ): Promise<void> {
     if (!target) {
       return;
@@ -184,7 +191,9 @@ export class ReviewCommand extends CommandRunner {
     const data =
       typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
     await writeFile(target, data, { encoding: 'utf8' });
-    this.ui.log.success(`Результат сохранён в ${target}`);
+    if (!ciMode) {
+      this.ui.log.success(`Результат сохранён в ${target}`);
+    }
   }
 
   private async copyJson(result: ReviewResult, ciMode: boolean): Promise<void> {
@@ -205,16 +214,40 @@ export class ReviewCommand extends CommandRunner {
     this.ui.log.success('Результат скопирован в буфер обмена');
   }
 
-  private failIfIssues(structured?: ReviewResult): void {
+  private failIfIssues(
+    structured: ReviewResult | undefined,
+    ciMode: boolean,
+  ): void {
     const issues = structured?.issues ?? [];
     if (!issues.length) {
       return;
     }
-    this.ui.log.error('AI нашёл проблемы — ревью фейлится.');
+    const message = 'AI нашёл проблемы — ревью фейлится.';
+    if (ciMode) {
+      console.error(message);
+    } else {
+      this.ui.log.error(message);
+    }
     process.exitCode = 1;
   }
 
-  private renderStructured(result: ReviewResult): void {
+  private renderStructured(result: ReviewResult, ciMode: boolean): void {
+    if (ciMode) {
+      console.log(`Итог: ${result.summary}`);
+      if (!result.issues.length) {
+        return;
+      }
+      result.issues.forEach((issue) => {
+        const location = [issue.file, issue.line ? `:${issue.line}` : '']
+          .filter(Boolean)
+          .join('');
+        console.log(
+          `- [${issue.severity}] ${location ? `${location} ` : ''}${issue.message}`,
+        );
+      });
+      return;
+    }
+
     this.ui.log.info(`Итог: ${result.summary}`);
     if (!result.issues.length) {
       this.ui.log.success('Критичных проблем не найдено.');
