@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
-import { DebugCommand } from './debug/debug.command';
+import { InitModule } from './commands/init/init.module';
+import { ConfigModule } from './core/config/config.module';
+import { UiModule } from './core/ui/ui.module';
 
 @Module({
-  imports: [],
-  controllers: [],
-  providers: [DebugCommand],
+  imports: [ConfigModule, UiModule, InitModule],
 })
 export class AppModule {}
