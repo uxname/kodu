@@ -1,2 +1,3 @@
-# Задачи
-- [ ] Добавить флаг `--version`: выбрать источник версии, вывести `kodu vX.Y.Z`, проверить `npm run build && node dist/main.js --version` и `npm run start:prod -- --version`
+# Tasks
+- [ ] (kodu init) Initialize a new Kodu project in the current directory, create 'kodu.json' file with default configuration.
+- [ ]
