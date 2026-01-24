@@ -2,18 +2,13 @@ import { writeFile } from 'node:fs/promises';
 import clipboard from 'clipboardy';
 import { Command, CommandRunner, Option } from 'nest-commander';
 import { UiService } from '../../core/ui/ui.service';
-import {
-  AiService,
-  type ReviewMode,
-  type ReviewResult,
-} from '../../shared/ai/ai.service';
+import { AiService, type ReviewMode } from '../../shared/ai/ai.service';
 import { GitService } from '../../shared/git/git.service';
 import { TokenizerService } from '../../shared/tokenizer/tokenizer.service';
 
 type ReviewOptions = {
   mode?: ReviewMode;
   copy?: boolean;
-  json?: boolean;
   ci?: boolean;
   output?: string;
 };
@@ -50,14 +45,6 @@ export class ReviewCommand extends CommandRunner {
     return true;
   }
 
-  @Option({
-    flags: '--json',
-    description: 'Вернуть JSON (структурированный вывод)',
-  })
-  parseJson(): boolean {
-    return true;
-  }
-
   @Option({ flags: '--ci', description: 'CI-режим: без спиннера и без буфера' })
   parseCi(): boolean {
     return true;
@@ -65,7 +52,7 @@ export class ReviewCommand extends CommandRunner {
 
   @Option({
     flags: '-o, --output <path>',
-    description: 'Сохранить итоговый ревью в файл (text/JSON)',
+    description: 'Сохранить итоговый ревью в файл',
   })
   parseOutput(value: string): string {
     return value;
@@ -136,29 +123,9 @@ export class ReviewCommand extends CommandRunner {
 
       logProgress('Запрос к AI...');
       const mode = options.mode ?? DEFAULT_MODE;
-      const result = await this.ai.reviewDiff(
-        diff,
-        mode,
-        Boolean(options.json),
-      );
+      const result = await this.ai.reviewDiff(diff, mode, false);
 
       finishProgress('Ревью готово');
-
-      if (options.json && result.structured) {
-        this.renderStructured(result.structured, ciMode);
-        await this.writeOutput(options.output, result.structured, ciMode);
-        if (options.copy) {
-          await this.copyJson(result.structured, ciMode);
-        }
-        this.failIfIssues(result.structured, ciMode);
-        return;
-      }
-
-      if (options.json && !result.structured) {
-        this.ui.log.warn(
-          'Структурированный вывод недоступен, показываю текст.',
-        );
-      }
 
       console.log(result.text);
       await this.writeOutput(options.output, result.text, ciMode);
@@ -166,7 +133,6 @@ export class ReviewCommand extends CommandRunner {
       if (options.copy) {
         await this.copyText(result.text, ciMode);
       }
-      this.failIfIssues(result.structured, ciMode);
     } catch (error) {
       if (spinner) {
         spinner.error('Ошибка ревью');
@@ -182,27 +148,16 @@ export class ReviewCommand extends CommandRunner {
 
   private async writeOutput(
     target: string | undefined,
-    payload: unknown,
+    payload: string,
     ciMode?: boolean,
   ): Promise<void> {
     if (!target) {
       return;
     }
-    const data =
-      typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
-    await writeFile(target, data, { encoding: 'utf8' });
+    await writeFile(target, payload, { encoding: 'utf8' });
     if (!ciMode) {
       this.ui.log.success(`Результат сохранён в ${target}`);
     }
-  }
-
-  private async copyJson(result: ReviewResult, ciMode: boolean): Promise<void> {
-    if (ciMode) {
-      this.ui.log.warn('--copy игнорируется в CI режиме');
-      return;
-    }
-    await clipboard.write(JSON.stringify(result, null, 2));
-    this.ui.log.success('JSON скопирован в буфер обмена');
   }
 
   private async copyText(text: string, ciMode: boolean): Promise<void> {
@@ -212,55 +167,5 @@ export class ReviewCommand extends CommandRunner {
     }
     await clipboard.write(text);
     this.ui.log.success('Результат скопирован в буфер обмена');
-  }
-
-  private failIfIssues(
-    structured: ReviewResult | undefined,
-    ciMode: boolean,
-  ): void {
-    const issues = structured?.issues ?? [];
-    if (!issues.length) {
-      return;
-    }
-    const message = 'AI нашёл проблемы — ревью фейлится.';
-    if (ciMode) {
-      console.error(message);
-    } else {
-      this.ui.log.error(message);
-    }
-    process.exitCode = 1;
-  }
-
-  private renderStructured(result: ReviewResult, ciMode: boolean): void {
-    if (ciMode) {
-      console.log(`Итог: ${result.summary}`);
-      if (!result.issues.length) {
-        return;
-      }
-      result.issues.forEach((issue) => {
-        const location = [issue.file, issue.line ? `:${issue.line}` : '']
-          .filter(Boolean)
-          .join('');
-        console.log(
-          `- [${issue.severity}] ${location ? `${location} ` : ''}${issue.message}`,
-        );
-      });
-      return;
-    }
-
-    this.ui.log.info(`Итог: ${result.summary}`);
-    if (!result.issues.length) {
-      this.ui.log.success('Критичных проблем не найдено.');
-      return;
-    }
-
-    result.issues.forEach((issue) => {
-      const location = [issue.file, issue.line ? `:${issue.line}` : '']
-        .filter(Boolean)
-        .join('');
-      console.log(
-        `- [${issue.severity}] ${location ? `${location} ` : ''}${issue.message}`,
-      );
-    });
   }
 }
