@@ -6,8 +6,8 @@
 - **Source of Truth:** 
   - Functional scope: `docs/project_charter.md`.
   - Roadmap & Tech Stack: `docs/plan.md`.
-- **Current Phase:** **Phase 4: AI Integration (Мозги)** — Mastra/Git интеграция, команды `review` и `commit`, фильтр diff через `packer.ignore`.
-- **Команды сейчас:** `init`, `pack`, `clean`, `review`, `commit` (все зарегистрированы в `app.module.ts`).
+- **Current Phase:** **Phase 4: AI Integration** — Mastra/Git integration, `review` and `commit` commands, diff filtering via `packer.ignore`.
+- **Available Commands:** `init`, `pack`, `clean`, `review`, `commit` (all registered in `app.module.ts`).
 
 ## 2. Technology Stack (Enforced)
 We strictly follow the "Fresh & Modern" stack strategy. Do not install legacy libraries.
@@ -16,6 +16,7 @@ We strictly follow the "Fresh & Modern" stack strategy. Do not install legacy li
 | :--- | :--- | :--- |
 | **Framework** | `NestJS` + `nest-commander` | Pure Node.js scripts, Oclif |
 | **File System** | `node:fs/promises` + `tinyglobby` | `fs-extra`, `glob`, `fast-glob`, `rimraf` |
+| **Config Loading** | `lilconfig` | `cosmiconfig`, `rc` |
 | **Validation** | `zod` | `class-validator`, `joi` |
 | **Process/Git** | `execa` | `child_process`, `shelljs` |
 | **CLI UI** | `@inquirer/prompts` + `picocolors` | `inquirer` (legacy), `chalk`, `colors` |
@@ -24,6 +25,7 @@ We strictly follow the "Fresh & Modern" stack strategy. Do not install legacy li
 | **AST/Parsing** | `ts-morph` | Regex for code parsing, `babel` |
 | **Tokens** | `js-tiktoken` | `gpt-3-encoder` |
 | **Git** | `git` via `execa` | `child_process`, `shelljs` |
+| **Clipboard** | `clipboardy` | Native clipboard APIs |
 
 ## 3. Architecture & Module Map
 The project is NOT a flat structure. Use the following Module Map as a guide for where to place files.
@@ -34,22 +36,25 @@ src/
 ├── main.ts                  # Entry Point
 │
 ├── core/                    # GLOBAL Infrastructure (Global Modules)
-│   ├── config/              # ConfigModule (Zod schemas, loading kodu.json)
+│   ├── config/              # ConfigModule (Zod schemas, lilconfig for kodu.json)
 │   ├── file-system/         # FsModule (tinyglobby wrappers)
 │   └── ui/                  # UiModule (Spinners, colored loggers)
 │
 ├── shared/                  # Shared Business Logic
-│   ├── tokenizer/           # TokenizerModule
+│   ├── tokenizer/           # TokenizerModule (js-tiktoken)
 │   ├── git/                 # GitModule (execa git helpers, diff filters)
-│   └── ai/                  # AiModule (Mastra agents, API key from llm.apiKeyEnv)
+│   ├── ai/                  # AiModule (Mastra agents, API key from llm.apiKeyEnv)
+│   └── cleaner/             # CleanerService (AST-based comment removal, used by CleanModule)
 │
 └── commands/                # Feature Modules (The actual commands)
-    ├── init/                # InitModule
-    ├── pack/                # PackModule
-    ├── clean/               # CleanModule
-    ├── review/              # ReviewModule
-    └── commit/              # CommitModule
+    ├── init/                # InitModule (kodu init)
+    ├── pack/                # PackModule (kodu pack)
+    ├── clean/               # CleanModule (kodu clean)
+    ├── review/              # ReviewModule (kodu review)
+    └── commit/              # CommitModule (kodu commit)
 ```
+
+**Note:** `CleanerService` is a shared service (not a module) used by `CleanModule`. It's located in `shared/cleaner/` for code reuse.
 
 ## 4. Coding Standards & Conventions
 
@@ -62,6 +67,7 @@ src/
 - **Dependency Injection:** Always use DI. Do not import services directly into other services without providing them in the Module.
 - **CommandRunner:** All commands extend `CommandRunner` from `nest-commander`.
 - **Zod Config:** Configuration is loaded ONCE in `ConfigModule` and validated. Other modules inject `ConfigService` to access typed settings.
+- **Module Registration:** All command modules must be imported in `src/app.module.ts`.
 
 ### 4.3. Code Style (Biome)
 - We use **Biome** for linting and formatting.
@@ -72,26 +78,120 @@ src/
 ## 5. Development Workflow
 
 ### 5.1. Adding a New Command
-1.  Create a folder in `src/commands/<name>`.
-2.  Create `<name>.command.ts` and `<name>.module.ts`.
-3.  Implement `run()` method.
-4.  Register the module in `src/app.module.ts`.
-5.  **Test:** Run `npm run build && node dist/main.js <name>` to verify.
+1. Create a folder in `src/commands/<name>`.
+2. Create `<name>.command.ts` and `<name>.module.ts`.
+3. Implement `run()` method extending `CommandRunner`.
+4. Decorate the class with `@Command()` from `nest-commander`.
+5. Register the module in `src/app.module.ts`.
+6. **Test:** Run `npm run build && node dist/main.js <name>` to verify.
 
 ### 5.2. Scripts
-- `npm run build`: Full build (Nest build).
+- `npm run build`: Full build (Nest build) + make executable.
 - `npm run start:prod`: Run the built artifact.
-- `npm run check`: Run TypeCheck + Biome + Knip (Dead code).
+- `npm run check`: Run TypeCheck + Biome + Knip (Dead code detection).
+- `npm run lint`: Run Biome linter.
+- `npm run lint:fix`: Run Biome with auto-fix.
 
-## 6. Critical Constraints
-1.  **No AI in Cleaner:** The `clean` command is purely deterministic (AST-based).
-2.  **Validation First:** The app must crash gracefully with a helpful message if `kodu.json` is invalid (handled by Zod).
-3.  **Secrets:** Never commit secrets. Assume `.env` usage for API keys.
-4.  **Performance:** Be mindful of import costs. We use `tinyglobby` and `picocolors` to keep startup time low.
-5.  **AI Keys:** `llm.apiKeyEnv` (default `OPENAI_API_KEY`) must be set before running AI commands.
-6.  **Diff Filtering:** `GitService` excludes paths from `packer.ignore` when строит staged diff для AI, чтобы отсечь lock/dist шум.
-7.  **Git Preconditions:** AI команды требуют git-репозиторий и застейдженные изменения (иначе выход с подсказкой).
+## 6. Configuration (`kodu.json`)
 
-## 7. Handling Uncertainties
+Configuration structure:
+```json
+{
+  "llm": {
+    "provider": "openai",
+    "model": "gpt-4o",
+    "apiKeyEnv": "OPENAI_API_KEY"
+  },
+  "cleaner": {
+    "whitelist": ["//!"],
+    "keepJSDoc": true
+  },
+  "packer": {
+    "ignore": [
+      "package-lock.json",
+      "yarn.lock",
+      "pnpm-lock.yaml",
+      ".git",
+      ".kodu",
+      "node_modules",
+      "dist",
+      "coverage"
+    ]
+  }
+}
+```
+
+**Options:**
+- `llm.provider`: LLM provider (currently only `"openai"`).
+- `llm.model`: Model to use (e.g., `"gpt-4o"`).
+- `llm.apiKeyEnv`: Environment variable name for API key (default: `"OPENAI_API_KEY"`).
+- `cleaner.whitelist`: Array of comment prefixes to preserve (e.g., `["//!"]`).
+- `cleaner.keepJSDoc`: Whether to preserve JSDoc comments `/** ... */` (default: `true`).
+- `packer.ignore`: Array of file/folder patterns to exclude from packing.
+
+**Cleaner Whitelist Behavior:**
+- *System:* Automatically preserved: `@ts-ignore`, `@ts-expect-error`, `eslint-disable`, `prettier-ignore`, `biome-ignore`, `TODO`, `FIXME`.
+- *Biome:* Special support for `// biome-ignore ...` comments.
+- *User:* Custom list in `cleaner.whitelist` (e.g., `//!`).
+
+**Config Loading:**
+- Uses `lilconfig` to search for `kodu.json` in the current working directory.
+- Validated via Zod schema on every app startup.
+- App exits with error message if config is missing or invalid.
+
+## 7. Commands Reference
+
+### 7.1. `kodu init`
+- Interactive setup wizard for creating `kodu.json`.
+- Creates `.kodu/` directory for prompt templates.
+- Updates `.gitignore` to exclude `.kodu/`.
+
+### 7.2. `kodu pack [options]`
+- Bundles project files into a single text file or clipboard.
+- Options:
+  - `--copy`: Copy to clipboard instead of stdout.
+  - `--template <name>`: Use prompt template from `.kodu/prompts/<name>.txt`.
+  - `--out <file>`: Write to file instead of stdout.
+- Respects `.gitignore` and `packer.ignore` patterns.
+- Always displays token count and estimated cost.
+
+### 7.3. `kodu clean [options]`
+- Removes comments from JS/TS files using AST parsing.
+- Options:
+  - `--dry-run`: Show what would be removed without modifying files.
+- Supports: `.ts`, `.js`, `.tsx`, `.jsx`.
+- Deterministic (no AI) - uses `ts-morph` for safe parsing.
+- Preserves system comments and user whitelist.
+
+### 7.4. `kodu review [options]`
+- Analyzes staged git diff via AI.
+- Options:
+  - `--mode <mode>`: Review mode - `bug` (default), `style`, or `security`.
+  - `--json`: Output structured JSON report.
+  - `--ci`: CI/CD mode (no spinners, no buffering).
+  - `--output <file>`: Save output to file.
+- Exits with code `1` if issues found in structured mode.
+- Requires: Git repository, staged changes, API key.
+
+### 7.5. `kodu commit [options]`
+- Generates Conventional Commit message from staged diff.
+- Options:
+  - `--ci`: CI/CD mode (no spinners).
+  - `--output <file>`: Save message to file.
+- Outputs to stdout (does NOT execute `git commit`).
+- Requires: Git repository, staged changes, API key.
+
+## 8. Critical Constraints
+1. **No AI in Cleaner:** The `clean` command is purely deterministic (AST-based). Never use AI for code modification.
+2. **Validation First:** The app must crash gracefully with a helpful message if `kodu.json` is invalid (handled by Zod).
+3. **Secrets:** Never commit secrets. Assume `.env` usage for API keys. API keys are read from environment variables, not config files.
+4. **Performance:** Be mindful of import costs. We use `tinyglobby` and `picocolors` to keep startup time low (< 0.5s target).
+5. **AI Keys:** `llm.apiKeyEnv` (default `OPENAI_API_KEY`) must be set before running AI commands (`review`, `commit`).
+6. **Diff Filtering:** `GitService` excludes paths from `packer.ignore` when building staged diff for AI to filter out lock/dist noise.
+7. **Git Preconditions:** AI commands require a git repository and staged changes (otherwise exit with helpful message).
+8. **Config Location:** `kodu.json` must be in the current working directory (searched via `lilconfig`).
+
+## 9. Handling Uncertainties
 - If a task involves logic not defined in `docs/project_charter.md`, ask the user.
 - If unsure about a library, check Section 2 of this file. If not listed, prefer native Node.js APIs or check `docs/plan.md`.
+- When adding new dependencies, verify they align with the "Fresh & Modern" stack strategy and are not legacy libraries.
