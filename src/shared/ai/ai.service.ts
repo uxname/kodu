@@ -79,8 +79,14 @@ ${diff}
 `.trim(),
     );
 
-    const message = output.text.trim();
-    return message.split('\n')[0] ?? message;
+    const raw = output.text.trim();
+    const cleaned = this.cleanCommitMessage(raw);
+
+    if (!cleaned) {
+      throw new Error('AI не вернул валидное сообщение коммита.');
+    }
+
+    return cleaned;
   }
 
   private createAgent(id: string, instructions: string): Agent {
@@ -130,5 +136,25 @@ ${diff}
     const model = this.configService.getConfig().llm.model;
     const normalized = model.includes('/') ? model : `openai/${model}`;
     return normalized;
+  }
+
+  private cleanCommitMessage(text: string): string {
+    const unfenced = text.replace(/^```[a-zA-Z]*\s*/g, '').replace(/```$/g, '');
+    const lines = unfenced
+      .split('\n')
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+
+    if (lines.length === 0) {
+      return '';
+    }
+
+    const first = lines[0]
+      .replace(/^"|"$/g, '')
+      .replace(/^'|'$/g, '')
+      .replace(/^Commit message:?\s*/i, '')
+      .trim();
+
+    return first;
   }
 }
