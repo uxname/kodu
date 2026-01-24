@@ -1,7 +1,12 @@
+import { writeFile } from 'node:fs/promises';
 import clipboard from 'clipboardy';
 import { Command, CommandRunner, Option } from 'nest-commander';
 import { UiService } from '../../core/ui/ui.service';
-import { AiService, type ReviewMode } from '../../shared/ai/ai.service';
+import {
+  AiService,
+  type ReviewMode,
+  type ReviewResult,
+} from '../../shared/ai/ai.service';
 import { GitService } from '../../shared/git/git.service';
 import { TokenizerService } from '../../shared/tokenizer/tokenizer.service';
 
@@ -9,6 +14,8 @@ type ReviewOptions = {
   mode?: ReviewMode;
   copy?: boolean;
   json?: boolean;
+  ci?: boolean;
+  output?: string;
 };
 
 const DEFAULT_MODE: ReviewMode = 'bug';
@@ -51,24 +58,62 @@ export class ReviewCommand extends CommandRunner {
     return true;
   }
 
+  @Option({ flags: '--ci', description: 'CI-режим: без спиннера и без буфера' })
+  parseCi(): boolean {
+    return true;
+  }
+
+  @Option({
+    flags: '-o, --output <path>',
+    description: 'Сохранить итоговый ревью в файл (text/JSON)',
+  })
+  parseOutput(value: string): string {
+    return value;
+  }
+
   async run(_inputs: string[], options: ReviewOptions = {}): Promise<void> {
-    const spinner = this.ui
-      .createSpinner({ text: 'Собираю diff из git...' })
-      .start();
+    const ciMode = Boolean(options.ci);
+    const spinner = ciMode
+      ? undefined
+      : this.ui.createSpinner({ text: 'Собираю diff из git...' }).start();
+
+    const logProgress = (text: string): void => {
+      if (spinner) {
+        spinner.text = text;
+        return;
+      }
+      this.ui.log.info(text);
+    };
+
+    const finishProgress = (text: string): void => {
+      if (spinner) {
+        spinner.success(text);
+        return;
+      }
+      this.ui.log.success(text);
+    };
 
     try {
       await this.git.ensureRepo();
 
       const hasStaged = await this.git.hasStagedChanges();
       if (!hasStaged) {
-        spinner.stop('Нет застейдженных изменений');
+        if (spinner) {
+          spinner.stop('Нет застейдженных изменений');
+        } else {
+          this.ui.log.info('Нет застейдженных изменений');
+        }
         this.ui.log.warn('Сначала выполните git add для нужных файлов.');
         return;
       }
 
       const diff = await this.git.getStagedDiff();
       if (!diff.trim()) {
-        spinner.stop('Diff пуст — возможно, всё исключено packer.ignore');
+        if (spinner) {
+          spinner.stop('Diff пуст — возможно, всё исключено packer.ignore');
+        } else {
+          this.ui.log.info('Diff пуст — возможно, всё исключено packer.ignore');
+        }
         this.ui.log.warn(
           'Diff пустой: все изменения попали в исключения packer.ignore.',
         );
@@ -83,7 +128,7 @@ export class ReviewCommand extends CommandRunner {
         );
       }
 
-      spinner.text = 'Запрос к AI...';
+      logProgress('Запрос к AI...');
       const mode = options.mode ?? DEFAULT_MODE;
       const result = await this.ai.reviewDiff(
         diff,
@@ -91,14 +136,15 @@ export class ReviewCommand extends CommandRunner {
         Boolean(options.json),
       );
 
-      spinner.success('Ревью готово');
+      finishProgress('Ревью готово');
 
       if (options.json && result.structured) {
         this.renderStructured(result.structured);
+        await this.writeOutput(options.output, result.structured);
         if (options.copy) {
-          await clipboard.write(JSON.stringify(result.structured, null, 2));
-          this.ui.log.success('JSON скопирован в буфер обмена');
+          await this.copyJson(result.structured, ciMode);
         }
+        this.failIfIssues(result.structured);
         return;
       }
 
@@ -109,13 +155,18 @@ export class ReviewCommand extends CommandRunner {
       }
 
       console.log(result.text);
+      await this.writeOutput(options.output, result.text);
 
       if (options.copy) {
-        await clipboard.write(result.text);
-        this.ui.log.success('Результат скопирован в буфер обмена');
+        await this.copyText(result.text, ciMode);
       }
+      this.failIfIssues(result.structured);
     } catch (error) {
-      spinner.error('Ошибка ревью');
+      if (spinner) {
+        spinner.error('Ошибка ревью');
+      } else {
+        this.ui.log.error('Ошибка ревью');
+      }
       const message =
         error instanceof Error ? error.message : 'Неизвестная ошибка';
       this.ui.log.error(message);
@@ -123,15 +174,47 @@ export class ReviewCommand extends CommandRunner {
     }
   }
 
-  private renderStructured(result: {
-    summary: string;
-    issues: Array<{
-      severity: string;
-      file?: string;
-      line?: number;
-      message: string;
-    }>;
-  }): void {
+  private async writeOutput(
+    target: string | undefined,
+    payload: unknown,
+  ): Promise<void> {
+    if (!target) {
+      return;
+    }
+    const data =
+      typeof payload === 'string' ? payload : JSON.stringify(payload, null, 2);
+    await writeFile(target, data, { encoding: 'utf8' });
+    this.ui.log.success(`Результат сохранён в ${target}`);
+  }
+
+  private async copyJson(result: ReviewResult, ciMode: boolean): Promise<void> {
+    if (ciMode) {
+      this.ui.log.warn('--copy игнорируется в CI режиме');
+      return;
+    }
+    await clipboard.write(JSON.stringify(result, null, 2));
+    this.ui.log.success('JSON скопирован в буфер обмена');
+  }
+
+  private async copyText(text: string, ciMode: boolean): Promise<void> {
+    if (ciMode) {
+      this.ui.log.warn('--copy игнорируется в CI режиме');
+      return;
+    }
+    await clipboard.write(text);
+    this.ui.log.success('Результат скопирован в буфер обмена');
+  }
+
+  private failIfIssues(structured?: ReviewResult): void {
+    const issues = structured?.issues ?? [];
+    if (!issues.length) {
+      return;
+    }
+    this.ui.log.error('AI нашёл проблемы — ревью фейлится.');
+    process.exitCode = 1;
+  }
+
+  private renderStructured(result: ReviewResult): void {
     this.ui.log.info(`Итог: ${result.summary}`);
     if (!result.issues.length) {
       this.ui.log.success('Критичных проблем не найдено.');

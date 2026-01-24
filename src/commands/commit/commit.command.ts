@@ -1,11 +1,12 @@
+import { writeFile } from 'node:fs/promises';
 import { Command, CommandRunner, Option } from 'nest-commander';
 import { UiService } from '../../core/ui/ui.service';
 import { AiService } from '../../shared/ai/ai.service';
 import { GitService } from '../../shared/git/git.service';
 
 type CommitOptions = {
-  noAsk?: boolean;
-  edit?: boolean;
+  ci?: boolean;
+  output?: string;
 };
 
 @Command({
@@ -21,77 +22,85 @@ export class CommitCommand extends CommandRunner {
     super();
   }
 
-  @Option({ flags: '--no-ask', description: 'Не спрашивать подтверждение' })
-  parseNoAsk(): boolean {
+  @Option({ flags: '--ci', description: 'CI-режим: без спиннеров и диалогов' })
+  parseCi(): boolean {
     return true;
   }
 
   @Option({
-    flags: '-e, --edit',
-    description: 'Отредактировать перед коммитом',
+    flags: '-o, --output <path>',
+    description: 'Сохранить сообщение в файл',
   })
-  parseEdit(): boolean {
-    return true;
+  parseOutput(value: string): string {
+    return value;
   }
 
   async run(_inputs: string[], options: CommitOptions = {}): Promise<void> {
-    const spinner = this.ui.createSpinner({ text: 'Собираю diff...' }).start();
+    const ciMode = Boolean(options.ci);
+    const spinner = ciMode
+      ? undefined
+      : this.ui.createSpinner({ text: 'Собираю diff...' }).start();
+
+    const logProgress = (text: string): void => {
+      if (spinner) {
+        spinner.text = text;
+        return;
+      }
+      this.ui.log.info(text);
+    };
+
+    const finishProgress = (text: string): void => {
+      if (spinner) {
+        spinner.success(text);
+        return;
+      }
+      this.ui.log.success(text);
+    };
 
     try {
       await this.git.ensureRepo();
 
       const hasStaged = await this.git.hasStagedChanges();
       if (!hasStaged) {
-        spinner.stop('Нет застейдженных изменений');
+        if (spinner) {
+          spinner.stop('Нет застейдженных изменений');
+        } else {
+          this.ui.log.info('Нет застейдженных изменений');
+        }
         this.ui.log.warn('Сначала выполните git add для нужных файлов.');
         return;
       }
 
       const diff = await this.git.getStagedDiff();
       if (!diff.trim()) {
-        spinner.stop('Diff пуст — возможно, всё исключено packer.ignore');
+        if (spinner) {
+          spinner.stop('Diff пуст — возможно, всё исключено packer.ignore');
+        } else {
+          this.ui.log.info('Diff пуст — возможно, всё исключено packer.ignore');
+        }
         this.ui.log.warn(
           'Diff пустой: все изменения попали в исключения packer.ignore.',
         );
         return;
       }
 
-      spinner.text = 'Генерирую сообщение коммита...';
-      const suggested = await this.ai.generateCommitMessage(diff);
+      logProgress('Генерирую сообщение коммита...');
+      const commitMessage = await this.ai.generateCommitMessage(diff);
 
-      spinner.success('Сообщение готово');
-      this.ui.log.info(`Предложение: ${suggested}`);
+      finishProgress('Сообщение готово');
+      this.ui.log.info(`Предложение: ${commitMessage}`);
 
-      let commitMessage = suggested;
-
-      if (options.edit) {
-        commitMessage = await this.ui.promptInput({
-          message: 'Отредактируйте сообщение коммита',
-          default: suggested,
-        });
+      console.log(commitMessage);
+      if (options.output) {
+        await writeFile(options.output, commitMessage, { encoding: 'utf8' });
+        this.ui.log.success(`Сообщение сохранено в ${options.output}`);
       }
-
-      if (!options.noAsk) {
-        const confirmed = await this.ui.promptConfirm({
-          message: 'Сделать коммит с этим сообщением?',
-          default: true,
-        });
-
-        if (!confirmed) {
-          this.ui.log.warn('Коммит отменён пользователем.');
-          return;
-        }
-      }
-
-      const applySpinner = this.ui
-        .createSpinner({ text: 'Выполняю git commit...' })
-        .start();
-
-      await this.git.commit(commitMessage);
-      applySpinner.success('Коммит создан');
-      this.ui.log.success(commitMessage);
     } catch (error) {
-      spinner.error('Ошибка при создании коммита');
+      if (spinner) {
+        spinner.error('Ошибка при создании коммита');
+      } else {
+        this.ui.log.error('Ошибка при создании коммита');
+      }
       const message =
         error instanceof Error ? error.message : 'Неизвестная ошибка';
       this.ui.log.error(message);
