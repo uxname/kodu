@@ -3,6 +3,7 @@
 ## 1. Repository Context
 - The main goal of the project is a CLI utility that facilitates interaction with code and AI: comment cleanup,
   project build into a single `.txt`, generation of helper commands to improve DX.
+- Everything we write (code, scripts, docs) must reduce cognitive load and boost DX: clear names, explicit defaults, fewer extra steps.
 - Architecture is built on Nest Command (nest-commander) and runs via `CommandFactory`.
 - TypeScript targets `ES2023`, modules and plugin resolution work in `nodenext` mode, build goes to `dist/`.
 - Command generation scenarios (`new:command`, `new:question`) help extend the CLI parser.
