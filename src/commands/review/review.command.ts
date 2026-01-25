@@ -87,6 +87,22 @@ export class ReviewCommand extends CommandRunner {
     };
 
     try {
+      if (!this.ai.hasApiKey()) {
+        const envName = this.ai.getApiKeyEnvName();
+        if (spinner) {
+          spinner.stop('AI ключ не найден');
+        } else {
+          this.ui.log.error('AI ключ не найден');
+        }
+        this.ui.log.warn(`Команда 'review' требует AI ключ для работы.`);
+        this.ui.log.info(`Установите ключ: export ${envName}=<ваш_ключ>`);
+        this.ui.log.info(
+          `Имя переменной окружения настраивается через llm.apiKeyEnv в kodu.json`,
+        );
+        process.exitCode = 1;
+        return;
+      }
+
       await this.git.ensureRepo();
 
       const hasStaged = await this.git.hasStagedChanges();

@@ -89,6 +89,21 @@ ${diff}
     return cleaned;
   }
 
+  hasApiKey(): boolean {
+    const config = this.configService.getConfig();
+    if (!config.llm) {
+      return false;
+    }
+    const envName = config.llm.apiKeyEnv ?? 'OPENAI_API_KEY';
+    const value = process.env[envName];
+    return Boolean(value);
+  }
+
+  getApiKeyEnvName(): string {
+    const config = this.configService.getConfig();
+    return config.llm?.apiKeyEnv ?? 'OPENAI_API_KEY';
+  }
+
   private createAgent(id: string, instructions: string): Agent {
     const apiKey = this.getApiKey();
     const modelId = this.getModelId();
@@ -121,8 +136,13 @@ ${diff}
   }
 
   private getApiKey(): string {
-    const envName =
-      this.configService.getConfig().llm.apiKeyEnv ?? 'OPENAI_API_KEY';
+    const config = this.configService.getConfig();
+    if (!config.llm) {
+      throw new Error(
+        'LLM конфигурация не найдена. Добавьте секцию llm в kodu.json',
+      );
+    }
+    const envName = config.llm.apiKeyEnv ?? 'OPENAI_API_KEY';
     const value = process.env[envName];
 
     if (!value) {
@@ -133,7 +153,13 @@ ${diff}
   }
 
   private getModelId(): string {
-    const model = this.configService.getConfig().llm.model;
+    const config = this.configService.getConfig();
+    if (!config.llm) {
+      throw new Error(
+        'LLM конфигурация не найдена. Добавьте секцию llm в kodu.json',
+      );
+    }
+    const model = config.llm.model;
     const normalized = model.includes('/') ? model : `openai/${model}`;
     return normalized;
   }

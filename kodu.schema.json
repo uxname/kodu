@@ -6,11 +6,6 @@
       "type": "string"
     },
     "llm": {
-      "default": {
-        "provider": "openai",
-        "model": "gpt-4o",
-        "apiKeyEnv": "OPENAI_API_KEY"
-      },
       "type": "object",
       "properties": {
         "provider": {
@@ -88,6 +83,6 @@
       "additionalProperties": false
     }
   },
-  "required": ["llm", "cleaner", "packer"],
+  "required": ["cleaner", "packer"],
   "additionalProperties": false
 }

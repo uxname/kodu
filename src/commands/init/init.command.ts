@@ -13,9 +13,15 @@ export class InitCommand extends CommandRunner {
   async run(): Promise<void> {
     const configPath = path.join(process.cwd(), 'kodu.json');
 
+    const defaultLlmConfig = {
+      provider: 'openai' as const,
+      model: 'gpt-4o',
+      apiKeyEnv: 'OPENAI_API_KEY',
+    };
+
     const defaultConfig: KoduConfig = {
       $schema: 'https://uxna.me/kodu/schema.json',
-      llm: { provider: 'openai', model: 'gpt-4o', apiKeyEnv: 'OPENAI_API_KEY' },
+      llm: defaultLlmConfig,
       cleaner: { whitelist: ['//!'], keepJSDoc: true },
       packer: {
         ignore: [
@@ -31,9 +37,22 @@ export class InitCommand extends CommandRunner {
       },
     };
 
-    const provider = await this.ui.promptSelect<'openai'>(
-      this.buildProviderQuestion(defaultConfig.llm.provider),
-    );
+    const useAi = await this.ui.promptConfirm({
+      message: 'Будете использовать AI функции?',
+      default: true,
+    });
+
+    let llmConfig: KoduConfig['llm'] | undefined;
+    if (useAi) {
+      const provider = await this.ui.promptSelect<'openai'>(
+        this.buildProviderQuestion(defaultLlmConfig.provider),
+      );
+      llmConfig = {
+        provider,
+        model: defaultLlmConfig.model,
+        apiKeyEnv: defaultLlmConfig.apiKeyEnv,
+      };
+    }
 
     const extendIgnore = await this.ui.promptConfirm({
       message: 'Изменить стандартный ignore-список?',
@@ -57,11 +76,7 @@ export class InitCommand extends CommandRunner {
 
     const configToSave: KoduConfig = {
       $schema: defaultConfig.$schema,
-      llm: {
-        provider,
-        model: defaultConfig.llm.model,
-        apiKeyEnv: defaultConfig.llm.apiKeyEnv,
-      },
+      ...(llmConfig && { llm: llmConfig }),
       cleaner: { whitelist, keepJSDoc: defaultConfig.cleaner.keepJSDoc },
       packer: { ignore: ignoreList },
     };
@@ -71,9 +86,16 @@ export class InitCommand extends CommandRunner {
     await this.ensureGitignore();
 
     this.ui.log.success('Конфигурация Kodu создана.');
-    this.ui.log.info(
-      '🎉 Kodu initialized! Запустите `kodu pack`, чтобы продолжить.',
-    );
+    if (useAi) {
+      this.ui.log.info(
+        '🎉 Kodu initialized! Запустите `kodu pack`, чтобы продолжить.',
+      );
+    } else {
+      this.ui.log.info('🎉 Kodu initialized! Доступны команды: pack, clean.');
+      this.ui.log.info(
+        'Для использования AI функций (review, commit) добавьте секцию llm в kodu.json.',
+      );
+    }
   }
 
   private buildProviderQuestion(defaultProvider: 'openai') {

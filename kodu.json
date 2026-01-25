@@ -1,12 +1,9 @@
 {
   "$schema": "https://uxna.me/kodu/schema.json",
-  "llm": {
-    "provider": "openai",
-    "model": "gpt-4o",
-    "apiKeyEnv": "OPENAI_API_KEY"
-  },
   "cleaner": {
-    "whitelist": ["//!"],
+    "whitelist": [
+      "//!"
+    ],
     "keepJSDoc": true
   },
   "packer": {

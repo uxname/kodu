@@ -28,13 +28,15 @@ export class TokenizerService {
   }
 
   private getPricePerMillion(): number {
-    const model = this.configService.getConfig().llm.model;
+    const config = this.configService.getConfig();
+    const model = config.llm?.model ?? 'gpt-4o';
     const key = model.toLowerCase();
     return PRICE_PER_MILLION[key] ?? 0;
   }
 
   private createEncoder() {
-    const model = this.configService.getConfig().llm.model;
+    const config = this.configService.getConfig();
+    const model = config.llm?.model ?? 'gpt-4o';
 
     try {
       return encodingForModel(model as TiktokenModel);

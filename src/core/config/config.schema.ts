@@ -28,11 +28,7 @@ const packerSchema = z.object({
 
 export const configSchema = z.object({
   $schema: z.string().optional(),
-  llm: llmSchema.default({
-    provider: 'openai',
-    model: 'gpt-4o',
-    apiKeyEnv: 'OPENAI_API_KEY',
-  }),
+  llm: llmSchema.optional(),
   cleaner: cleanerSchema.default({ whitelist: ['//!'], keepJSDoc: true }),
   packer: packerSchema.default({
     ignore: [
