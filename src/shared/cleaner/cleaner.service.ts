@@ -97,7 +97,7 @@ export class CleanerService {
     });
     const fullText = sourceFile.getFullText();
 
-    const ranges = this.collectCommentRanges(sourceFile);
+    const ranges = this.collectCommentRanges(sourceFile, file);
     const candidates = ranges.filter((range) =>
       this.shouldRemove(range, whitelist, keepJSDoc),
     );
@@ -121,7 +121,10 @@ export class CleanerService {
     return { nextContent, removed: candidates.length, previews };
   }
 
-  private collectCommentRanges(sourceFile: SourceFile): RemovalRange[] {
+  private collectCommentRanges(
+    sourceFile: SourceFile,
+    file: string,
+  ): RemovalRange[] {
     const fullText = sourceFile.getFullText();
     const ranges = new Map<string, RemovalRange>();
 
@@ -129,14 +132,12 @@ export class CleanerService {
       if (!items) return;
 
       for (const item of items) {
-        const key = `${item.pos}:${item.end}`;
-        if (ranges.has(key)) continue;
-        ranges.set(key, {
-          start: item.pos,
-          end: item.end,
-          text: fullText.slice(item.pos, item.end),
-          kind: 'comment',
-        });
+        this.addRange(
+          ranges,
+          item.pos,
+          item.end,
+          fullText.slice(item.pos, item.end),
+        );
       }
     };
 
@@ -158,16 +159,11 @@ export class CleanerService {
 
       const start = jsx.getPos();
       const end = jsx.getEnd();
-      const key = `${start}:${end}`;
+      this.addRange(ranges, start, end, fullText.slice(start, end), 'jsx');
+    }
 
-      if (!ranges.has(key)) {
-        ranges.set(key, {
-          start,
-          end,
-          text: fullText.slice(start, end),
-          kind: 'jsx',
-        });
-      }
+    if (this.shouldCollectHtmlComments(file)) {
+      this.collectHtmlCommentRanges(fullText, ranges);
     }
 
     return [...ranges.values()];
@@ -223,5 +219,40 @@ export class CleanerService {
   private async writeFile(file: string, content: string): Promise<void> {
     const absolute = path.resolve(process.cwd(), file);
     await fs.writeFile(absolute, content, 'utf8');
+  }
+
+  private addRange(
+    ranges: Map<string, RemovalRange>,
+    start: number,
+    end: number,
+    text: string,
+    kind: RemovalRange['kind'] = 'comment',
+  ): void {
+    const key = `${start}:${end}`;
+    if (ranges.has(key)) return;
+    ranges.set(key, { start, end, text, kind });
+  }
+
+  private collectHtmlCommentRanges(
+    fullText: string,
+    ranges: Map<string, RemovalRange>,
+  ): void {
+    const htmlCommentRegex = /<!--[\s\S]*?-->/g;
+    let match: RegExpExecArray | null;
+
+    while (true) {
+      match = htmlCommentRegex.exec(fullText);
+      if (!match) {
+        break;
+      }
+      const [text] = match;
+      if (!text) continue;
+      this.addRange(ranges, match.index, match.index + text.length, text);
+    }
+  }
+
+  private shouldCollectHtmlComments(file: string): boolean {
+    const extension = path.extname(file).toLowerCase();
+    return extension === '.html' || extension === '.htm';
   }
 }

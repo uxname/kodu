@@ -33,6 +33,26 @@ export class GitService {
     return stdout;
   }
 
+  async getChangedFiles(): Promise<string[]> {
+    await this.ensureRepo();
+    const changed = new Set<string>();
+    const load = async (args: string[]) => {
+      const { stdout } = await execa('git', args);
+      stdout
+        .split('\n')
+        .map((entry) => entry.trim())
+        .filter((entry) => entry.length > 0)
+        .forEach((entry) => {
+          changed.add(entry);
+        });
+    };
+
+    await load(['diff', '--name-only']);
+    await load(['diff', '--name-only', '--staged']);
+    await load(['ls-files', '--others', '--exclude-standard']);
+    return [...changed].sort();
+  }
+
   async getStatusShort(): Promise<string> {
     const { stdout } = await execa('git', ['status', '--short']);
     return stdout.trim();

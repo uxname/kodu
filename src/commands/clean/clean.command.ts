@@ -3,9 +3,11 @@ import { ConfigService } from '../../core/config/config.service';
 import { FsService } from '../../core/file-system/fs.service';
 import { UiService } from '../../core/ui/ui.service';
 import { CleanerService } from '../../shared/cleaner/cleaner.service';
+import { GitService } from '../../shared/git/git.service';
 
 type CleanOptions = {
   dryRun?: boolean;
+  changed?: boolean;
 };
 
 @Command({ name: 'clean', description: 'Удалить комментарии из кода' })
@@ -15,6 +17,7 @@ export class CleanCommand extends CommandRunner {
     private readonly fsService: FsService,
     private readonly cleaner: CleanerService,
     private readonly config: ConfigService,
+    private readonly git: GitService,
   ) {
     super();
   }
@@ -27,13 +30,17 @@ export class CleanCommand extends CommandRunner {
     return true;
   }
 
+  @Option({
+    flags: '-c, --changed',
+    description: 'Очистить только изменённые файлы',
+  })
+  parseChanged(): boolean {
+    return true;
+  }
+
   async run(_inputs: string[], options: CleanOptions = {}): Promise<void> {
     const spinner = this.ui
-      .createSpinner({
-        text: options.dryRun
-          ? 'Анализ комментариев...'
-          : 'Очистка комментариев...',
-      })
+      .createSpinner({ text: this.buildSpinnerText(options) })
       .start();
 
     try {
@@ -41,13 +48,14 @@ export class CleanCommand extends CommandRunner {
       const allFiles = await this.fsService.findProjectFiles({
         useGitignore: cleanerConfig.useGitignore,
       });
-      const targets = allFiles.filter((file) =>
-        /\.(ts|tsx|js|jsx)$/i.test(file),
-      );
+      const targets = await this.collectTargets(allFiles, options);
 
       if (targets.length === 0) {
-        spinner.stop('Нет файлов для очистки.');
-        this.ui.log.warn('Нет файлов для очистки.');
+        const noFilesMessage = options.changed
+          ? 'Нет изменённых файлов для очистки.'
+          : 'Нет файлов для очистки.';
+        spinner.stop(noFilesMessage);
+        this.ui.log.warn(noFilesMessage);
         return;
       }
 
@@ -84,5 +92,28 @@ export class CleanCommand extends CommandRunner {
       this.ui.log.error(message);
       process.exitCode = 1;
     }
+  }
+
+  private buildSpinnerText(options: CleanOptions): string {
+    const action = options.dryRun ? 'Анализ' : 'Очистка';
+    const target = options.changed ? ' изменённых файлов' : ' комментариев';
+    return `${action}${target}...`;
+  }
+
+  private async collectTargets(
+    allFiles: string[],
+    options: CleanOptions,
+  ): Promise<string[]> {
+    const matcher = /\.(ts|tsx|js|jsx|html)$/i;
+    const filtered = allFiles.filter((file) => matcher.test(file));
+
+    if (!options.changed) {
+      return filtered;
+    }
+
+    const changedFiles = await this.git.getChangedFiles();
+    const changedSet = new Set(changedFiles);
+
+    return filtered.filter((file) => changedSet.has(file));
   }
 }

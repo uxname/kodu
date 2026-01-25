@@ -84,14 +84,17 @@ kodu pack
 ```
 
 ### Clean Code
-Remove comments from your JS/TS files to reduce token usage. It uses safe parsing to ensure `@ts-ignore`, `TODO`, and `biome-ignore` comments are preserved.
+Remove comments from your JS/TS files and `.html`/`.htm` templates (including `//`, `/* ... */`, and `<!-- ... -->`) to reduce token usage. HTML/HTM files gain `<!-- ... -->` stripping, while other file types stay untouched to avoid removing regex literals or strings; `@ts-ignore`, `TODO`, and `biome-ignore` comments are preserved and `--dry-run` previews the impact.
 
 ```bash
 # See what will be removed without changing files
 kodu clean --dry-run
 
-# Clean the code
+# Clean the code globally
 kodu clean
+
+# Clean only files with Git changes
+kodu clean --changed
 ```
 
 ### AI Code Review
