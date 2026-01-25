@@ -8,21 +8,17 @@
     "llm": {
       "type": "object",
       "properties": {
-        "provider": {
-          "default": "openai",
-          "type": "string",
-          "const": "openai"
-        },
         "model": {
-          "default": "gpt-5-mini",
-          "type": "string"
+          "default": "openai/gpt-5-mini",
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9-_]+\\/[a-zA-Z0-9-_.]+$"
         },
         "apiKeyEnv": {
           "default": "OPENAI_API_KEY",
           "type": "string"
         }
       },
-      "required": ["provider", "model", "apiKeyEnv"],
+      "required": ["model", "apiKeyEnv"],
       "additionalProperties": false
     },
     "cleaner": {

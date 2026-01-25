@@ -98,8 +98,7 @@ Configuration structure:
 ```json
 {
   "llm": {
-    "provider": "openai",
-    "model": "gpt-4o",
+    "model": "openai/gpt-5-mini",
     "apiKeyEnv": "OPENAI_API_KEY"
   },
   "cleaner": {
@@ -131,14 +130,26 @@ Configuration structure:
 ```
 
 **Options:**
-- `llm.provider`: LLM provider (currently only `"openai"`).
-- `llm.model`: Model to use (e.g., `"gpt-4o"`).
+- `llm.model`: Model identifier in format `"provider/model-name"` (e.g., `"openai/gpt-4o"`, `"anthropic/claude-4-5-sonnet"`, `"google/gemini-2.5-flash"`).
 - `llm.apiKeyEnv`: Environment variable name for API key (default: `"OPENAI_API_KEY"`).
-- `cleaner.whitelist`: Array of comment prefixes to preserve (e.g., `["//!"]`).
-- `cleaner.keepJSDoc`: Whether to preserve JSDoc comments `/** ... */` (default: `true`).
-- `packer.ignore`: Array of file/folder patterns to exclude from packing.
-- `prompts.review`: Record<string, string> - Prompts for review modes. Keys are mode names (standard: `bug`, `style`, `security`; custom modes can be added). Supports variables `{diff}` and `{mode}`. Standard modes always available with defaults if not specified.
-- `prompts.commit`: string - Prompt for commit message generation. Supports variable `{diff}`. Uses default if not specified.
+
+**Supported Providers:**
+Kodu supports 72+ providers through Mastra's model router:
+
+- **OpenAI**: `openai/gpt-4o`, `openai/gpt-4o-mini`, `openai/gpt-5`, etc.
+- **Anthropic**: `anthropic/claude-4-5-sonnet`, `anthropic/claude-opus-4-1`, etc.
+- **Google Gemini**: `google/gemini-2.5-flash`, `google/gemini-2.5-pro`, etc.
+- **xAI**: `xai/grok-4`, etc.
+- **OpenRouter**: `openrouter/anthropic/claude-haiku-4-5`, etc.
+- **And 65+ more providers**
+
+**API Key Environment Variables:**
+- OpenAI: `OPENAI_API_KEY`
+- Anthropic: `ANTHROPIC_API_KEY`
+- Google: `GOOGLE_API_KEY`
+- xAI: `XAI_API_KEY`
+- OpenRouter: `OPENROUTER_API_KEY`
+- Others: See provider documentation
 
 **Cleaner Whitelist Behavior:**
 - *System:* Automatically preserved: `@ts-ignore`, `@ts-expect-error`, `eslint-disable`, `prettier-ignore`, `biome-ignore`, `TODO`, `FIXME`.

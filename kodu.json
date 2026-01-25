@@ -1,16 +1,24 @@
 {
   "$schema": "https://uxna.me/kodu/schema.json",
   "llm": {
-    "provider": "openai",
-    "model": "gpt-5-mini",
+    "model": "openai/gpt-5-mini",
     "apiKeyEnv": "OPENAI_API_KEY"
   },
   "cleaner": {
-    "whitelist": ["//!", "qwe", "ssss"],
-    "keepJSDoc": false
+    "whitelist": ["//!"],
+    "keepJSDoc": true
   },
   "packer": {
-    "ignore": ["test"]
+    "ignore": [
+      "package-lock.json",
+      "yarn.lock",
+      "pnpm-lock.yaml",
+      ".git",
+      ".kodu",
+      "node_modules",
+      "dist",
+      "coverage"
+    ]
   },
   "prompts": {
     "review": {

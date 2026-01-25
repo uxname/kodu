@@ -78,7 +78,10 @@ export class AiService {
       id,
       name: id,
       instructions,
-      model: { id: modelId as `${string}/${string}`, apiKey },
+      model: {
+        id: modelId as `${string}/${string}`,
+        apiKey,
+      },
       maxRetries: 1,
     });
   }
@@ -140,8 +143,15 @@ export class AiService {
       );
     }
     const model = config.llm.model;
-    const normalized = model.includes('/') ? model : `openai/${model}`;
-    return normalized;
+
+    // Model should already be in provider/model format, but validate
+    if (!model.includes('/')) {
+      throw new Error(
+        `Неверный формат модели: "${model}". Ожидается формат "provider/model-name" (например, "openai/gpt-4o")`,
+      );
+    }
+
+    return model;
   }
 
   private cleanCommitMessage(text: string): string {

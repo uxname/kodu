@@ -18,8 +18,7 @@ export class InitCommand extends CommandRunner {
     const configPath = path.join(process.cwd(), 'kodu.json');
 
     const defaultLlmConfig = {
-      provider: 'openai' as const,
-      model: 'gpt-5-mini',
+      model: 'openai/gpt-5-mini',
       apiKeyEnv: 'OPENAI_API_KEY',
     };
 
@@ -48,12 +47,32 @@ export class InitCommand extends CommandRunner {
 
     let llmConfig: KoduConfig['llm'] | undefined;
     if (useAi) {
-      const provider = await this.ui.promptSelect<'openai'>(
-        this.buildProviderQuestion(defaultLlmConfig.provider),
-      );
+      const useCustomModel = await this.ui.promptConfirm({
+        message: 'Использовать свою модель?',
+        default: false,
+      });
+
+      let model: string;
+      if (useCustomModel) {
+        model = await this.ui.promptInput({
+          message:
+            'Введите модель в формате provider/model-name (например, openai/gpt-5-mini):',
+          default: defaultLlmConfig.model,
+          validate: (input) => {
+            if (!input.includes('/')) {
+              return 'Модель должна быть в формате provider/model-name';
+            }
+            return true;
+          },
+        });
+      } else {
+        model = await this.ui.promptSelect<string>(
+          this.buildModelQuestion(defaultLlmConfig.model),
+        );
+      }
+
       llmConfig = {
-        provider,
-        model: defaultLlmConfig.model,
+        model,
         apiKeyEnv: defaultLlmConfig.apiKeyEnv,
       };
     }
@@ -106,11 +125,23 @@ export class InitCommand extends CommandRunner {
     }
   }
 
-  private buildProviderQuestion(defaultProvider: 'openai') {
+  private buildModelQuestion(defaultModel: string) {
     return {
-      message: 'Выберите AI-провайдера',
-      choices: [{ name: 'OpenAI', value: 'openai' as const }],
-      default: defaultProvider,
+      message: 'Выберите AI модель',
+      choices: [
+        {
+          name: 'OpenAI GPT-5 Mini (рекомендуется)',
+          value: 'openai/gpt-5-mini',
+        },
+        { name: 'OpenAI GPT-4o Mini', value: 'openai/gpt-4o-mini' },
+        { name: 'OpenAI GPT-4o', value: 'openai/gpt-4o' },
+        {
+          name: 'Anthropic Claude 3.5 Sonnet',
+          value: 'anthropic/claude-3-5-sonnet-20241022',
+        },
+        { name: 'Google Gemini 2.5 Flash', value: 'google/gemini-2.5-flash' },
+      ],
+      default: defaultModel,
     };
   }
 

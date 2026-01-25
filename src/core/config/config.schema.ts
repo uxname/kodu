@@ -1,8 +1,13 @@
 import { z } from 'zod';
 
+// Model ID format: provider/model-name (e.g., "openai/gpt-4o", "anthropic/claude-4-5-sonnet")
+const modelIdSchema = z.string().regex(/^[a-zA-Z0-9-_]+\/[a-zA-Z0-9-_.]+$/, {
+  message:
+    "Model must be in format 'provider/model-name' (e.g., 'openai/gpt-4o')",
+});
+
 const llmSchema = z.object({
-  provider: z.literal('openai').default('openai'),
-  model: z.string().default('gpt-5-mini'),
+  model: modelIdSchema.default('openai/gpt-5-mini'),
   apiKeyEnv: z.string().default('OPENAI_API_KEY'),
 });
 
