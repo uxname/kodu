@@ -1,5 +1,5 @@
 {
-  "$schema": "https://uxna.me/kodu/schema.json",
+  "$schema": "https://raw.githubusercontent.com/uxname/kodu/refs/heads/master/kodu.schema.json",
   "llm": {
     "model": "openai/gpt-4.1-mini",
     "apiKeyEnv": "OPENAI_API_KEY",

@@ -29,7 +29,7 @@ export class InitCommand extends CommandRunner {
     };
 
     const defaultConfig: KoduConfig = {
-      $schema: 'https://uxna.me/kodu/schema.json',
+      $schema: 'https://raw.githubusercontent.com/uxname/kodu/refs/heads/master/kodu.schema.json',
       llm: defaultLlmConfig,
       cleaner: { whitelist: ['//!'], keepJSDoc: true, useGitignore: true },
       packer: {
