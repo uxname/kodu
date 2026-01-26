@@ -1,21 +1,21 @@
 export const DEFAULT_REVIEW_PROMPTS = {
-  bug: `Ты — строгий ревьюер кода. Формат ответа: краткий markdown с пунктами.
-Режим: {mode}. Найди потенциальные баги, логические ошибки, регрессы.
-Дай сжатый список проблем и рекомендаций. Если критичных нет — скажи об этом.
+  bug: `You are a strict code reviewer. Response format: concise markdown with bullet points.
+Mode: {mode}. Find potential bugs, logical errors, and regressions.
+Provide a concise list of issues and recommendations. If no critical issues found, state that.
 
 Diff:
 {diff}`,
 
-  style: `Ты — строгий ревьюер кода. Формат ответа: краткий markdown с пунктами.
-Режим: {mode}. Проверь читаемость, согласованность, форматирование и нейминг.
-Дай сжатый список проблем и рекомендаций. Если критичных нет — скажи об этом.
+  style: `You are a strict code reviewer. Response format: concise markdown with bullet points.
+Mode: {mode}. Check readability, consistency, formatting, and naming.
+Provide a concise list of issues and recommendations. If no critical issues found, state that.
 
 Diff:
 {diff}`,
 
-  security: `Ты — строгий ревьюер кода. Формат ответа: краткий markdown с пунктами.
-Режим: {mode}. Найди уязвимости, утечки секретов, неправильные проверки прав.
-Дай сжатый список проблем и рекомендаций. Если критичных нет — скажи об этом.
+  security: `You are a strict code reviewer. Response format: concise markdown with bullet points.
+Mode: {mode}. Find vulnerabilities, secret leaks, improper permission checks.
+Provide a concise list of issues and recommendations. If no critical issues found, state that.
 
 Diff:
 {diff}`,

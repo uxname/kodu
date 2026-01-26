@@ -11,7 +11,7 @@ type CommitOptions = {
 
 @Command({
   name: 'commit',
-  description: 'Сгенерировать и применить сообщение коммита',
+  description: 'Generate and apply commit message',
 })
 export class CommitCommand extends CommandRunner {
   constructor(
@@ -22,14 +22,14 @@ export class CommitCommand extends CommandRunner {
     super();
   }
 
-  @Option({ flags: '--ci', description: 'CI-режим: без спиннеров и диалогов' })
+  @Option({ flags: '--ci', description: 'CI mode: no spinners and dialogs' })
   parseCi(): boolean {
     return true;
   }
 
   @Option({
     flags: '-o, --output <path>',
-    description: 'Сохранить сообщение в файл',
+    description: 'Save message to file',
   })
   parseOutput(value: string): string {
     return value;
@@ -39,7 +39,7 @@ export class CommitCommand extends CommandRunner {
     const ciMode = Boolean(options.ci);
     const spinner = ciMode
       ? undefined
-      : this.ui.createSpinner({ text: 'Собираю diff...' }).start();
+      : this.ui.createSpinner({ text: 'Collecting diff...' }).start();
 
     const logProgress = (text: string): void => {
       if (ciMode) {
@@ -67,14 +67,14 @@ export class CommitCommand extends CommandRunner {
       if (!this.ai.hasApiKey()) {
         const envName = this.ai.getApiKeyEnvName();
         if (spinner) {
-          spinner.stop('AI ключ не найден');
+          spinner.stop('AI key not found');
         } else {
-          this.ui.log.error('AI ключ не найден');
+          this.ui.log.error('AI key not found');
         }
-        this.ui.log.warn(`Команда 'commit' требует AI ключ для работы.`);
-        this.ui.log.info(`Установите ключ: export ${envName}=<ваш_ключ>`);
+        this.ui.log.warn(`'commit' command requires AI key to work.`);
+        this.ui.log.info(`Set key: export ${envName}=<your_key>`);
         this.ui.log.info(
-          `Имя переменной окружения настраивается через llm.apiKeyEnv в kodu.json`,
+          `Environment variable name is configured via llm.apiKeyEnv in kodu.json`,
         );
         process.exitCode = 1;
         return;
@@ -85,50 +85,53 @@ export class CommitCommand extends CommandRunner {
       const hasStaged = await this.git.hasStagedChanges();
       if (!hasStaged) {
         if (spinner) {
-          spinner.stop('Нет застейдженных изменений');
+          spinner.stop('No staged changes');
         } else {
-          this.ui.log.info('Нет застейдженных изменений');
+          this.ui.log.info('No staged changes');
         }
-        this.ui.log.warn('Сначала выполните git add для нужных файлов.');
+        this.ui.log.warn('First run git add for the required files.');
         return;
       }
 
       const diff = await this.git.getStagedDiff();
       if (!diff.trim()) {
         if (spinner) {
-          spinner.stop('Diff пуст — возможно, всё исключено packer.ignore');
+          spinner.stop(
+            'Diff is empty - possibly everything excluded by packer.ignore',
+          );
         } else {
-          this.ui.log.info('Diff пуст — возможно, всё исключено packer.ignore');
+          this.ui.log.info(
+            'Diff is empty - possibly everything excluded by packer.ignore',
+          );
         }
         this.ui.log.warn(
-          'Diff пустой: все изменения попали в исключения packer.ignore.',
+          'Diff is empty: all changes fell into packer.ignore exclusions.',
         );
         return;
       }
 
-      logProgress('Генерирую сообщение коммита...');
+      logProgress('Generating commit message...');
       const commitMessage = await this.ai.generateCommitMessage(diff);
 
-      finishProgress('Сообщение готово');
+      finishProgress('Message ready');
       if (!ciMode) {
-        this.ui.log.info(`Предложение: ${commitMessage}`);
+        this.ui.log.info(`Suggestion: ${commitMessage}`);
       }
 
       console.log(commitMessage);
       if (options.output) {
         await writeFile(options.output, commitMessage, { encoding: 'utf8' });
         if (!ciMode) {
-          this.ui.log.success(`Сообщение сохранено в ${options.output}`);
+          this.ui.log.success(`Message saved to ${options.output}`);
         }
       }
     } catch (error) {
       if (spinner) {
-        spinner.error('Ошибка при создании коммита');
+        spinner.error('Error creating commit');
       } else {
-        this.ui.log.error('Ошибка при создании коммита');
+        this.ui.log.error('Error creating commit');
       }
-      const message =
-        error instanceof Error ? error.message : 'Неизвестная ошибка';
+      const message = error instanceof Error ? error.message : 'Unknown error';
       this.ui.log.error(message);
       process.exitCode = 1;
     }

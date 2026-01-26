@@ -1,8 +1,8 @@
 # ToDo
 
-- [ ] Сделать автодополнение для всех основных терминалов
-- [ ] Проверить код на предмет рефакторинга через Gemini и отрефакторить
-- [ ] Перевести всё на английский
-- [ ] Сделать автоприменение патча из буфера обмена). Причём это может быть как валидный патч, так и ответ ИИ вида: File: /path/to/file.js\nContent...
-- [ ] Добавить pre-commit hook: npm run check
+- [ ] Implement auto-completion for all major terminals
+- [ ] Review code for refactoring opportunities through Gemini and refactor
+- [ ] Translate everything to English
+- [ ] Implement auto-application of patch from clipboard. This can be both a valid patch and an AI response like: File: /path/to/file.js\nContent...
+- [ ] Add pre-commit hook: npm run check
 

@@ -138,10 +138,10 @@ Configuration structure:
   },
   "prompts": {
     "review": {
-      "bug": "Ты — строгий ревьюер кода...\n\nDiff:\n{diff}",
-      "style": "Проверь читаемость...\n\nDiff:\n{diff}",
-      "security": "Найди уязвимости...\n\nDiff:\n{diff}",
-      "performance": "Проверь производительность...\n\nDiff:\n{diff}"
+      "bug": "You are a strict code reviewer...\n\nDiff:\n{diff}",
+      "style": "Check readability...\n\nDiff:\n{diff}",
+      "security": "Find vulnerabilities...\n\nDiff:\n{diff}",
+      "performance": "Check performance...\n\nDiff:\n{diff}"
     },
     "commit": "You generate Conventional Commit messages...\n\nDiff:\n{diff}"
   }

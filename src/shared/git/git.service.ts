@@ -15,7 +15,7 @@ export class GitService {
       const message =
         error instanceof Error && 'stdout' in error
           ? String((error as { stderr?: string }).stderr ?? error.message)
-          : 'Git репозиторий не найден. Инициализируйте git перед выполнением команды.';
+          : 'Git repository not found. Initialize git before running the command.';
       throw new Error(message);
     }
   }

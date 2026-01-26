@@ -10,7 +10,7 @@ type CleanOptions = {
   changed?: boolean;
 };
 
-@Command({ name: 'clean', description: 'Удалить комментарии из кода' })
+@Command({ name: 'clean', description: 'Remove comments from code' })
 export class CleanCommand extends CommandRunner {
   constructor(
     private readonly ui: UiService,
@@ -24,7 +24,7 @@ export class CleanCommand extends CommandRunner {
 
   @Option({
     flags: '-d, --dry-run',
-    description: 'Показать, что будет удалено',
+    description: 'Show what will be removed',
   })
   parseDryRun(): boolean {
     return true;
@@ -32,7 +32,7 @@ export class CleanCommand extends CommandRunner {
 
   @Option({
     flags: '-c, --changed',
-    description: 'Очистить только изменённые файлы',
+    description: 'Clean only changed files',
   })
   parseChanged(): boolean {
     return true;
@@ -52,8 +52,8 @@ export class CleanCommand extends CommandRunner {
 
       if (targets.length === 0) {
         const noFilesMessage = options.changed
-          ? 'Нет изменённых файлов для очистки.'
-          : 'Нет файлов для очистки.';
+          ? 'No changed files to clean.'
+          : 'No files to clean.';
         spinner.stop(noFilesMessage);
         this.ui.log.warn(noFilesMessage);
         return;
@@ -63,11 +63,13 @@ export class CleanCommand extends CommandRunner {
         dryRun: options.dryRun,
       });
 
-      spinner.success(options.dryRun ? 'Анализ завершен' : 'Очистка завершена');
+      spinner.success(
+        options.dryRun ? 'Analysis complete' : 'Cleaning complete',
+      );
 
       if (options.dryRun) {
         this.ui.log.info(
-          `Будет затронуто файлов: ${summary.filesChanged}, комментариев: ${summary.commentsRemoved}`,
+          `Files to be affected: ${summary.filesChanged}, comments: ${summary.commentsRemoved}`,
         );
         summary.reports
           .filter((report) => report.removed > 0)
@@ -83,20 +85,19 @@ export class CleanCommand extends CommandRunner {
       }
 
       this.ui.log.success(
-        `Очищено файлов: ${summary.filesChanged}, удалено комментариев: ${summary.commentsRemoved}`,
+        `Files cleaned: ${summary.filesChanged}, comments removed: ${summary.commentsRemoved}`,
       );
     } catch (error) {
-      spinner.error('Ошибка при очистке');
-      const message =
-        error instanceof Error ? error.message : 'Неизвестная ошибка';
+      spinner.error('Error during cleaning');
+      const message = error instanceof Error ? error.message : 'Unknown error';
       this.ui.log.error(message);
       process.exitCode = 1;
     }
   }
 
   private buildSpinnerText(options: CleanOptions): string {
-    const action = options.dryRun ? 'Анализ' : 'Очистка';
-    const target = options.changed ? ' изменённых файлов' : ' комментариев';
+    const action = options.dryRun ? 'Analysis' : 'Cleaning';
+    const target = options.changed ? ' changed files' : ' comments';
     return `${action}${target}...`;
   }
 

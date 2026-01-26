@@ -21,7 +21,10 @@ type TemplateContext = {
   usdEstimate: number;
 };
 
-@Command({ name: 'pack', description: 'Собрать контекст проекта в один файл' })
+@Command({
+  name: 'pack',
+  description: 'Collect project context into a single file',
+})
 export class PackCommand extends CommandRunner {
   constructor(
     private readonly ui: UiService,
@@ -33,14 +36,14 @@ export class PackCommand extends CommandRunner {
     super();
   }
 
-  @Option({ flags: '-c, --copy', description: 'Скопировать результат в буфер' })
+  @Option({ flags: '-c, --copy', description: 'Copy result to clipboard' })
   parseCopy(): boolean {
     return true;
   }
 
   @Option({
     flags: '-t, --template <name>',
-    description: 'Имя шаблона из .kodu/prompts',
+    description: 'Template name from .kodu/prompts',
   })
   parseTemplate(value: string): string {
     return value;
@@ -48,21 +51,23 @@ export class PackCommand extends CommandRunner {
 
   @Option({
     flags: '-o, --out <path>',
-    description: 'Путь для сохранения результата',
+    description: 'Path to save result',
   })
   parseOut(value: string): string {
     return value;
   }
 
   async run(_inputs: string[], options: PackOptions): Promise<void> {
-    const spinner = this.ui.createSpinner({ text: 'Сбор файлов...' }).start();
+    const spinner = this.ui
+      .createSpinner({ text: 'Collecting files...' })
+      .start();
 
     try {
       const files = await this.fsService.findProjectFiles();
 
       if (files.length === 0) {
-        spinner.stop('Нет файлов для упаковки.');
-        this.ui.log.warn('Нет файлов для упаковки.');
+        spinner.stop('No files to pack.');
+        this.ui.log.warn('No files to pack.');
         return;
       }
 
@@ -92,19 +97,18 @@ export class PackCommand extends CommandRunner {
         await clipboard.write(templateApplied);
       }
 
-      spinner.success('Сбор завершен');
-      this.ui.log.info(`Файлов: ${files.length}`);
-      this.ui.log.info(`Токены: ${tokens}`);
-      this.ui.log.info(`Оценка стоимости: ~$${usdEstimate.toFixed(4)}`);
-      this.ui.log.success(`Сохранено в ${outputPath}`);
+      spinner.success('Collection complete');
+      this.ui.log.info(`Files: ${files.length}`);
+      this.ui.log.info(`Tokens: ${tokens}`);
+      this.ui.log.info(`Cost estimate: ~$${usdEstimate.toFixed(4)}`);
+      this.ui.log.success(`Saved to ${outputPath}`);
 
       if (options.copy) {
-        this.ui.log.success('Результат скопирован в буфер обмена');
+        this.ui.log.success('Result copied to clipboard');
       }
     } catch (error) {
-      spinner.error('Ошибка при сборке контекста');
-      const message =
-        error instanceof Error ? error.message : 'Неизвестная ошибка';
+      spinner.error('Error collecting context');
+      const message = error instanceof Error ? error.message : 'Unknown error';
       this.ui.log.error(message);
       process.exitCode = 1;
     }

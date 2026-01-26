@@ -52,7 +52,7 @@ export class AiService {
     const cleaned = this.cleanCommitMessage(raw);
 
     if (!cleaned) {
-      throw new Error('AI не вернул валидное сообщение коммита.');
+      throw new Error('AI did not return a valid commit message.');
     }
 
     return cleaned;
@@ -138,14 +138,14 @@ export class AiService {
     const config = this.configService.getConfig();
     if (!config.llm) {
       throw new Error(
-        'LLM конфигурация не найдена. Добавьте секцию llm в kodu.json',
+        'LLM configuration not found. Add llm section to kodu.json',
       );
     }
     const envName = config.llm.apiKeyEnv ?? 'OPENAI_API_KEY';
     const value = process.env[envName];
 
     if (!value) {
-      throw new Error(`Не найден API ключ: установите ${envName} в окружении.`);
+      throw new Error(`API key not found: set ${envName} in environment.`);
     }
 
     return value;
@@ -155,7 +155,7 @@ export class AiService {
     const config = this.configService.getConfig();
     if (!config.llm) {
       throw new Error(
-        'LLM конфигурация не найдена. Добавьте секцию llm в kodu.json',
+        'LLM configuration not found. Add llm section to kodu.json',
       );
     }
     const model = config.llm.model;
@@ -163,7 +163,7 @@ export class AiService {
     // Model should already be in provider/model format, but validate
     if (!model.includes('/')) {
       throw new Error(
-        `Неверный формат модели: "${model}". Ожидается формат "provider/model-name" (например, "openai/gpt-4o")`,
+        `Invalid model format: "${model}". Expected format "provider/model-name" (e.g., "openai/gpt-4o")`,
       );
     }
 

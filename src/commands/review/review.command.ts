@@ -17,7 +17,7 @@ const DEFAULT_MODE: ReviewMode = 'bug';
 
 @Command({
   name: 'review',
-  description: 'AI ревью для застейдженных изменений',
+  description: 'AI review for staged changes',
 })
 export class ReviewCommand extends CommandRunner {
   constructor(
@@ -31,7 +31,7 @@ export class ReviewCommand extends CommandRunner {
 
   @Option({
     flags: '-m, --mode <mode>',
-    description: 'Режим проверки: bug | style | security | <custom-mode>',
+    description: 'Review mode: bug | style | security | <custom-mode>',
   })
   parseMode(value: string): ReviewMode {
     const availableModes = this.ai.getAvailableReviewModes();
@@ -41,24 +41,27 @@ export class ReviewCommand extends CommandRunner {
     }
 
     this.ui.log.warn(
-      `Режим "${value}" не найден. Доступные режимы: ${availableModes.join(', ')}. Используется режим по умолчанию: ${DEFAULT_MODE}`,
+      `Mode "${value}" not found. Available modes: ${availableModes.join(', ')}. Using default mode: ${DEFAULT_MODE}`,
     );
     return DEFAULT_MODE;
   }
 
-  @Option({ flags: '-c, --copy', description: 'Скопировать результат в буфер' })
+  @Option({ flags: '-c, --copy', description: 'Copy result to clipboard' })
   parseCopy(): boolean {
     return true;
   }
 
-  @Option({ flags: '--ci', description: 'CI-режим: без спиннера и без буфера' })
+  @Option({
+    flags: '--ci',
+    description: 'CI mode: no spinner and no buffering',
+  })
   parseCi(): boolean {
     return true;
   }
 
   @Option({
     flags: '-o, --output <path>',
-    description: 'Сохранить итоговый ревью в файл',
+    description: 'Save final review to file',
   })
   parseOutput(value: string): string {
     return value;
@@ -68,7 +71,7 @@ export class ReviewCommand extends CommandRunner {
     const ciMode = Boolean(options.ci);
     const spinner = ciMode
       ? undefined
-      : this.ui.createSpinner({ text: 'Собираю diff из git...' }).start();
+      : this.ui.createSpinner({ text: 'Collecting diff from git...' }).start();
 
     const logProgress = (text: string): void => {
       if (ciMode) {
@@ -96,14 +99,14 @@ export class ReviewCommand extends CommandRunner {
       if (!this.ai.hasApiKey()) {
         const envName = this.ai.getApiKeyEnvName();
         if (spinner) {
-          spinner.stop('AI ключ не найден');
+          spinner.stop('AI key not found');
         } else {
-          this.ui.log.error('AI ключ не найден');
+          this.ui.log.error('AI key not found');
         }
-        this.ui.log.warn(`Команда 'review' требует AI ключ для работы.`);
-        this.ui.log.info(`Установите ключ: export ${envName}=<ваш_ключ>`);
+        this.ui.log.warn(`'review' command requires AI key to work.`);
+        this.ui.log.info(`Set key: export ${envName}=<your_key>`);
         this.ui.log.info(
-          `Имя переменной окружения настраивается через llm.apiKeyEnv в kodu.json`,
+          `Environment variable name is configured via llm.apiKeyEnv in kodu.json`,
         );
         process.exitCode = 1;
         return;
@@ -114,23 +117,27 @@ export class ReviewCommand extends CommandRunner {
       const hasStaged = await this.git.hasStagedChanges();
       if (!hasStaged) {
         if (spinner) {
-          spinner.stop('Нет застейдженных изменений');
+          spinner.stop('No staged changes');
         } else {
-          this.ui.log.info('Нет застейдженных изменений');
+          this.ui.log.info('No staged changes');
         }
-        this.ui.log.warn('Сначала выполните git add для нужных файлов.');
+        this.ui.log.warn('First run git add for the required files.');
         return;
       }
 
       const diff = await this.git.getStagedDiff();
       if (!diff.trim()) {
         if (spinner) {
-          spinner.stop('Diff пуст — возможно, всё исключено packer.ignore');
+          spinner.stop(
+            'Diff is empty - possibly everything excluded by packer.ignore',
+          );
         } else {
-          this.ui.log.info('Diff пуст — возможно, всё исключено packer.ignore');
+          this.ui.log.info(
+            'Diff is empty - possibly everything excluded by packer.ignore',
+          );
         }
         this.ui.log.warn(
-          'Diff пустой: все изменения попали в исключения packer.ignore.',
+          'Diff is empty: all changes fell into packer.ignore exclusions.',
         );
         return;
       }
@@ -139,15 +146,15 @@ export class ReviewCommand extends CommandRunner {
       const warningBudget = 12000;
       if (tokens.tokens > warningBudget) {
         this.ui.log.warn(
-          `Большой контекст (${tokens.tokens} токенов, ~$${tokens.usdEstimate.toFixed(2)}). Ревью может стоить дороже.`,
+          `Large context (${tokens.tokens} tokens, ~$${tokens.usdEstimate.toFixed(2)}). Review may cost more.`,
         );
       }
 
-      logProgress('Запрос к AI...');
+      logProgress('Requesting AI...');
       const mode = options.mode ?? DEFAULT_MODE;
       const result = await this.ai.reviewDiff(diff, mode);
 
-      finishProgress('Ревью готово');
+      finishProgress('Review ready');
 
       console.log(result.text);
       await this.writeOutput(options.output, result.text, ciMode);
@@ -157,12 +164,11 @@ export class ReviewCommand extends CommandRunner {
       }
     } catch (error) {
       if (spinner) {
-        spinner.error('Ошибка ревью');
+        spinner.error('Review error');
       } else {
-        this.ui.log.error('Ошибка ревью');
+        this.ui.log.error('Review error');
       }
-      const message =
-        error instanceof Error ? error.message : 'Неизвестная ошибка';
+      const message = error instanceof Error ? error.message : 'Unknown error';
       this.ui.log.error(message);
       process.exitCode = 1;
     }
@@ -178,16 +184,16 @@ export class ReviewCommand extends CommandRunner {
     }
     await writeFile(target, payload, { encoding: 'utf8' });
     if (!ciMode) {
-      this.ui.log.success(`Результат сохранён в ${target}`);
+      this.ui.log.success(`Result saved to ${target}`);
     }
   }
 
   private async copyText(text: string, ciMode: boolean): Promise<void> {
     if (ciMode) {
-      this.ui.log.warn('--copy игнорируется в CI режиме');
+      this.ui.log.warn('--copy ignored in CI mode');
       return;
     }
     await clipboard.write(text);
-    this.ui.log.success('Результат скопирован в буфер обмена');
+    this.ui.log.success('Result copied to clipboard');
   }
 }

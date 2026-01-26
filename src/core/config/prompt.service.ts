@@ -26,7 +26,7 @@ export class PromptService {
     }
 
     throw new Error(
-      `Шаблон ${name} не найден. Ожидались файлы: ${candidates
+      `Template ${name} not found. Expected files: ${candidates
         .map((c) => path.relative(process.cwd(), c))
         .join(', ')}`,
     );
@@ -46,7 +46,7 @@ export class PromptService {
     }
 
     throw new Error(
-      `Файл промпта не найден: ${path.relative(process.cwd(), resolved)}`,
+      `Prompt file not found: ${path.relative(process.cwd(), resolved)}`,
     );
   }
 

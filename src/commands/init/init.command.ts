@@ -14,7 +14,7 @@ const buildDefaultCommandSettings = () => ({
   review: { modelSettings: { maxOutputTokens: 5000 } },
 });
 
-@Command({ name: 'init', description: 'Инициализация конфигурации Kodu' })
+@Command({ name: 'init', description: 'Initialize Kodu configuration' })
 export class InitCommand extends CommandRunner {
   constructor(private readonly ui: UiService) {
     super();
@@ -29,7 +29,8 @@ export class InitCommand extends CommandRunner {
     };
 
     const defaultConfig: KoduConfig = {
-      $schema: 'https://raw.githubusercontent.com/uxname/kodu/refs/heads/master/kodu.schema.json',
+      $schema:
+        'https://raw.githubusercontent.com/uxname/kodu/refs/heads/master/kodu.schema.json',
       llm: defaultLlmConfig,
       cleaner: { whitelist: ['//!'], keepJSDoc: true, useGitignore: true },
       packer: {
@@ -48,14 +49,14 @@ export class InitCommand extends CommandRunner {
     };
 
     const useAi = await this.ui.promptConfirm({
-      message: 'Будете использовать AI функции?',
+      message: 'Will you use AI functions?',
       default: true,
     });
 
     let llmConfig: KoduConfig['llm'] | undefined;
     if (useAi) {
       const useCustomModel = await this.ui.promptConfirm({
-        message: 'Использовать свою модель?',
+        message: 'Use your own model?',
         default: false,
       });
 
@@ -63,11 +64,11 @@ export class InitCommand extends CommandRunner {
       if (useCustomModel) {
         model = await this.ui.promptInput({
           message:
-            'Введите модель в формате provider/model-name (например, openai/gpt-5-mini):',
+            'Enter model in format provider/model-name (e.g., openai/gpt-5-mini):',
           default: defaultLlmConfig.model,
           validate: (input) => {
             if (!input.includes('/')) {
-              return 'Модель должна быть в формате provider/model-name';
+              return 'Model must be in format provider/model-name';
             }
             return true;
           },
@@ -86,7 +87,7 @@ export class InitCommand extends CommandRunner {
     }
 
     const extendIgnore = await this.ui.promptConfirm({
-      message: 'Изменить стандартный ignore-список?',
+      message: 'Modify standard ignore list?',
       default: false,
     });
 
@@ -96,7 +97,7 @@ export class InitCommand extends CommandRunner {
 
     const additionalWhitelist = await this.ui.promptInput({
       message:
-        'Дополнительные префиксы для whitelist (через запятую, пусто — оставить дефолт):',
+        'Additional whitelist prefixes (comma-separated, empty - keep default):',
       default: '',
     });
 
@@ -134,25 +135,23 @@ export class InitCommand extends CommandRunner {
     await this.ensurePromptFiles(promptPaths);
     await this.ensureGitignore();
 
-    this.ui.log.success('Конфигурация Kodu создана.');
+    this.ui.log.success('Kodu configuration created.');
     if (useAi) {
-      this.ui.log.info(
-        '🎉 Kodu initialized! Запустите `kodu pack`, чтобы продолжить.',
-      );
+      this.ui.log.info('🎉 Kodu initialized! Run `kodu pack` to continue.');
     } else {
-      this.ui.log.info('🎉 Kodu initialized! Доступны команды: pack, clean.');
+      this.ui.log.info('🎉 Kodu initialized! Available commands: pack, clean.');
       this.ui.log.info(
-        'Для использования AI функций (review, commit) добавьте секцию llm в kodu.json.',
+        'To use AI functions (review, commit) add llm section to kodu.json.',
       );
     }
   }
 
   private buildModelQuestion(defaultModel: string) {
     return {
-      message: 'Выберите AI модель',
+      message: 'Select AI model',
       choices: [
         {
-          name: 'OpenAI GPT-5 Mini (рекомендуется)',
+          name: 'OpenAI GPT-5 Mini (recommended)',
           value: 'openai/gpt-5-mini',
         },
         { name: 'OpenAI GPT-4o Mini', value: 'openai/gpt-4o-mini' },
@@ -169,7 +168,7 @@ export class InitCommand extends CommandRunner {
 
   private async askIgnoreList(defaultIgnore: string[]): Promise<string[]> {
     const answer = await this.ui.promptInput({
-      message: 'Укажите ignore-паттерны через запятую',
+      message: 'Specify ignore patterns (comma-separated)',
       default: defaultIgnore.join(', '),
     });
 
@@ -198,12 +197,14 @@ export class InitCommand extends CommandRunner {
   ): Promise<void> {
     if (await this.fileExists(configPath)) {
       const overwrite = await this.ui.promptConfirm({
-        message: 'kodu.json уже существует. Перезаписать?',
+        message: 'kodu.json already exists. Overwrite?',
         default: false,
       });
 
       if (!overwrite) {
-        this.ui.log.warn('Инициализация отменена: файл kodu.json уже есть.');
+        this.ui.log.warn(
+          'Initialization cancelled: kodu.json file already exists.',
+        );
         return;
       }
     }
@@ -213,7 +214,7 @@ export class InitCommand extends CommandRunner {
       `${JSON.stringify(config, null, 2)}\n`,
       'utf8',
     );
-    this.ui.log.success(`Сохранен ${configPath}`);
+    this.ui.log.success(`Saved ${configPath}`);
   }
 
   private async ensurePromptFiles(
@@ -281,7 +282,7 @@ export class InitCommand extends CommandRunner {
 
     if (!lines.some((line) => line.trim() === '.env')) {
       const addEnv = await this.ui.promptConfirm({
-        message: 'В .gitignore нет .env. Добавить?',
+        message: '.env not in .gitignore. Add it?',
         default: true,
       });
 
@@ -300,7 +301,7 @@ export class InitCommand extends CommandRunner {
         ? `${trimmed}\n${additions.join('\n')}`
         : additions.join('\n');
     await fs.writeFile(gitignorePath, `${next}\n`, 'utf8');
-    this.ui.log.success('Обновлен .gitignore');
+    this.ui.log.success('Updated .gitignore');
   }
 
   private async fileExists(targetPath: string): Promise<boolean> {
