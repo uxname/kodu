@@ -20,7 +20,10 @@
     "lint:fix:unsafe": "biome check --write --unsafe",
     "ts:check": "tsc --noEmit",
     "knip": "knip --production",
-    "check": "run-p ts:check lint:fix knip"
+    "check": "run-p ts:check lint:fix knip",
+    "________________ OTHER ________________": "",
+    "postinstall": "npm run prepare",
+    "prepare": "lefthook install"
   },
   "dependencies": {
     "@inquirer/confirm": "^6.0.4",
@@ -50,6 +53,7 @@
     "@nestjs/testing": "^11.0.1",
     "@types/node": "^22.10.7",
     "knip": "^5.82.1",
+    "lefthook": "^2.0.15",
     "nest-commander-schematics": "^3.2.0",
     "npm-run-all": "^4.1.5",
     "ts-loader": "^9.5.2",
