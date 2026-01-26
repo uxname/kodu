@@ -1,203 +1,142 @@
 <div align="center">
 
-# Kodu 🚀
+# Kodu 🦄
 
 **The AI-First CLI for Modern Developers**
 
 Generate contexts, clean code, review PRs, and draft commits—instantly.
 
-[![npm version](https://img.shields.io/npm/v/kodu?style=flat-square)](https://www.npmjs.com/package/kodu)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D20-green.svg?style=flat-square)](https://nodejs.org/)
-[![Built with NestJS](https://img.shields.io/badge/built%20with-NestJS-E0234E.svg?style=flat-square)](https://nestjs.com/)
-
-[Get Started](#quick-start) • [Documentation](#usage) • [Configuration](#configuration) • [Contributing](#contributing)
+[![npm version](https://img.shields.io/npm/v/kodu?style=flat-square&color=black)](https://www.npmjs.com/package/kodu)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square&color=black)](LICENSE)
+[![Privacy](https://img.shields.io/badge/Privacy-First-green.svg?style=flat-square)](https://github.com/uxname/kodu)
 
 </div>
 
 ---
 
-## 💡 Why Kodu?
+## ⚡ The Problem vs. Kodu
 
-Bridging the gap between your local codebase and LLMs is tedious. Manual copy-pasting, token limit struggles, and formatting issues slow you down.
-
-**Kodu** automates the "last mile" of AI-assisted development:
-*   **📦 Context Packing**: Turn your file tree into a single, token-optimized prompt.
-*   **🧹 Smart Cleaning**: Strip comments/noise deterministically to save tokens and money.
-*   **🤖 AI Agents**: Instant code reviews and commit message generation using your API key.
-*   **⚡ Performance**: Built on a modern stack (`tinyglobby`, `oxc`, `tiktoken`) for <0.5s startup.
+| You (Manual) ❌ | Kodu (Automated) ✅ |
+| :--- | :--- |
+| Copy-pasting 10 files one by one | **`kodu pack`** bundles context in 1 click |
+| Hitting token limits with comments | **`kodu clean`** strips noise deterministically |
+| Context switching for code reviews | **`kodu review`** checks logic inside your terminal |
+| Writing boring commit messages | **`kodu commit`** generates semantic git messages |
 
 ---
 
-## ⚡ Quick Start
+## 🚀 Instant Start
 
-### 1. Install
+Don't want to install? Run it directly:
+
+```bash
+# 1. Initialize config (creates kodu.json)
+npx kodu init
+
+# 2. Bundle your project to clipboard
+npx kodu pack --copy
+```
+
+**Or install globally for speed (<0.5s startup):**
 
 ```bash
 npm install -g kodu
 ```
 
-### 2. Initialize
+---
 
-Run the wizard to generate `kodu.json` and prompt templates:
+## 🛡️ Privacy & Security
 
-```bash
-kodu init
-```
+We know trust is paramount when dealing with code.
 
-### 3. Connect AI (Optional)
-
-To use `review` and `commit` commands, export your API key:
-
-```bash
-# Supports OpenAI, Anthropic, Google, and 70+ others via Mastra
-export OPENAI_API_KEY=sk-...
-```
+*   **Local Execution:** Code analysis runs locally.
+*   **Zero Data Retention:** We don't store your code.
+*   **Explicit Control:** `.env`, `node_modules`, and lockfiles are ignored by default.
+*   **You Own the Keys:** Your API key (`OPENAI_API_KEY`) goes directly to the provider.
 
 ---
 
-## 🛠 Usage
+## 💡 Common Workflows
 
-### 📦 Context Packing
-Bundle your project files into a format ready for ChatGPT/Claude. Respects `.gitignore` automatically.
+### 1. "I need to ask ChatGPT about my project"
+Pack your entire source code (minus ignored files) into the clipboard, optimized for tokens.
 
 ```bash
-# Copy entire project context to clipboard
 kodu pack --copy
-
-# Apply a specific prompt template (e.g., for refactoring)
-kodu pack --copy --template refactor
-
-# Save to a file instead of clipboard
-kodu pack --out context.txt
+# Output: Copied 45 files (12k tokens) to clipboard. Paste into ChatGPT!
 ```
 
-### 🧹 Code Cleaning
-Save tokens by stripping comments (`//`, `/** */`, `<!-- -->`) before sending code to AI.
-*Note: Keeps `@ts-ignore`, `TODO`, and `biome-ignore` by default.*
+### 2. "I want to save money on API costs"
+Strip comments and docs to reduce token count by ~30% before sending.
 
 ```bash
-# Preview what would be removed
+# Preview savings
 kodu clean --dry-run
 
-# Clean only files changed in git (perfect for PRs)
+# Clean only what you changed (Great for PRs)
 kodu clean --changed
-
-# Clean everything
-kodu clean
 ```
 
-### 🔍 AI Code Review
-Get an instant second opinion on your **staged** changes.
+### 3. "Check my code before I push"
+Get an AI review of your **staged** changes without leaving the terminal.
 
 ```bash
-# Default review (Bugs & Logic)
-kodu review
+# Detect bugs and logical errors
+kodu review --mode bug
 
-# Focus on specific aspects
+# Check for security leaks
 kodu review --mode security
-kodu review --mode style
-
-# CI/CD Mode (no spinners, raw output)
-kodu review --mode bug --ci --output report.md
-```
-
-### 📝 Smart Commit Messages
-Generate Conventional Commits based on the actual diff.
-
-```bash
-# Print suggested message
-kodu commit
-
-# Use directly with git
-git commit -m "$(kodu commit --ci)"
 ```
 
 ---
 
 ## ⚙️ Configuration
 
-Kodu is fully customizable via `kodu.json`.
+Kodu creates a `kodu.json` in your root. It's pre-configured, but fully hackable.
+
+<details>
+<summary><b>Click to see example configuration</b></summary>
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/uxname/kodu/master/kodu.schema.json",
   "llm": {
     "model": "openai/gpt-4o",
-    "apiKeyEnv": "OPENAI_API_KEY",
-    "commands": {
-      "review": {
-        "modelSettings": { "maxOutputTokens": 5000 }
-      }
-    }
-  },
-  "packer": {
-    "ignore": ["package-lock.json", "dist", "coverage"],
-    "useGitignore": true
+    "apiKeyEnv": "OPENAI_API_KEY"
   },
   "cleaner": {
-    "whitelist": ["//!"] // Comments starting with //! will be preserved
+    // Kodu will NEVER remove comments starting with these:
+    "whitelist": ["//!"]
+  },
+  "packer": {
+    // Files to strictly ignore
+    "ignore": ["package-lock.json", "dist", "coverage"]
   },
   "prompts": {
+    // Use your own prompts for reviews
     "review": {
-      "bug": ".kodu/prompts/review-bug.md",
-      "custom": ".kodu/prompts/my-custom-prompt.md"
+      "bug": ".kodu/prompts/review-bug.md"
     }
   }
 }
 ```
-
-### Prompt Templates
-Kodu uses Markdown files for prompts. You can use variables like `{diff}`, `{context}`, or `{fileList}` inside them.
-Templates are stored in `.kodu/prompts/` by default.
+</details>
 
 ---
 
-## 🤖 CI/CD Integration
+## 🏎️ Tech Stack (Fresh & Modern)
 
-Kodu is designed to run in pipelines (GitHub Actions, GitLab CI).
+Built for speed and maintainability.
 
-**Example: Automated PR Review**
-```yaml
-- name: AI Code Review
-  run: |
-    npm install -g kodu
-    kodu review --mode bug --ci --output pr-review.md
-  env:
-    OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-```
-
----
-
-## 🏗 Architecture & Stack
-
-We believe in a "Fresh & Modern" stack strategy. No legacy dependencies.
-
-| Component | Technology | Why? |
-| :--- | :--- | :--- |
-| **Framework** | NestJS + Commander | Modular architecture & DI |
-| **AI Engine** | Mastra | Model routing & agent orchestration |
-| **Parsing** | ts-morph | AST-based safety (no Regex hacking) |
-| **Filesystem** | tinyglobby | Fastest glob matching available |
-| **UI** | @inquirer + yocto-spinner | Modern, interactive CLI UX |
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome!
-1. Fork the repo
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-Distributed under the MIT License. See `LICENSE` for more information.
+*   **Runtime:** Node.js (ESM)
+*   **Framework:** NestJS + Commander
+*   **Parsing:** `ts-morph` (AST-based, not Regex)
+*   **Globbing:** `tinyglobby`
+*   **UI:** `@inquirer` + `yocto-spinner`
 
 ---
 
 <div align="center">
-  <sub>Built with ❤️ by Developers for Developers</sub>
+  <sub>Built with ❤️ for productive developers.</sub>
+  <br>
+  <a href="CONTRIBUTING.md">Contributing</a> • <a href="LICENSE">License</a>
 </div>
