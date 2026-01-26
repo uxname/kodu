@@ -10,7 +10,7 @@ import {
 import { UiService } from '../../core/ui/ui.service';
 
 const buildDefaultCommandSettings = () => ({
-  commit: { modelSettings: { maxOutputTokens: 150 } },
+  commit: { modelSettings: { maxOutputTokens: 1500 } },
   review: { modelSettings: { maxOutputTokens: 5000 } },
 });
 

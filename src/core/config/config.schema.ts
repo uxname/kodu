@@ -17,7 +17,7 @@ const llmCommandSchema = z.object({
 });
 
 const createDefaultCommandSettings = () => ({
-  commit: { modelSettings: { maxOutputTokens: 150 } },
+  commit: { modelSettings: { maxOutputTokens: 1500 } },
   review: { modelSettings: { maxOutputTokens: 5000 } },
 });
 

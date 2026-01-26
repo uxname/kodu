@@ -11,7 +11,7 @@ import { PromptService } from '../../core/config/prompt.service';
 
 export type ReviewMode = string;
 
-const DEFAULT_COMMIT_MAX_OUTPUT_TOKENS = 150;
+const DEFAULT_COMMIT_MAX_OUTPUT_TOKENS = 1500;
 const DEFAULT_REVIEW_MAX_OUTPUT_TOKENS = 5000;
 
 type ModelSettings = Record<string, unknown> & {

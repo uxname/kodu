@@ -21,7 +21,7 @@
           "default": {
             "commit": {
               "modelSettings": {
-                "maxOutputTokens": 150
+                "maxOutputTokens": 1500
               }
             },
             "review": {
