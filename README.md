@@ -1,190 +1,203 @@
+<div align="center">
+
 # Kodu 🚀
 
-**Kodu** is a high-performance CLI tool designed to bridge the gap between your local codebase and Large Language Models (LLMs). It automates the tedious parts of AI-assisted development: preparing context, stripping "noise" from code, performing instant reviews, and drafting commit messages.
+**The AI-First CLI for Modern Developers**
 
-Built for speed and developer experience, Kodu helps you get the best out of AI without the manual "copy-paste" overhead.
+Generate contexts, clean code, review PRs, and draft commits—instantly.
+
+[![npm version](https://img.shields.io/npm/v/kodu?style=flat-square)](https://www.npmjs.com/package/kodu)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square)](LICENSE)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D20-green.svg?style=flat-square)](https://nodejs.org/)
+[![Built with NestJS](https://img.shields.io/badge/built%20with-NestJS-E0234E.svg?style=flat-square)](https://nestjs.com/)
+
+[Get Started](#quick-start) • [Documentation](#usage) • [Configuration](#configuration) • [Contributing](#contributing)
+
+</div>
 
 ---
 
-## TLDR
+## 💡 Why Kodu?
+
+Bridging the gap between your local codebase and LLMs is tedious. Manual copy-pasting, token limit struggles, and formatting issues slow you down.
+
+**Kodu** automates the "last mile" of AI-assisted development:
+*   **📦 Context Packing**: Turn your file tree into a single, token-optimized prompt.
+*   **🧹 Smart Cleaning**: Strip comments/noise deterministically to save tokens and money.
+*   **🤖 AI Agents**: Instant code reviews and commit message generation using your API key.
+*   **⚡ Performance**: Built on a modern stack (`tinyglobby`, `oxc`, `tiktoken`) for <0.5s startup.
+
+---
+
+## ⚡ Quick Start
+
+### 1. Install
 
 ```bash
-# Install
 npm install -g kodu
-
-# Setup
-kodu init
-export OPENAI_API_KEY=your_key_here
-
-# Quick commands
-kodu pack --copy              # Copy project context to clipboard
-kodu clean                    # Remove comments from code
-kodu review                   # Review staged changes
-kodu commit                   # Generate commit message
 ```
 
----
+### 2. Initialize
 
-## Key Features
-
-- **📦 Smart Context Packing**: Bundle your entire project (or specific parts) into a single, LLM-friendly format.
-- **🧹 Deterministic Code Cleaning**: Strip comments and unnecessary metadata to save tokens while keeping critical logic and system instructions.
-- **🔍 Instant AI Review**: Get immediate feedback on your staged changes (Bugs, Style, or Security).
-- **📝 Automated Commits**: Generate meaningful, Conventional Commit messages based on your actual code changes.
-- **💰 Token Budgeting**: Always know how many tokens you are sending and get an estimated cost before hitting the API.
-
----
-
-## Quick Start
-
-### 1. Installation
-
-```bash
-# Install globally
-npm install -g kodu
-
-# Or run via npx
-npx kodu init
-```
-
-### 2. Initialization
-
-Set up Kodu in your project:
+Run the wizard to generate `kodu.json` and prompt templates:
 
 ```bash
 kodu init
 ```
 
-This creates a `kodu.json` configuration file and a `.kodu/prompts/` folder for your custom prompt templates.
+### 3. Connect AI (Optional)
 
-### 3. Configure AI (Optional)
-
-For AI-powered features (`review`, `commit`), set your API key in your environment:
+To use `review` and `commit` commands, export your API key:
 
 ```bash
-export OPENAI_API_KEY=your_key_here
+# Supports OpenAI, Anthropic, Google, and 70+ others via Mastra
+export OPENAI_API_KEY=sk-...
 ```
 
 ---
 
-## Usage
+## 🛠 Usage
 
-### Pack Context
-Collect your project files into one file or directly to your clipboard. Kodu respects your `.gitignore` automatically.
+### 📦 Context Packing
+Bundle your project files into a format ready for ChatGPT/Claude. Respects `.gitignore` automatically.
 
 ```bash
-# Copy context to clipboard with a specific prompt template
+# Copy entire project context to clipboard
+kodu pack --copy
+
+# Apply a specific prompt template (e.g., for refactoring)
 kodu pack --copy --template refactor
 
-# Save context to a specific file
+# Save to a file instead of clipboard
 kodu pack --out context.txt
-
-# Output to stdout
-kodu pack
 ```
 
-### Clean Code
-Remove comments from your JS/TS files and `.html`/`.htm` templates (including `//`, `/* ... */`, and `<!-- ... -->`) to reduce token usage. HTML/HTM files gain `<!-- ... -->` stripping, while other file types stay untouched to avoid removing regex literals or strings; `@ts-ignore`, `TODO`, and `biome-ignore` comments are preserved and `--dry-run` previews the impact.
+### 🧹 Code Cleaning
+Save tokens by stripping comments (`//`, `/** */`, `<!-- -->`) before sending code to AI.
+*Note: Keeps `@ts-ignore`, `TODO`, and `biome-ignore` by default.*
 
 ```bash
-# See what will be removed without changing files
+# Preview what would be removed
 kodu clean --dry-run
 
-# Clean the code globally
-kodu clean
-
-# Clean only files with Git changes
+# Clean only files changed in git (perfect for PRs)
 kodu clean --changed
+
+# Clean everything
+kodu clean
 ```
 
-### AI Code Review
-Analyze your **staged** changes before committing.
+### 🔍 AI Code Review
+Get an instant second opinion on your **staged** changes.
 
 ```bash
-# Check for bugs (default)
+# Default review (Bugs & Logic)
 kodu review
 
-# Check for security vulnerabilities or style issues
+# Focus on specific aspects
 kodu review --mode security
 kodu review --mode style
 
-# Custom review modes (if added to kodu.json)
-kodu review --mode performance
-kodu review --mode accessibility
-
-# CI/CD mode with JSON output
-kodu review --mode bug --ci --output review.txt
+# CI/CD Mode (no spinners, raw output)
+kodu review --mode bug --ci --output report.md
 ```
 
-Standard modes (`bug`, `style`, `security`) are always available. Custom modes require configuration in `prompts.review` section of `kodu.json`.
-
-### AI Commit Messages
-Generate a concise Conventional Commit message based on your staged diff.
+### 📝 Smart Commit Messages
+Generate Conventional Commits based on the actual diff.
 
 ```bash
-# Generate commit message
+# Print suggested message
 kodu commit
 
-# Save to file
-kodu commit --output commit-message.txt
-
-# CI/CD mode
-kodu commit --ci
+# Use directly with git
+git commit -m "$(kodu commit --ci)"
 ```
-
-**Note:** `kodu commit` only generates the message. You still need to run `git commit -m "$(kodu commit)"` to commit.
 
 ---
 
-## Configuration
+## ⚙️ Configuration
 
-Kodu is controlled by `kodu.json`. You can customize:
-- **LLM Settings**: Choose your model (e.g., `gpt-4o`) and provider.
-- **Ignored Patterns**: Files that should never be sent to the AI (e.g., lockfiles, binaries).
-- **Cleaner Whitelist**: Specific comment prefixes you want to keep.
-- **AI Prompts**: Customize prompts for review and commit commands, including custom review modes.
+Kodu is fully customizable via `kodu.json`.
 
-Example `kodu.json`:
 ```json
 {
+  "$schema": "https://raw.githubusercontent.com/uxname/kodu/master/kodu.schema.json",
   "llm": {
-    "provider": "openai",
-    "model": "gpt-4o",
-    "apiKeyEnv": "OPENAI_API_KEY"
+    "model": "openai/gpt-4o",
+    "apiKeyEnv": "OPENAI_API_KEY",
+    "commands": {
+      "review": {
+        "modelSettings": { "maxOutputTokens": 5000 }
+      }
+    }
   },
   "packer": {
-    "ignore": ["*.log", "dist/**"]
+    "ignore": ["package-lock.json", "dist", "coverage"],
+    "useGitignore": true
   },
   "cleaner": {
-    "whitelist": ["//!"],
-    "keepJSDoc": true
+    "whitelist": ["//!"] // Comments starting with //! will be preserved
   },
   "prompts": {
     "review": {
       "bug": ".kodu/prompts/review-bug.md",
-      "style": ".kodu/prompts/review-style.md",
-      "security": ".kodu/prompts/review-security.md"
-    },
-    "commit": ".kodu/prompts/commit.md",
-    "pack": ".kodu/prompts/pack.md"
+      "custom": ".kodu/prompts/my-custom-prompt.md"
+    }
   }
 }
 ```
 
-**Prompts:**
-- `prompts.review`: Paths to prompt files for review modes. Supports standard modes (`bug`, `style`, `security`) and custom modes. Use `{diff}` and `{mode}` variables inside files.
-- `prompts.commit`: Path to prompt file for commit message generation. Use `{diff}` variable.
-- `prompts.pack`: Path to prompt file applied by default in `kodu pack`. Supports `{{context}}`, `{{fileList}}`, `{{tokenCount}}`, `{{usdEstimate}}` placeholders.
+### Prompt Templates
+Kodu uses Markdown files for prompts. You can use variables like `{diff}`, `{context}`, or `{fileList}` inside them.
+Templates are stored in `.kodu/prompts/` by default.
 
 ---
 
-## Why Kodu?
+## 🤖 CI/CD Integration
 
-1. **Speed**: Optimized for near-instant startup (< 0.5s).
-2. **Privacy & Control**: You decide exactly what code leaves your machine.
-3. **Deterministic**: Code cleaning is performed via logic, not AI, ensuring your actual code logic is never accidentally altered.
-4. **CI/CD Ready**: Use `--ci` flag to integrate Kodu reviews into your automation pipelines.
+Kodu is designed to run in pipelines (GitHub Actions, GitLab CI).
+
+**Example: Automated PR Review**
+```yaml
+- name: AI Code Review
+  run: |
+    npm install -g kodu
+    kodu review --mode bug --ci --output pr-review.md
+  env:
+    OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+```
 
 ---
 
-**Happy Coding!** 🦄
+## 🏗 Architecture & Stack
+
+We believe in a "Fresh & Modern" stack strategy. No legacy dependencies.
+
+| Component | Technology | Why? |
+| :--- | :--- | :--- |
+| **Framework** | NestJS + Commander | Modular architecture & DI |
+| **AI Engine** | Mastra | Model routing & agent orchestration |
+| **Parsing** | ts-morph | AST-based safety (no Regex hacking) |
+| **Filesystem** | tinyglobby | Fastest glob matching available |
+| **UI** | @inquirer + yocto-spinner | Modern, interactive CLI UX |
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome!
+1. Fork the repo
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+Distributed under the MIT License. See `LICENSE` for more information.
+
+---
+
+<div align="center">
+  <sub>Built with ❤️ by Developers for Developers</sub>
+</div>
