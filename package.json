@@ -1,6 +1,28 @@
 {
   "name": "kodu",
   "version": "1.1.8",
+  "description": "High-performance CLI to prepare codebase for LLMs, automate reviews, and draft commits.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/uxname/kodu.git"
+  },
+  "bugs": {
+    "url": "https://github.com/uxname/kodu/issues"
+  },
+  "homepage": "https://github.com/uxname/kodu#readme",
+  "keywords": [
+    "cli",
+    "ai",
+    "llm",
+    "developer-tools",
+    "productivity",
+    "typescript",
+    "openai",
+    "automation",
+    "code-review",
+    "context-window",
+    "git-tools"
+  ],
   "private": false,
   "license": "MIT",
   "bin": {
