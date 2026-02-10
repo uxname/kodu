@@ -117,12 +117,14 @@ Configuration structure:
 ```json
 {
   "llm": {
-    "model": "openai/gpt-5-mini",
+    "model": "openai/gpt-4o",
     "apiKeyEnv": "OPENAI_API_KEY"
   },
   "cleaner": {
     "whitelist": ["//!"],
-    "keepJSDoc": true
+    "keepJSDoc": true,
+    "useGitignore": true,
+    "ignore": []
   },
   "packer": {
     "ignore": [
@@ -134,7 +136,9 @@ Configuration structure:
       "node_modules",
       "dist",
       "coverage"
-    ]
+    ],
+    "useGitignore": true,
+    "contentBasedBinaryDetection": false
   },
   "prompts": {
     "review": {

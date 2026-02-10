@@ -8,10 +8,15 @@ import {
   DEFAULT_REVIEW_PROMPTS,
 } from '../../core/config/default-prompts';
 import { UiService } from '../../core/ui/ui.service';
+import {
+  DEFAULT_COMMIT_TOKENS,
+  DEFAULT_LLM_MODEL,
+  DEFAULT_REVIEW_TOKENS,
+} from '../../shared/constants';
 
 const buildDefaultCommandSettings = () => ({
-  commit: { modelSettings: { maxOutputTokens: 1500 } },
-  review: { modelSettings: { maxOutputTokens: 5000 } },
+  commit: { modelSettings: { maxOutputTokens: DEFAULT_COMMIT_TOKENS } },
+  review: { modelSettings: { maxOutputTokens: DEFAULT_REVIEW_TOKENS } },
 });
 
 @Command({ name: 'init', description: 'Initialize Kodu configuration' })
@@ -24,7 +29,7 @@ export class InitCommand extends CommandRunner {
     const configPath = path.join(process.cwd(), 'kodu.json');
 
     const defaultLlmConfig = {
-      model: 'openai/gpt-5-mini',
+      model: `openai/${DEFAULT_LLM_MODEL}`,
       apiKeyEnv: 'OPENAI_API_KEY',
     };
 
@@ -32,7 +37,12 @@ export class InitCommand extends CommandRunner {
       $schema:
         'https://raw.githubusercontent.com/uxname/kodu/refs/heads/master/kodu.schema.json',
       llm: defaultLlmConfig,
-      cleaner: { whitelist: ['//!'], keepJSDoc: true, useGitignore: true },
+      cleaner: {
+        whitelist: ['//!'],
+        keepJSDoc: true,
+        useGitignore: true,
+        ignore: [],
+      },
       packer: {
         ignore: [
           'package-lock.json',
@@ -45,6 +55,7 @@ export class InitCommand extends CommandRunner {
           'coverage',
         ],
         useGitignore: true,
+        contentBasedBinaryDetection: false,
       },
     };
 
@@ -64,7 +75,7 @@ export class InitCommand extends CommandRunner {
       if (useCustomModel) {
         model = await this.ui.promptInput({
           message:
-            'Enter model in format provider/model-name (e.g., openai/gpt-5-mini):',
+            'Enter model in format provider/model-name (e.g., openai/gpt-4o):',
           default: defaultLlmConfig.model,
           validate: (input) => {
             if (!input.includes('/')) {
@@ -115,10 +126,13 @@ export class InitCommand extends CommandRunner {
         whitelist,
         keepJSDoc: defaultConfig.cleaner.keepJSDoc,
         useGitignore: defaultConfig.cleaner.useGitignore,
+        ignore: defaultConfig.cleaner.ignore,
       },
       packer: {
         ignore: ignoreList,
         useGitignore: defaultConfig.packer.useGitignore,
+        contentBasedBinaryDetection:
+          defaultConfig.packer.contentBasedBinaryDetection,
       },
       prompts: {
         review: {
@@ -151,8 +165,8 @@ export class InitCommand extends CommandRunner {
       message: 'Select AI model',
       choices: [
         {
-          name: 'OpenAI GPT-5 Mini (recommended)',
-          value: 'openai/gpt-5-mini',
+          name: 'OpenAI GPT-4o (recommended)',
+          value: `openai/${DEFAULT_LLM_MODEL}`,
         },
         { name: 'OpenAI GPT-4o Mini', value: 'openai/gpt-4o-mini' },
         { name: 'OpenAI GPT-4o', value: 'openai/gpt-4o' },

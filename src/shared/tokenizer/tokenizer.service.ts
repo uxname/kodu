@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { encodingForModel, type TiktokenModel } from 'js-tiktoken';
+import { encodingForModel, getEncoding, type TiktokenModel } from 'js-tiktoken';
 import { ConfigService } from '../../core/config/config.service';
+import { DEFAULT_LLM_MODEL } from '../constants';
 
 type TokenEstimate = {
   tokens: number;
@@ -8,6 +9,7 @@ type TokenEstimate = {
 };
 
 const PRICE_PER_MILLION: Record<string, number> = {
+  'gpt-4o': 10,
   'gpt-5-mini': 2.5,
 };
 
@@ -27,19 +29,16 @@ export class TokenizerService {
 
   private getPricePerMillion(): number {
     const config = this.configService.getConfig();
-    const model = config.llm?.model ?? 'gpt-5-mini';
-    const key = model.toLowerCase();
+    const model = config.llm?.model ?? `openai/${DEFAULT_LLM_MODEL}`;
+    const key = this.normalizeModelKey(model);
     return PRICE_PER_MILLION[key] ?? 0;
   }
 
   private createEncoder() {
-    const config = this.configService.getConfig();
-    const model = config.llm?.model ?? 'gpt-5-mini';
-
     try {
-      return encodingForModel(model as TiktokenModel);
+      return encodingForModel(DEFAULT_LLM_MODEL as TiktokenModel);
     } catch {
-      return encodingForModel('gpt-5-mini');
+      return getEncoding('o200k_base');
     }
   }
 
@@ -49,5 +48,13 @@ export class TokenizerService {
     }
 
     return this.encoder;
+  }
+
+  private normalizeModelKey(model: string): string {
+    const lower = model.toLowerCase();
+    if (lower.includes('/')) {
+      return lower.split('/').pop() ?? lower;
+    }
+    return lower;
   }
 }

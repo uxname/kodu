@@ -1,123 +1,109 @@
+import type { Stats } from 'node:fs';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { Injectable } from '@nestjs/common';
+import ignore from 'ignore';
 import { glob } from 'tinyglobby';
+import {
+  BINARY_EXTENSIONS,
+  KNOWN_TEXT_EXTENSIONS,
+  MAX_FILE_SIZE_BYTES,
+} from '../../shared/constants';
 import { ConfigService } from '../config/config.service';
-
-const BINARY_EXTENSIONS = new Set([
-  '.png',
-  '.jpg',
-  '.jpeg',
-  '.webp',
-  '.gif',
-  '.bmp',
-  '.ico',
-  '.tif',
-  '.tiff',
-  '.psd',
-  '.ai',
-  '.sketch',
-  '.heic',
-  '.heif',
-  '.mp3',
-  '.wav',
-  '.flac',
-  '.ogg',
-  '.m4a',
-  '.mp4',
-  '.mkv',
-  '.mov',
-  '.avi',
-  '.webm',
-  '.wmv',
-  '.flv',
-  '.mpg',
-  '.mpeg',
-  '.ogv',
-  '.zip',
-  '.gz',
-  '.tgz',
-  '.bz2',
-  '.xz',
-  '.rar',
-  '.7z',
-  '.tar',
-  '.pdf',
-  '.exe',
-  '.dll',
-  '.so',
-  '.dylib',
-  '.class',
-  '.jar',
-  '.war',
-  '.ear',
-  '.ttf',
-  '.otf',
-  '.woff',
-  '.woff2',
-  '.eot',
-  '.bin',
-  '.pak',
-  '.dat',
-]);
+import { UiService } from '../ui/ui.service';
 
 const BINARY_PROBE_SIZE = 8192;
+const GLOB_IGNORE = ['.git/**'];
+
+type FindProjectFilesOptions = {
+  ignore?: string[];
+  useGitignore?: boolean;
+  excludeBinary?: boolean;
+  contentBasedBinaryDetection?: boolean;
+  maxFileSizeBytes?: number;
+};
 
 @Injectable()
 export class FsService {
-  constructor(private readonly configService: ConfigService) {}
+  constructor(
+    private readonly configService: ConfigService,
+    private readonly ui: UiService,
+  ) {}
 
   async findProjectFiles(
-    options: {
-      ignore?: string[];
-      useGitignore?: boolean;
-      excludeBinary?: boolean;
-    } = {},
+    options: FindProjectFilesOptions = {},
   ): Promise<string[]> {
     const { packer } = this.configService.getConfig();
     const shouldUseGitignore = options.useGitignore ?? packer.useGitignore;
-    const gitignore = shouldUseGitignore
+    const gitignorePatterns = shouldUseGitignore
       ? await this.readGitignorePatterns()
       : [];
-    const ignorePatterns = this.normalizeIgnorePatterns([
-      ...(options.ignore ?? packer.ignore),
-      ...gitignore,
-    ]);
+
+    const ig = ignore();
+    const rawIgnorePatterns = options.ignore ?? packer.ignore ?? [];
+    const ignorePatterns = rawIgnorePatterns
+      .map((pattern) => pattern.trim())
+      .filter((pattern) => pattern.length > 0)
+      .map((pattern) => pattern.replace(/\\/g, '/'));
+    if (ignorePatterns.length > 0) {
+      ig.add(ignorePatterns);
+    }
+    if (gitignorePatterns.length > 0) {
+      ig.add(gitignorePatterns);
+    }
 
     const entries = await glob(['**/*'], {
       onlyFiles: true,
       absolute: true,
-      ignore: ignorePatterns,
+      dot: true,
+      ignore: GLOB_IGNORE,
     });
 
-    // Convert to project-relative paths and sort
     const relativePaths = entries
       .map((entry) => path.relative(process.cwd(), entry))
-      .filter((relative) => relative.length > 0)
+      .map((relative) => this.toPosixPath(relative))
+      .filter((relative) => relative.length > 0);
+
+    const filtered = ig
+      .filter(relativePaths)
       .sort((a, b) => a.localeCompare(b));
 
     // By default exclude binary files when collecting project files (so pack will skip them).
     // Consumers can override with options.excludeBinary = false.
     const excludeBinary = options.excludeBinary ?? true;
-    if (!excludeBinary) {
-      return relativePaths;
-    }
+    const useContentDetection =
+      options.contentBasedBinaryDetection ??
+      packer.contentBasedBinaryDetection ??
+      false;
+    const maxFileSize = options.maxFileSizeBytes ?? MAX_FILE_SIZE_BYTES;
 
-    // Heuristic: consider a file binary if it contains a NUL byte in the first chunk.
-    // Read a small chunk of each file (or the whole file if smaller) and test for 0x00.
     const textFiles: string[] = [];
 
-    for (const rel of relativePaths) {
-      if (this.isLikelyBinaryByExtension(rel)) {
+    for (const rel of filtered) {
+      const abs = path.resolve(process.cwd(), rel);
+      let stats: Stats;
+
+      try {
+        stats = await fs.stat(abs);
+      } catch {
         continue;
       }
 
-      const abs = path.resolve(process.cwd(), rel);
-      const containsNullByte = await this.hasNullByte(abs);
-
-      if (!containsNullByte) {
-        textFiles.push(rel);
+      if (stats.size > maxFileSize) {
+        this.ui.log.warn(
+          `Skipping large file: ${rel} (>${(maxFileSize / (1024 * 1024)).toFixed(0)}MB)`,
+        );
+        continue;
       }
+
+      if (
+        excludeBinary &&
+        (await this.shouldExcludeBinary(rel, abs, useContentDetection))
+      ) {
+        continue;
+      }
+
+      textFiles.push(rel);
     }
 
     return textFiles;
@@ -142,67 +128,43 @@ export class FsService {
     }
   }
 
-  private normalizeIgnorePatterns(patterns: string[]): string[] {
-    const result: string[] = [];
-
-    for (const raw of patterns) {
-      const trimmed = raw.trim();
-
-      if (!trimmed || trimmed.startsWith('#')) {
-        continue;
-      }
-
-      if (trimmed.startsWith('!')) {
-        // tinyglobby ignore list does not support re-includes
-        continue;
-      }
-
-      const expanded = this.expandIgnorePattern(trimmed);
-      result.push(...expanded);
-    }
-
-    return Array.from(new Set(result));
+  private toPosixPath(relativePath: string): string {
+    return relativePath.split(path.sep).join(path.posix.sep);
   }
 
-  private expandIgnorePattern(pattern: string): string[] {
-    const withoutBang = pattern.replace(/^!/, '');
-    const normalized = withoutBang.replace(/^\/+/g, '');
-
-    if (!normalized) {
-      return [];
-    }
-
-    const isDirectory = normalized.endsWith('/');
-    const base = isDirectory ? normalized.slice(0, -1) : normalized;
-    const hasGlob = /[*?[{]/.test(base);
-    const segments = base.split('/');
-
-    if (isDirectory) {
-      return [`${base}/**`, `**/${base}/**`];
-    }
-
-    if (!hasGlob && segments.length === 1) {
-      if (base.includes('.')) {
-        return [`**/${base}`];
-      }
-
-      return [`**/${base}`, `${base}/**`, `**/${base}/**`];
-    }
-
-    if (!hasGlob) {
-      return [base, `**/${base}`, `${base}/**`];
-    }
-
-    if (!base.startsWith('**/')) {
-      return [`**/${base}`];
-    }
-
-    return [base];
-  }
-
-  private isLikelyBinaryByExtension(relativePath: string): boolean {
+  private isBinaryExtension(relativePath: string): boolean {
     const ext = path.extname(relativePath).toLowerCase();
     return ext.length > 0 && BINARY_EXTENSIONS.has(ext);
+  }
+
+  private isKnownTextFile(relativePath: string): boolean {
+    const ext = path.extname(relativePath).toLowerCase();
+    if (ext && KNOWN_TEXT_EXTENSIONS.has(ext)) {
+      return true;
+    }
+
+    const baseName = path.basename(relativePath).toLowerCase();
+    return KNOWN_TEXT_EXTENSIONS.has(baseName);
+  }
+
+  private async shouldExcludeBinary(
+    relativePath: string,
+    absolutePath: string,
+    detectByContent: boolean,
+  ): Promise<boolean> {
+    if (this.isKnownTextFile(relativePath)) {
+      return false;
+    }
+
+    if (this.isBinaryExtension(relativePath)) {
+      return true;
+    }
+
+    if (!detectByContent) {
+      return false;
+    }
+
+    return this.hasNullByte(absolutePath);
   }
 
   private async hasNullByte(absolutePath: string): Promise<boolean> {

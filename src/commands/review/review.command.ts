@@ -3,6 +3,7 @@ import clipboard from 'clipboardy';
 import { Command, CommandRunner, Option } from 'nest-commander';
 import { UiService } from '../../core/ui/ui.service';
 import { AiService, type ReviewMode } from '../../shared/ai/ai.service';
+import { WARNING_TOKEN_THRESHOLD } from '../../shared/constants';
 import { GitService } from '../../shared/git/git.service';
 import { TokenizerService } from '../../shared/tokenizer/tokenizer.service';
 
@@ -143,8 +144,7 @@ export class ReviewCommand extends CommandRunner {
       }
 
       const tokens = this.tokenizer.count(diff);
-      const warningBudget = 12000;
-      if (tokens.tokens > warningBudget) {
+      if (tokens.tokens > WARNING_TOKEN_THRESHOLD) {
         this.ui.log.warn(
           `Large context (${tokens.tokens} tokens, ~$${tokens.usdEstimate.toFixed(2)}). Review may cost more.`,
         );

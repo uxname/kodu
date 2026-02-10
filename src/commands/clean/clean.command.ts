@@ -44,9 +44,14 @@ export class CleanCommand extends CommandRunner {
       .start();
 
     try {
-      const { cleaner: cleanerConfig } = this.config.getConfig();
+      const { cleaner: cleanerConfig, packer } = this.config.getConfig();
+      const ignorePatterns = [
+        ...(packer.ignore ?? []),
+        ...(cleanerConfig.ignore ?? []),
+      ];
       const allFiles = await this.fsService.findProjectFiles({
         useGitignore: cleanerConfig.useGitignore,
+        ignore: ignorePatterns,
       });
       const targets = await this.collectTargets(allFiles, options);
 

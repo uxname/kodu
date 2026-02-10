@@ -63,8 +63,12 @@ export class PackCommand extends CommandRunner {
       .start();
 
     try {
+      const { packer } = this.configService.getConfig();
       const files = await this.fsService.findProjectFiles({
         excludeBinary: true,
+        useGitignore: packer.useGitignore,
+        ignore: packer.ignore,
+        contentBasedBinaryDetection: packer.contentBasedBinaryDetection,
       });
 
       if (files.length === 0) {
@@ -120,7 +124,8 @@ export class PackCommand extends CommandRunner {
     const chunks = await Promise.all(
       files.map(async (file) => {
         const content = await this.fsService.readFileRelative(file);
-        return `// file: ${file}\n${content}`;
+        const posixPath = file.split(path.sep).join(path.posix.sep);
+        return `// file: ${posixPath}\n${content}`;
       }),
     );
 

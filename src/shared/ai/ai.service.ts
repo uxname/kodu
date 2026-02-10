@@ -8,11 +8,9 @@ import {
   STANDARD_REVIEW_MODES,
 } from '../../core/config/default-prompts';
 import { PromptService } from '../../core/config/prompt.service';
+import { DEFAULT_COMMIT_TOKENS, DEFAULT_REVIEW_TOKENS } from '../constants';
 
 export type ReviewMode = string;
-
-const DEFAULT_COMMIT_MAX_OUTPUT_TOKENS = 1500;
-const DEFAULT_REVIEW_MAX_OUTPUT_TOKENS = 5000;
 
 type ModelSettings = Record<string, unknown> & {
   maxOutputTokens?: number;
@@ -176,9 +174,7 @@ export class AiService {
     const config = this.configService.getConfig();
     const commands = config.llm?.commands;
     const defaultMax =
-      command === 'commit'
-        ? DEFAULT_COMMIT_MAX_OUTPUT_TOKENS
-        : DEFAULT_REVIEW_MAX_OUTPUT_TOKENS;
+      command === 'commit' ? DEFAULT_COMMIT_TOKENS : DEFAULT_REVIEW_TOKENS;
     const base: ModelSettings = { maxOutputTokens: defaultMax };
 
     if (!commands) {

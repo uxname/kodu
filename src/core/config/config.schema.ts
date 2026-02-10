@@ -1,4 +1,9 @@
 import { z } from 'zod';
+import {
+  DEFAULT_COMMIT_TOKENS,
+  DEFAULT_LLM_MODEL,
+  DEFAULT_REVIEW_TOKENS,
+} from '../../shared/constants';
 
 // Model ID format: provider/model-name (e.g., "openai/gpt-4o", "anthropic/claude-4-5-sonnet")
 const modelIdSchema = z.string().regex(/^[a-zA-Z0-9-_]+\/[a-zA-Z0-9-_.]+$/, {
@@ -17,8 +22,8 @@ const llmCommandSchema = z.object({
 });
 
 const createDefaultCommandSettings = () => ({
-  commit: { modelSettings: { maxOutputTokens: 1500 } },
-  review: { modelSettings: { maxOutputTokens: 5000 } },
+  commit: { modelSettings: { maxOutputTokens: DEFAULT_COMMIT_TOKENS } },
+  review: { modelSettings: { maxOutputTokens: DEFAULT_REVIEW_TOKENS } },
 });
 
 const llmCommandsSchema = z
@@ -29,7 +34,7 @@ const llmCommandsSchema = z
   .default(() => createDefaultCommandSettings());
 
 const llmSchema = z.object({
-  model: modelIdSchema.default('openai/gpt-5-mini'),
+  model: modelIdSchema.default(`openai/${DEFAULT_LLM_MODEL}`),
   apiKeyEnv: z.string().default('OPENAI_API_KEY'),
   commands: llmCommandsSchema.optional(),
 });
@@ -38,6 +43,7 @@ const cleanerSchema = z.object({
   whitelist: z.array(z.string()).default(['//!']),
   keepJSDoc: z.boolean().default(true),
   useGitignore: z.boolean().default(true),
+  ignore: z.array(z.string()).default([]),
 });
 
 const packerSchema = z.object({
@@ -54,6 +60,7 @@ const packerSchema = z.object({
       'coverage',
     ]),
   useGitignore: z.boolean().default(true),
+  contentBasedBinaryDetection: z.boolean().default(false),
 });
 
 const promptSourceSchema = z.string();
@@ -73,6 +80,7 @@ export const configSchema = z.object({
     whitelist: ['//!'],
     keepJSDoc: true,
     useGitignore: true,
+    ignore: [],
   }),
   packer: packerSchema.default({
     ignore: [
@@ -86,6 +94,7 @@ export const configSchema = z.object({
       'coverage',
     ],
     useGitignore: true,
+    contentBasedBinaryDetection: false,
   }),
   prompts: promptsSchema,
 });
