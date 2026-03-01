@@ -2,6 +2,7 @@ import path from 'node:path';
 import { CommandRunner, Option, SubCommand } from 'nest-commander';
 import { ConfigService } from '../../../core/config/config.service';
 import { SshService } from '../../../shared/ssh/ssh.service';
+import { OpsCliError } from '../ops.types';
 import {
   ensureAction,
   ensureEnvKey,
@@ -17,14 +18,17 @@ import {
 type OpsEnvAction = 'get' | 'set' | 'unset';
 
 type OpsEnvOptions = {
+  server?: string;
+  action?: string;
+  project?: string;
   key?: string;
   val?: string;
 };
 
 @SubCommand({
   name: 'env',
-  description: 'Manage remote .env files',
-  arguments: '<alias> <action> <project>',
+  description:
+    'Manage remote .env files for a specific project.\nExamples:\n  kodu ops env --server dev --action get --project my-app\n  kodu ops env --server dev --action set --project my-app --key PORT --val 3000\n  kodu ops env --server dev --action unset --project my-app --key PORT',
 })
 export class OpsEnvCommand extends CommandRunner {
   constructor(
@@ -32,6 +36,30 @@ export class OpsEnvCommand extends CommandRunner {
     private readonly sshService: SshService,
   ) {
     super();
+  }
+
+  @Option({
+    flags: '-s, --server <name>',
+    description: 'Server alias defined in kodu.json (e.g., dev)',
+  })
+  parseServer(value: string): string {
+    return value;
+  }
+
+  @Option({
+    flags: '-a, --action <type>',
+    description: 'Action to perform: get | set | unset',
+  })
+  parseAction(value: string): string {
+    return value;
+  }
+
+  @Option({
+    flags: '-p, --project <name>',
+    description: 'Target project directory name',
+  })
+  parseProject(value: string): string {
+    return value;
   }
 
   @Option({ flags: '--key <key>', description: 'Environment key' })
@@ -48,9 +76,18 @@ export class OpsEnvCommand extends CommandRunner {
     passedParams: string[],
     options: OpsEnvOptions = {},
   ): Promise<void> {
-    const [alias, rawAction, project] = passedParams;
-
     try {
+      if (passedParams.length > 0) {
+        throw new OpsCliError(
+          'VALIDATION_ERROR',
+          'Positional arguments are not supported. Use named flags (e.g., --server, --action). Run with --help for examples.',
+        );
+      }
+
+      const serverAlias = ensureRequired(options.server, 'server');
+      const rawAction = ensureRequired(options.action, 'action');
+      const project = ensureRequired(options.project, 'project');
+
       const action = ensureAction<OpsEnvAction>(
         rawAction,
         ['get', 'set', 'unset'],
@@ -58,7 +95,7 @@ export class OpsEnvCommand extends CommandRunner {
       );
       const server = await resolveServerOrThrow(
         this.configService.getConfig(),
-        alias,
+        serverAlias,
       );
       const envPath = path.posix.join(resolveAppsPath(server), project, '.env');
 

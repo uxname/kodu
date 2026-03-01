@@ -2,6 +2,7 @@ import path from 'node:path';
 import { CommandRunner, Option, SubCommand } from 'nest-commander';
 import { ConfigService } from '../../../core/config/config.service';
 import { SshService } from '../../../shared/ssh/ssh.service';
+import { OpsCliError } from '../ops.types';
 import {
   ensureAction,
   ensureRequired,
@@ -16,14 +17,16 @@ import {
 type OpsRoutesAction = 'list' | 'add' | 'remove' | 'update';
 
 type OpsRoutesOptions = {
+  server?: string;
+  action?: string;
   domain?: string;
   upstream?: string;
 };
 
 @SubCommand({
   name: 'routes',
-  description: 'Manage remote Caddy routes',
-  arguments: '<alias> <action>',
+  description:
+    'Manage remote Caddy reverse proxy routes.\nExamples:\n  kodu ops routes --server dev --action list\n  kodu ops routes --server dev --action add --domain api.example.com --upstream 127.0.0.1:3000\n  kodu ops routes --server dev --action update --domain api.example.com --upstream 127.0.0.1:4000\n  kodu ops routes --server dev --action remove --domain api.example.com',
 })
 export class OpsRoutesCommand extends CommandRunner {
   constructor(
@@ -33,12 +36,34 @@ export class OpsRoutesCommand extends CommandRunner {
     super();
   }
 
-  @Option({ flags: '--domain <domain>', description: 'Domain name' })
+  @Option({
+    flags: '-s, --server <name>',
+    description: 'Server alias defined in kodu.json (e.g., dev)',
+  })
+  parseServer(value: string): string {
+    return value;
+  }
+
+  @Option({
+    flags: '-a, --action <type>',
+    description: 'Action to perform: list | add | remove | update',
+  })
+  parseAction(value: string): string {
+    return value;
+  }
+
+  @Option({
+    flags: '--domain <domain>',
+    description: 'Domain name (required for add, update, remove)',
+  })
   parseDomain(value: string): string {
     return value;
   }
 
-  @Option({ flags: '--upstream <upstream>', description: 'Upstream host:port' })
+  @Option({
+    flags: '--upstream <upstream>',
+    description: 'Upstream host:port (required for add, update)',
+  })
   parseUpstream(value: string): string {
     return value;
   }
@@ -47,9 +72,16 @@ export class OpsRoutesCommand extends CommandRunner {
     passedParams: string[],
     options: OpsRoutesOptions = {},
   ): Promise<void> {
-    const [alias, rawAction] = passedParams;
-
     try {
+      if (passedParams.length > 0) {
+        throw new OpsCliError(
+          'VALIDATION_ERROR',
+          'Positional arguments are not supported. Use named flags (e.g., --server, --action). Run with --help for examples.',
+        );
+      }
+
+      const serverAlias = ensureRequired(options.server, 'server');
+      const rawAction = ensureRequired(options.action, 'action');
       const action = ensureAction<OpsRoutesAction>(
         rawAction,
         ['list', 'add', 'remove', 'update'],
@@ -57,8 +89,9 @@ export class OpsRoutesCommand extends CommandRunner {
       );
       const server = await resolveServerOrThrow(
         this.configService.getConfig(),
-        alias,
+        serverAlias,
       );
+
       const caddyRoot = resolveCaddyPath(server);
       const caddyfilePath = path.posix.join(caddyRoot, 'data', 'Caddyfile');
 
