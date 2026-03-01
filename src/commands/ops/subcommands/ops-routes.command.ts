@@ -194,7 +194,7 @@ export class OpsRoutesCommand extends CommandRunner {
       '  if domain_re.search(text):',
       '    sys.stderr.write("Route already exists for domain")',
       '    sys.exit(3)',
-      '  block = "\n" + domain + " {\n  reverse_proxy " + upstream + "\n}\n"',
+      '  block = "\\n" + domain + " {\\n  reverse_proxy " + upstream + "\\n}\\n"',
       '  text = re.sub(r"\\s*$", "", text) + block',
       'elif action == "remove":',
       '  if not domain_re.search(text):',
