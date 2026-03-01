@@ -1,4 +1,5 @@
 import { access } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import type { KoduConfig, ServerConfig } from '../../core/config/config.schema';
 import type { SshResult } from '../../shared/ssh/ssh.service';
@@ -119,12 +120,15 @@ export function ensureAction<T extends string>(
 }
 
 function normalizeServer(server: ServerConfig): ResolvedServerConfig {
+  const sshKeyPath = server.sshKeyPath.startsWith('~')
+    ? path.join(os.homedir(), server.sshKeyPath.slice(1))
+    : server.sshKeyPath;
   const apps = server.paths?.apps ?? DEFAULT_APPS_PATH;
   return {
     ...server,
-    sshKeyPath: path.isAbsolute(server.sshKeyPath)
-      ? server.sshKeyPath
-      : path.resolve(process.cwd(), server.sshKeyPath),
+    sshKeyPath: path.isAbsolute(sshKeyPath)
+      ? sshKeyPath
+      : path.resolve(process.cwd(), sshKeyPath),
     paths: {
       apps,
       caddy: server.paths?.caddy,
