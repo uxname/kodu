@@ -165,54 +165,57 @@ export class OpsRoutesCommand extends CommandRunner {
     domain: string;
     upstream: string;
   }): string {
-    const script = this.buildNodeScript(params);
-    return `node -e ${shellQuote(script)}`;
+    const script = this.buildPythonScript(params);
+    return `python3 -c ${shellQuote(script)}`;
   }
 
-  private buildNodeScript(params: {
+  private buildPythonScript(params: {
     action: Exclude<OpsRoutesAction, 'list'>;
     caddyfilePath: string;
     domain: string;
     upstream: string;
   }): string {
     return [
-      "const fs = require('node:fs');",
-      "const p = require('node:path');",
-      `const filePath = ${JSON.stringify(params.caddyfilePath)};`,
-      `const action = ${JSON.stringify(params.action)};`,
-      `const domain = ${JSON.stringify(params.domain)};`,
-      `const upstream = ${JSON.stringify(params.upstream)};`,
-      "const esc = (s) => s.replace(/[.*+?^\\$\\{\\}()|[\\]\\\\]/g, '\\\\$&');",
-      "const read = fs.readFileSync(filePath, 'utf8');",
-      "const domainRe = new RegExp('(^|\\n)\\\\s*' + esc(domain) + '\\s*\\\\{[\\\\s\\\\S]*?\\\\n\\\\}', 'm');",
-      'let text = read;',
-      "if (action === 'add') {",
-      '  if (domainRe.test(text)) {',
-      "    process.stderr.write('Route already exists for domain');",
-      '    process.exit(3);',
-      '  }',
-      "  const block = '\\n' + domain + ' {\\n  reverse_proxy ' + upstream + '\\n}\\n';",
-      '  text = text.replace(/\\s*$/g, "") + block;',
-      "} else if (action === 'remove') {",
-      '  if (!domainRe.test(text)) {',
-      "    process.stderr.write('Route not found');",
-      '    process.exit(4);',
-      '  }',
-      "  text = text.replace(domainRe, '\\n').replace(/\\n{3,}/g, '\\n\\n').replace(/^\\n+/, '');",
-      "} else if (action === 'update') {",
-      '  const match = text.match(domainRe);',
-      '  if (!match) {',
-      "    process.stderr.write('Route not found');",
-      '    process.exit(4);',
-      '  }',
-      '  const block = match[0];',
-      "  const updated = block.replace(/reverse_proxy\\s+[^\\n]+/, 'reverse_proxy ' + upstream);",
-      '  text = text.replace(domainRe, updated);',
-      '}',
-      "const tmp = p.join(p.dirname(filePath), '.tmp-' + Date.now() + '-' + Math.random().toString(36).slice(2));",
-      "fs.writeFileSync(tmp, text, 'utf8');",
-      'fs.renameSync(tmp, filePath);',
-      "process.stdout.write(JSON.stringify({ status: 'ok' }));",
+      'import json',
+      'import os',
+      'import random',
+      'import re',
+      'import sys',
+      'import time',
+      'from pathlib import Path',
+      `file_path = ${JSON.stringify(params.caddyfilePath)}`,
+      `action = ${JSON.stringify(params.action)}`,
+      `domain = ${JSON.stringify(params.domain)}`,
+      `upstream = ${JSON.stringify(params.upstream)}`,
+      'with Path(file_path).open("r", encoding="utf-8") as handle:',
+      '  text = handle.read()',
+      'domain_re = re.compile(r"(^|\\n)\\s*" + re.escape(domain) + r"\\s*\\{[\\s\\S]*?\\n\\}", re.MULTILINE)',
+      'if action == "add":',
+      '  if domain_re.search(text):',
+      '    sys.stderr.write("Route already exists for domain")',
+      '    sys.exit(3)',
+      '  block = "\n" + domain + " {\n  reverse_proxy " + upstream + "\n}\n"',
+      '  text = re.sub(r"\\s*$", "", text) + block',
+      'elif action == "remove":',
+      '  if not domain_re.search(text):',
+      '    sys.stderr.write("Route not found")',
+      '    sys.exit(4)',
+      '  text = domain_re.sub("\n", text, count=1)',
+      '  text = re.sub(r"\\n{3,}", "\n\n", text)',
+      '  text = re.sub(r"^\\n+", "", text)',
+      'elif action == "update":',
+      '  match = domain_re.search(text)',
+      '  if not match:',
+      '    sys.stderr.write("Route not found")',
+      '    sys.exit(4)',
+      '  block = match.group(0)',
+      '  updated = re.sub(r"reverse_proxy\\s+[^\\n]+", "reverse_proxy " + upstream, block, count=1)',
+      '  text = domain_re.sub(updated, text, count=1)',
+      'tmp = os.path.join(os.path.dirname(file_path), ".tmp-" + str(int(time.time() * 1000)) + "-" + format(random.getrandbits(48), "x"))',
+      'with open(tmp, "w", encoding="utf-8") as handle:',
+      '  handle.write(text)',
+      'os.replace(tmp, file_path)',
+      'print(json.dumps({"status": "ok"}))',
     ].join('\n');
   }
 }
