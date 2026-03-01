@@ -136,7 +136,7 @@ export class OpsEnvCommand extends CommandRunner {
     if (action === 'set') {
       const val = ensureRequired(options.val, 'val');
       const quotedVal = shellQuote(val);
-      return [
+      const scriptLines = [
         `ENV_FILE=${quotedPath}`,
         `KEY=${quotedKey}`,
         `VAL=${quotedVal}`,
@@ -144,15 +144,22 @@ export class OpsEnvCommand extends CommandRunner {
         'touch "$ENV_FILE"',
         'awk -v k="$KEY" -v v="$VAL" \'BEGIN{found=0} $0 ~ "^" k "=" { print k "=" v; found=1; next } { print } END { if (!found) print k "=" v }\' "$ENV_FILE" > "$ENV_FILE.tmp"',
         'mv "$ENV_FILE.tmp" "$ENV_FILE"',
-      ].join(' && ');
+      ];
+      return this.buildBashScript(scriptLines);
     }
 
-    return [
+    const scriptLines = [
       `ENV_FILE=${quotedPath}`,
       `KEY=${quotedKey}`,
       'if [ ! -f "$ENV_FILE" ]; then exit 0; fi',
       'grep -v "^$KEY=" "$ENV_FILE" > "$ENV_FILE.tmp"',
       'mv "$ENV_FILE.tmp" "$ENV_FILE"',
-    ].join(' && ');
+    ];
+    return this.buildBashScript(scriptLines);
+  }
+
+  private buildBashScript(scriptLines: string[]): string {
+    const script = scriptLines.join(' && ');
+    return `bash -lc ${shellQuote(script)}`;
   }
 }
