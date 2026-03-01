@@ -8,7 +8,7 @@ This file provides guidelines and instructions for AI assistants working on the 
 
 - **Key Goals:** Speed (<0.5s startup), Determinism (no AI for critical file ops), DX (Developer Experience)
 - **Current Phase:** Phase 4 - AI Integration with Mastra/Git
-- **Available Commands:** `init`, `pack`, `clean`, `review`, `commit`
+- **Available Commands:** `init`, `pack`, `clean`, `review`, `commit`, `ops`
 
 ## 2. Technology Stack (Enforced)
 
@@ -41,12 +41,14 @@ src/
 │   ├── git/                # GitModule
 │   ├── ai/                 # AiModule (Mastra)
 │   └── cleaner/            # CleanerService (AST)
+│   └── ssh/                # SshModule (remote ops via SSH)
 └── commands/               # Feature Commands
     ├── init/               # kodu init
     ├── pack/               # kodu pack
     ├── clean/              # kodu clean
     ├── review/             # kodu review
-    └── commit/             # kodu commit
+    ├── commit/             # kodu commit
+    └── ops/                # kodu ops <subcommand>
 ```
 
 ## 4. Build, Lint & Test Commands
@@ -146,6 +148,20 @@ npm test -- --coverage
   "packer": {
     "ignore": ["*.lock", "node_modules", "dist"],
     "useGitignore": true
+  },
+  "ops": {
+    "servers": {
+      "dev": {
+        "host": "example.com",
+        "port": 22,
+        "user": "ubuntu",
+        "sshKeyPath": "~/.ssh/id_rsa",
+        "paths": {
+          "apps": "/var/agent-apps",
+          "caddy": "/var/agent-apps/caddy"
+        }
+      }
+    }
   }
 }
 ```
@@ -163,6 +179,7 @@ npm test -- --coverage
 | `kodu clean` | Remove comments (AST-based) | `--dry-run` |
 | `kodu review` | AI code review | `--mode`, `--ci`, `--output` |
 | `kodu commit` | Generate commit message | `--ci`, `--output` |
+| `kodu ops` | Remote server operations over SSH (JSON-only) | `sysinfo`, `env`, `routes`, `service` |
 
 ## 8. Critical Constraints
 
@@ -172,6 +189,7 @@ npm test -- --coverage
 4. **Performance:** Mindful of import costs. Use lightweight libraries
 5. **Git Preconditions:** AI commands require git repo with staged changes
 6. **Config Location:** `kodu.json` must be in current working directory
+7. **AgentOps Output Contract:** `kodu ops` commands must return strict JSON (no spinners/colors/prompts)
 
 ## 9. Development Workflow
 

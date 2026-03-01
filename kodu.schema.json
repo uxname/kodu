@@ -173,6 +173,65 @@
         }
       },
       "additionalProperties": false
+    },
+    "ops": {
+      "type": "object",
+      "properties": {
+        "servers": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "host": {
+                "type": "string"
+              },
+              "port": {
+                "default": 22,
+                "type": "number"
+              },
+              "user": {
+                "type": "string"
+              },
+              "sshKeyPath": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "paths": {
+                "type": "object",
+                "properties": {
+                  "apps": {
+                    "default": "/var/agent-apps",
+                    "type": "string"
+                  },
+                  "caddy": {
+                    "type": "string"
+                  }
+                },
+                "required": ["apps"],
+                "additionalProperties": false
+              },
+              "env": {
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": ["host", "port", "user", "sshKeyPath"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["servers"],
+      "additionalProperties": false
     }
   },
   "required": ["cleaner", "packer"],

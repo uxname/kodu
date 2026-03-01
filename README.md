@@ -4,7 +4,7 @@
 
 **The AI-First CLI for Modern Developers**
 
-Generate contexts, clean code, review PRs, and draft commits—instantly.
+Generate contexts, clean code, review PRs, draft commits, and run remote ops—instantly.
 
 [![npm version](https://img.shields.io/npm/v/kodu?style=flat-square&color=black)](https://www.npmjs.com/package/kodu)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square&color=black)](LICENSE)
@@ -22,6 +22,7 @@ Generate contexts, clean code, review PRs, and draft commits—instantly.
 | Hitting token limits with comments | **`kodu clean`** strips noise deterministically |
 | Context switching for code reviews | **`kodu review`** checks logic inside your terminal |
 | Writing boring commit messages | **`kodu commit`** generates semantic git messages |
+| SSHing around servers manually | **`kodu ops`** runs machine-readable remote operations |
 
 ---
 
@@ -88,6 +89,20 @@ kodu review --mode bug
 kodu review --mode security
 ```
 
+### 4. "I need my agent to inspect a server"
+Run remote diagnostics and operations via `kodu ops` with strict JSON output.
+
+```bash
+# Server health snapshot
+kodu ops sysinfo dev
+
+# Manage app env vars remotely
+kodu ops env dev set my-app --key NODE_ENV --val production
+
+# Read Caddy routes (raw Caddyfile)
+kodu ops routes dev list
+```
+
 ---
 
 ## ⚙️ Configuration
@@ -108,17 +123,31 @@ Kodu creates a `kodu.json` in your root. It's pre-configured, but fully hackable
     "whitelist": ["//!"]
   },
   "packer": {
-    // Files to strictly ignore
     "ignore": ["package-lock.json", "dist", "coverage"]
   },
+  "ops": {
+    "servers": {
+      "dev": {
+        "host": "example.com",
+        "port": 22,
+        "user": "ubuntu",
+        "sshKeyPath": "~/.ssh/id_rsa",
+        "paths": {
+          "apps": "/var/agent-apps",
+          "caddy": "/var/agent-apps/caddy"
+        }
+      }
+    }
+  },
   "prompts": {
-    // Use your own prompts for reviews
     "review": {
       "bug": ".kodu/prompts/review-bug.md"
     }
   }
 }
 ```
+
+`kodu ops` is designed for agents: responses are strict JSON (including errors), with no spinner/colors/prompts.
 </details>
 
 ---

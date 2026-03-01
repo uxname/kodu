@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { CleanModule } from './commands/clean/clean.module';
 import { CommitModule } from './commands/commit/commit.module';
 import { InitModule } from './commands/init/init.module';
+import { OpsModule } from './commands/ops/ops.module';
 import { PackModule } from './commands/pack/pack.module';
 import { ReviewModule } from './commands/review/review.module';
 import { ConfigModule } from './core/config/config.module';
@@ -24,6 +25,7 @@ import { TokenizerModule } from './shared/tokenizer/tokenizer.module';
     CleanModule,
     ReviewModule,
     CommitModule,
+    OpsModule,
   ],
 })
 export class AppModule {}

@@ -73,6 +73,27 @@ const promptsSchema = z
   })
   .optional();
 
+const serverPathsSchema = z
+  .object({
+    apps: z.string().default('/var/agent-apps'),
+    caddy: z.string().optional(),
+  })
+  .optional();
+
+const serverConfigSchema = z.object({
+  host: z.string(),
+  port: z.number().default(22),
+  user: z.string(),
+  sshKeyPath: z.string(),
+  description: z.string().optional(),
+  paths: serverPathsSchema,
+  env: z.record(z.string(), z.string()).optional(),
+});
+
+const opsSchema = z.object({
+  servers: z.record(z.string(), serverConfigSchema),
+});
+
 export const configSchema = z.object({
   $schema: z.string().optional(),
   llm: llmSchema.optional(),
@@ -97,6 +118,8 @@ export const configSchema = z.object({
     contentBasedBinaryDetection: false,
   }),
   prompts: promptsSchema,
+  ops: opsSchema.optional(),
 });
 
 export type KoduConfig = z.infer<typeof configSchema>;
+export type ServerConfig = z.infer<typeof serverConfigSchema>;

@@ -37,6 +37,21 @@ export class InitCommand extends CommandRunner {
       $schema:
         'https://raw.githubusercontent.com/uxname/kodu/refs/heads/master/kodu.schema.json',
       llm: defaultLlmConfig,
+      ops: {
+        servers: {
+          dev: {
+            host: 'example.com',
+            port: 22,
+            user: 'ubuntu',
+            sshKeyPath: '~/.ssh/id_rsa',
+            description: 'Example AgentOps server',
+            paths: {
+              apps: '/var/agent-apps',
+              caddy: '/var/agent-apps/caddy',
+            },
+          },
+        },
+      },
       cleaner: {
         whitelist: ['//!'],
         keepJSDoc: true,
@@ -134,6 +149,7 @@ export class InitCommand extends CommandRunner {
         contentBasedBinaryDetection:
           defaultConfig.packer.contentBasedBinaryDetection,
       },
+      ops: defaultConfig.ops,
       prompts: {
         review: {
           bug: promptPaths.review.bug,

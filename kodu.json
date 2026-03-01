@@ -36,6 +36,21 @@
     "useGitignore": true,
     "contentBasedBinaryDetection": false
   },
+  "ops": {
+    "servers": {
+      "dev": {
+        "host": "example.com",
+        "port": 22,
+        "user": "ubuntu",
+        "sshKeyPath": "~/.ssh/id_rsa",
+        "description": "Example AgentOps server",
+        "paths": {
+          "apps": "/var/agent-apps",
+          "caddy": "/var/agent-apps/caddy"
+        }
+      }
+    }
+  },
   "prompts": {
     "review": {
       "bug": ".kodu/prompts/review-bug.md",
