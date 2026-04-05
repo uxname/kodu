@@ -12,6 +12,7 @@ type PackOptions = {
   copy?: boolean;
   template?: string;
   out?: string;
+  path?: string[];
 };
 
 type TemplateContext = {
@@ -57,6 +58,14 @@ export class PackCommand extends CommandRunner {
     return value;
   }
 
+  @Option({
+    flags: '-p, --path <path>',
+    description: 'Directory or glob to include (repeatable)',
+  })
+  parsePath(value: string, previous: string[] = []): string[] {
+    return [...previous, value];
+  }
+
   async run(_inputs: string[], options: PackOptions): Promise<void> {
     const spinner = this.ui
       .createSpinner({ text: 'Collecting files...' })
@@ -69,6 +78,7 @@ export class PackCommand extends CommandRunner {
         useGitignore: packer.useGitignore,
         ignore: packer.ignore,
         contentBasedBinaryDetection: packer.contentBasedBinaryDetection,
+        rootPaths: options.path,
       });
 
       if (files.length === 0) {

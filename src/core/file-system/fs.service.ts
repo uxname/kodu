@@ -20,6 +20,7 @@ type FindProjectFilesOptions = {
   excludeBinary?: boolean;
   contentBasedBinaryDetection?: boolean;
   maxFileSizeBytes?: number;
+  rootPaths?: string[];
 };
 
 @Injectable()
@@ -53,7 +54,12 @@ export class FsService {
     }
 
     const globIgnore = this.buildGlobIgnorePatterns(combinedIgnore);
-    const entries = await glob(['**/*'], {
+
+    const patterns = options.rootPaths?.length
+      ? options.rootPaths.map((p) => `${p}/**`)
+      : ['**/*'];
+
+    const entries = await glob(patterns, {
       onlyFiles: true,
       absolute: true,
       dot: true,
