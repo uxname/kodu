@@ -6,6 +6,7 @@ import { ConfigService } from '../../core/config/config.service';
 import { PromptService } from '../../core/config/prompt.service';
 import { FsService } from '../../core/file-system/fs.service';
 import { UiService } from '../../core/ui/ui.service';
+import { CleanerService } from '../../shared/cleaner/cleaner.service';
 import { TokenizerService } from '../../shared/tokenizer/tokenizer.service';
 
 type OutputFormat = 'xml' | 'text';
@@ -18,6 +19,7 @@ type PackOptions = {
   exclude?: string[];
   list?: boolean;
   format?: OutputFormat;
+  clean?: boolean;
 };
 
 type TemplateContext = {
@@ -38,6 +40,7 @@ export class PackCommand extends CommandRunner {
     private readonly promptService: PromptService,
     private readonly fsService: FsService,
     private readonly tokenizer: TokenizerService,
+    private readonly cleaner: CleanerService,
   ) {
     super();
   }
@@ -88,6 +91,14 @@ export class PackCommand extends CommandRunner {
   }
 
   @Option({
+    flags: '--clean',
+    description: 'Strip comments in-memory before packing (files not modified)',
+  })
+  parseClean(): boolean {
+    return true;
+  }
+
+  @Option({
     flags: '-f, --format <format>',
     description: 'Output format: xml (default) or text',
   })
@@ -130,7 +141,7 @@ export class PackCommand extends CommandRunner {
       }
 
       const format: OutputFormat = options.format ?? 'xml';
-      const context = await this.buildContext(files, format);
+      const context = await this.buildContext(files, format, options.clean);
       const fileList = files.join('\n');
       const { tokens, usdEstimate } = this.tokenizer.count(context);
 
@@ -160,7 +171,9 @@ export class PackCommand extends CommandRunner {
       this.ui.log.info(`Files: ${files.length}`);
       this.ui.log.info(`Tokens: ${tokens}`);
       this.ui.log.info(`Cost estimate: ~$${usdEstimate.toFixed(4)}`);
-      this.ui.log.info(`Format: ${format}`);
+      this.ui.log.info(
+        `Format: ${format}${options.clean ? ' (comments stripped)' : ''}`,
+      );
       this.ui.log.success(`Saved to ${outputPath}`);
 
       if (options.copy) {
@@ -177,10 +190,14 @@ export class PackCommand extends CommandRunner {
   private async buildContext(
     files: string[],
     format: OutputFormat,
+    clean = false,
   ): Promise<string> {
     const chunks = await Promise.all(
       files.map(async (file) => {
-        const content = await this.fsService.readFileRelative(file);
+        let content = await this.fsService.readFileRelative(file);
+        if (clean) {
+          content = this.cleaner.cleanContent(file, content);
+        }
         if (format === 'xml') {
           return `<file path="${file}">\n${content}\n</file>`;
         }

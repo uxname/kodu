@@ -98,6 +98,7 @@ Use `--format text` for legacy `// file: path` style headers.
 | `-e, --exclude <pattern>` | Additional exclude pattern (repeatable) |
 | `-l, --list` | Print file list only, no content |
 | `-f, --format <xml\|text>` | Output format (default: `xml`) |
+| `--clean` | Strip comments in-memory before packing (files not modified) |
 | `-t, --template <name>` | Wrap output in a prompt template from `.kodu/prompts/` |
 
 ---
@@ -107,17 +108,47 @@ Use `--format text` for legacy `// file: path` style headers.
 Remove comments from source files using AST-based parsing. No AI, fully deterministic.
 
 ```bash
-# Preview what would be removed
+# Preview what would be removed (with byte/token savings)
 kodu clean --dry-run
 
-# Clean only git-changed files (great before committing)
+# Show every removed comment, not just first 3
+kodu clean --dry-run --verbose
+
+# Clean only git-staged files
+kodu clean --staged
+
+# Clean only git-changed files (staged + unstaged + untracked)
 kodu clean --changed
+
+# Target specific files or directories
+kodu clean src/utils.ts src/helpers/
+
+# Remove JSDoc too (overrides config)
+kodu clean --no-jsdoc
+
+# Backup originals before modifying
+kodu clean --backup
+
+# Read from stdin, write to stdout (great for scripting)
+cat src/foo.ts | kodu clean --stdin
 
 # Clean all project files
 kodu clean
 ```
 
-Supports `.ts`, `.tsx`, `.js`, `.jsx`, `.html`. Respects `cleaner.whitelist` in `kodu.json` (e.g. `//!` to preserve important comments).
+Supports `.ts`, `.tsx`, `.js`, `.jsx`, `.mjs`, `.cjs`, `.html`. Respects `cleaner.whitelist` in `kodu.json` (e.g. `//!` to preserve important comments).
+
+### Options
+
+| Flag | Description |
+|------|-------------|
+| `-d, --dry-run` | Show what will be removed without modifying files |
+| `-v, --verbose` | Show all removed comments in dry-run (not just first 3) |
+| `-c, --changed` | Clean only git-changed files (staged + unstaged + untracked) |
+| `-s, --staged` | Clean only git-staged files |
+| `-n, --no-jsdoc` | Remove JSDoc comments (overrides `keepJSDoc` in config) |
+| `-b, --backup` | Save originals to `.kodu/backup/` before modifying |
+| `--stdin` | Read from stdin, write cleaned result to stdout |
 
 ---
 

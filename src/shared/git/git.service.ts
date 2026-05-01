@@ -34,4 +34,14 @@ export class GitService {
     await load(['ls-files', '--others', '--exclude-standard']);
     return [...changed].sort();
   }
+
+  async getStagedFiles(): Promise<string[]> {
+    await this.ensureRepo();
+    const { stdout } = await execa('git', ['diff', '--name-only', '--staged']);
+    return stdout
+      .split('\n')
+      .map((entry) => entry.trim())
+      .filter((entry) => entry.length > 0)
+      .sort();
+  }
 }

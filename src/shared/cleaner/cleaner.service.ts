@@ -43,30 +43,50 @@ export class CleanerService {
     private readonly fsService: FsService,
   ) {}
 
+  cleanContent(filename: string, content: string, keepJSDoc?: boolean): string {
+    const config = this.configService.getConfig();
+    const whitelist = this.buildWhitelist(config.cleaner.whitelist);
+    const shouldKeepJSDoc = keepJSDoc ?? config.cleaner.keepJSDoc;
+    const result = this.cleanSource(
+      filename,
+      content,
+      whitelist,
+      shouldKeepJSDoc,
+    );
+    return result.nextContent;
+  }
+
   async cleanFiles(
     files: string[],
     options: CleanOptions = {},
   ): Promise<CleanSummary> {
     const config = this.configService.getConfig();
     const whitelist = this.buildWhitelist(config.cleaner.whitelist);
+    const keepJSDoc = options.keepJSDoc ?? config.cleaner.keepJSDoc;
     let commentsRemoved = 0;
     let filesChanged = 0;
+    let bytesBefore = 0;
+    let bytesAfter = 0;
     const reports: FileCleanReport[] = [];
 
-    for (const file of files) {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i] as string;
+      options.onProgress?.(i + 1, files.length);
+
       const original = await this.fsService.readFileRelative(file);
-      const result = this.cleanSource(
-        file,
-        original,
-        whitelist,
-        config.cleaner.keepJSDoc,
-      );
+      bytesBefore += Buffer.byteLength(original, 'utf8');
+
+      const result = this.cleanSource(file, original, whitelist, keepJSDoc);
+      bytesAfter += Buffer.byteLength(result.nextContent, 'utf8');
 
       if (result.removed > 0) {
         filesChanged += 1;
         commentsRemoved += result.removed;
 
         if (!options.dryRun) {
+          if (options.backup) {
+            await this.backupFile(file, original);
+          }
           await this.writeFile(file, result.nextContent);
         }
       }
@@ -75,6 +95,8 @@ export class CleanerService {
         file,
         removed: result.removed,
         previews: result.previews,
+        bytesBefore: Buffer.byteLength(original, 'utf8'),
+        bytesAfter: Buffer.byteLength(result.nextContent, 'utf8'),
       });
     }
 
@@ -82,6 +104,8 @@ export class CleanerService {
       filesProcessed: files.length,
       filesChanged,
       commentsRemoved,
+      bytesBefore,
+      bytesAfter,
       reports,
     };
   }
@@ -106,9 +130,9 @@ export class CleanerService {
       return { nextContent: content, removed: 0, previews: [] };
     }
 
-    const previews = candidates
-      .slice(0, 3)
-      .map((range) => this.normalizePreview(range.text));
+    const previews = candidates.map((range) =>
+      this.normalizePreview(range.text),
+    );
 
     const sorted = [...candidates].sort((a, b) => b.start - a.start);
     let nextContent = fullText;
@@ -191,8 +215,8 @@ export class CleanerService {
 
   private normalizePreview(text: string): string {
     const singleLine = text.replace(/\s+/g, ' ').trim();
-    if (singleLine.length <= 50) return singleLine;
-    return `${singleLine.slice(0, 47)}...`;
+    if (singleLine.length <= 60) return singleLine;
+    return `${singleLine.slice(0, 57)}...`;
   }
 
   private getReplacement(original: string, range: RemovalRange): string {
@@ -219,6 +243,13 @@ export class CleanerService {
   private async writeFile(file: string, content: string): Promise<void> {
     const absolute = path.resolve(process.cwd(), file);
     await fs.writeFile(absolute, content, 'utf8');
+  }
+
+  private async backupFile(file: string, content: string): Promise<void> {
+    const backupDir = path.join(process.cwd(), '.kodu', 'backup');
+    const target = path.join(backupDir, file);
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await fs.writeFile(target, content, 'utf8');
   }
 
   private addRange(

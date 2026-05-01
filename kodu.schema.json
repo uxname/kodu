@@ -5,74 +5,6 @@
     "$schema": {
       "type": "string"
     },
-    "llm": {
-      "type": "object",
-      "properties": {
-        "model": {
-          "default": "openai/gpt-4o",
-          "type": "string",
-          "pattern": "^[a-zA-Z0-9-_]+\\/[a-zA-Z0-9-_.]+$"
-        },
-        "apiKeyEnv": {
-          "default": "OPENAI_API_KEY",
-          "type": "string"
-        },
-        "commands": {
-          "default": {
-            "commit": {
-              "modelSettings": {
-                "maxOutputTokens": 1500
-              }
-            },
-            "review": {
-              "modelSettings": {
-                "maxOutputTokens": 5000
-              }
-            }
-          },
-          "type": "object",
-          "properties": {
-            "commit": {
-              "type": "object",
-              "properties": {
-                "modelSettings": {
-                  "type": "object",
-                  "properties": {
-                    "maxOutputTokens": {
-                      "type": "integer",
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991
-                    }
-                  },
-                  "additionalProperties": {}
-                }
-              },
-              "additionalProperties": false
-            },
-            "review": {
-              "type": "object",
-              "properties": {
-                "modelSettings": {
-                  "type": "object",
-                  "properties": {
-                    "maxOutputTokens": {
-                      "type": "integer",
-                      "exclusiveMinimum": 0,
-                      "maximum": 9007199254740991
-                    }
-                  },
-                  "additionalProperties": {}
-                }
-              },
-              "additionalProperties": false
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "required": ["model", "apiKeyEnv"],
-      "additionalProperties": false
-    },
     "cleaner": {
       "default": {
         "whitelist": ["//!"],
@@ -156,81 +88,10 @@
     "prompts": {
       "type": "object",
       "properties": {
-        "review": {
-          "type": "object",
-          "propertyNames": {
-            "type": "string"
-          },
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
-        "commit": {
-          "type": "string"
-        },
         "pack": {
           "type": "string"
         }
       },
-      "additionalProperties": false
-    },
-    "ops": {
-      "type": "object",
-      "properties": {
-        "servers": {
-          "type": "object",
-          "propertyNames": {
-            "type": "string"
-          },
-          "additionalProperties": {
-            "type": "object",
-            "properties": {
-              "host": {
-                "type": "string"
-              },
-              "port": {
-                "default": 22,
-                "type": "number"
-              },
-              "user": {
-                "type": "string"
-              },
-              "sshKeyPath": {
-                "type": "string"
-              },
-              "description": {
-                "type": "string"
-              },
-              "paths": {
-                "type": "object",
-                "properties": {
-                  "apps": {
-                    "default": "/var/agent-apps",
-                    "type": "string"
-                  },
-                  "caddy": {
-                    "type": "string"
-                  }
-                },
-                "required": ["apps"],
-                "additionalProperties": false
-              },
-              "env": {
-                "type": "object",
-                "propertyNames": {
-                  "type": "string"
-                },
-                "additionalProperties": {
-                  "type": "string"
-                }
-              }
-            },
-            "required": ["host", "port", "user", "sshKeyPath"],
-            "additionalProperties": false
-          }
-        }
-      },
-      "required": ["servers"],
       "additionalProperties": false
     }
   },
