@@ -246,7 +246,9 @@ export class PackCommand extends CommandRunner {
       const template = await this.promptService.load(packPrompt);
       return this.fillTemplate(template, ctx);
     } catch {
-      this.ui.log.warn(`Prompt file not found: ${packPrompt}, using raw context`);
+      this.ui.log.warn(
+        `Prompt file not found: ${packPrompt}, using raw context`,
+      );
       return ctx.context;
     }
   }
