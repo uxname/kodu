@@ -17,6 +17,7 @@
 | :--- | :--- |
 | Copy-pasting files one by one into ChatGPT | `kodu pack` bundles your entire project in one command |
 | Hitting token limits with comments and docs | `kodu clean` strips comments deterministically via AST |
+| Sending irrelevant files to LLMs | `kodu pack --deps` traces only the real import graph from your entry point |
 
 ---
 
@@ -70,6 +71,38 @@ kodu pack --out /tmp/context.txt
 kodu pack --format text --copy
 ```
 
+### Dependency-aware packing
+
+Instead of bundling the entire project, trace only the files reachable from your entry point:
+
+```bash
+# Pack src/index.ts and every file it imports (recursively)
+kodu pack src/index.ts --deps --copy
+
+# Multiple entry points
+kodu pack src/server.ts src/worker.ts --deps --copy
+
+# Limit traversal depth (direct imports only)
+kodu pack src/index.ts --deps --deps-depth 1 --list
+
+# See why each file was included
+kodu pack src/index.ts --deps --explain
+
+# Combine with --list and --explain for a quick audit
+kodu pack src/index.ts --deps --list --explain
+```
+
+Example `--explain` output:
+
+```
+src/main.ts  ← entry point
+src/app.module.ts  ← import from src/main.ts
+src/core/config/config.service.ts  ← import from src/core/config/config.module.ts
+src/shared/constants.ts  ← import from src/core/file-system/fs.service.ts
+```
+
+`--deps` uses `ts-morph` to resolve the TypeScript import graph, so it correctly handles tsconfig path aliases, re-exports, index files, and type-only imports. `node_modules` are excluded automatically.
+
 ### Output format
 
 By default, kodu wraps each file in XML tags — the format that LLMs parse most reliably:
@@ -100,6 +133,9 @@ Use `--format text` for legacy `// file: path` style headers.
 | `-f, --format <xml\|text>` | Output format (default: `xml`) |
 | `--clean` | Strip comments in-memory before packing (files not modified) |
 | `-t, --template <name>` | Wrap output in a prompt template from `.kodu/prompts/` |
+| `--deps` | Trace import graph from entry point(s) instead of globbing |
+| `--deps-depth <n>` | Max import traversal depth (default: unlimited) |
+| `--explain` | Print why each file was included (use with `--deps`) |
 
 ---
 
