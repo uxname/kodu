@@ -124,6 +124,10 @@ npm run check              # TypeCheck + Biome + Knip
 
 ## 7. Commands Reference
 
+### `kodu init`
+
+Add `.kodu/context.txt` to `.gitignore` (if `.gitignore` exists). Run once after cloning or setting up a project.
+
 ### `kodu pack`
 
 Bundle project files into a single context file for LLMs.

@@ -34,6 +34,18 @@ npx kodu pack --copy
 
 ---
 
+## kodu init
+
+Add `.kodu/context.txt` to `.gitignore` so generated context files are never committed:
+
+```bash
+kodu init
+```
+
+Run once after cloning or setting up the project.
+
+---
+
 ## kodu pack
 
 Bundle project files into a single context file optimized for LLMs.
