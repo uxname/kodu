@@ -1,171 +1,160 @@
 <div align="center">
 
-# Kodu 🦄
+# Kodu
 
-**The AI-First CLI for Modern Developers**
-
-Generate contexts, clean code, review PRs, draft commits, and run remote ops—instantly.
+**Bundle your codebase for LLMs. Strip noise. Ship faster.**
 
 [![npm version](https://img.shields.io/npm/v/kodu?style=flat-square&color=black)](https://www.npmjs.com/package/kodu)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square&color=black)](LICENSE)
-[![Privacy](https://img.shields.io/badge/Privacy-First-green.svg?style=flat-square)](https://github.com/uxname/kodu)
 
 </div>
 
 ---
 
-## ⚡ The Problem vs. Kodu
+## What it does
 
-| You (Manual) ❌ | Kodu (Automated) ✅ |
+| Problem | Kodu |
 | :--- | :--- |
-| Copy-pasting 10 files one by one | **`kodu pack`** bundles context in 1 click |
-| Hitting token limits with comments | **`kodu clean`** strips noise deterministically |
-| Context switching for code reviews | **`kodu review`** checks logic inside your terminal |
-| Writing boring commit messages | **`kodu commit`** generates semantic git messages |
-| SSHing around servers manually | **`kodu ops`** runs machine-readable remote operations |
+| Copy-pasting files one by one into ChatGPT | `kodu pack` bundles your entire project in one command |
+| Hitting token limits with comments and docs | `kodu clean` strips comments deterministically via AST |
 
 ---
 
-## 🚀 Instant Start
-
-Don't want to install? Run it directly:
-
-```bash
-# 1. Initialize config (creates kodu.json)
-npx kodu init
-
-# 2. Bundle your project to clipboard
-npx kodu pack --copy
-```
-
-**Or install globally for speed (<0.5s startup):**
+## Install
 
 ```bash
 npm install -g kodu
 ```
 
----
-
-## 🛡️ Privacy & Security
-
-We know trust is paramount when dealing with code.
-
-*   **Local Execution:** Code analysis runs locally.
-*   **Zero Data Retention:** We don't store your code.
-*   **Explicit Control:** `.env`, `node_modules`, and lockfiles are ignored by default.
-*   **You Own the Keys:** Your API key (`OPENAI_API_KEY`) goes directly to the provider.
-
----
-
-## 💡 Common Workflows
-
-### 1. "I need to ask ChatGPT about my project"
-Pack your entire source code (minus ignored files) into the clipboard, optimized for tokens.
+Or run without installing:
 
 ```bash
-kodu pack --copy
-# Output: Copied 45 files (12k tokens) to clipboard. Paste into ChatGPT!
+npx kodu pack --copy
 ```
 
-### 2. "I want to save money on API costs"
-Strip comments and docs to reduce token count by ~30% before sending.
+---
+
+## kodu pack
+
+Bundle project files into a single context file optimized for LLMs.
 
 ```bash
-# Preview savings
+# Pack everything and copy to clipboard
+kodu pack --copy
+
+# Pack only specific directories
+kodu pack --path src --path tests --copy
+
+# Just see what files would be included
+kodu pack --list
+
+# Exclude extra patterns on the fly
+kodu pack --exclude "**/*.test.ts" --exclude "docs/" --copy
+
+# Save to a custom path
+kodu pack --out /tmp/context.txt
+
+# Use plain text format instead of XML
+kodu pack --format text --copy
+```
+
+### Output format
+
+By default, kodu wraps each file in XML tags — the format that LLMs parse most reliably:
+
+```xml
+<files>
+<file path="src/index.ts">
+// your code here
+</file>
+
+<file path="src/utils.ts">
+// more code
+</file>
+</files>
+```
+
+Use `--format text` for legacy `// file: path` style headers.
+
+### Options
+
+| Flag | Description |
+|------|-------------|
+| `-c, --copy` | Copy result to clipboard |
+| `-o, --out <path>` | Output file path (default: `.kodu/context.txt`) |
+| `-p, --path <path>` | Include only this directory/glob (repeatable) |
+| `-e, --exclude <pattern>` | Additional exclude pattern (repeatable) |
+| `-l, --list` | Print file list only, no content |
+| `-f, --format <xml\|text>` | Output format (default: `xml`) |
+| `-t, --template <name>` | Wrap output in a prompt template from `.kodu/prompts/` |
+
+---
+
+## kodu clean
+
+Remove comments from source files using AST-based parsing. No AI, fully deterministic.
+
+```bash
+# Preview what would be removed
 kodu clean --dry-run
 
-# Clean only what you changed (Great for PRs)
+# Clean only git-changed files (great before committing)
 kodu clean --changed
+
+# Clean all project files
+kodu clean
 ```
 
-### 3. "Check my code before I push"
-Get an AI review of your **staged** changes without leaving the terminal.
-
-```bash
-# Detect bugs and logical errors
-kodu review --mode bug
-
-# Check for security leaks
-kodu review --mode security
-```
-
-### 4. "I need my agent to inspect a server"
-Run remote diagnostics and operations via `kodu ops` with strict JSON output.
-
-```bash
-# Server health snapshot
-kodu ops sysinfo dev
-
-# Manage app env vars remotely
-kodu ops env dev set my-app --key NODE_ENV --val production
-
-# Read Caddy routes (raw Caddyfile)
-kodu ops routes dev list
-```
+Supports `.ts`, `.tsx`, `.js`, `.jsx`, `.html`. Respects `cleaner.whitelist` in `kodu.json` (e.g. `//!` to preserve important comments).
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
-Kodu creates a `kodu.json` in your root. It's pre-configured, but fully hackable.
-
-<details>
-<summary><b>Click to see example configuration</b></summary>
+Create `kodu.json` in your project root:
 
 ```json
 {
-  "llm": {
-    "model": "openai/gpt-4o",
-    "apiKeyEnv": "OPENAI_API_KEY"
-  },
   "cleaner": {
-    // Kodu will NEVER remove comments starting with these:
-    "whitelist": ["//!"]
+    "whitelist": ["//!"],
+    "keepJSDoc": true,
+    "useGitignore": true
   },
   "packer": {
-    "ignore": ["package-lock.json", "dist", "coverage"]
-  },
-  "ops": {
-    "servers": {
-      "dev": {
-        "host": "example.com",
-        "port": 22,
-        "user": "ubuntu",
-        "sshKeyPath": "~/.ssh/id_rsa",
-        "paths": {
-          "apps": "/var/agent-apps",
-          "caddy": "/var/agent-apps/caddy"
-        }
-      }
-    }
-  },
-  "prompts": {
-    "review": {
-      "bug": ".kodu/prompts/review-bug.md"
-    }
+    "ignore": ["package-lock.json", "dist", "coverage"],
+    "useGitignore": true
   }
 }
 ```
 
-`kodu ops` is designed for agents: responses are strict JSON (including errors), with no spinner/colors/prompts.
-</details>
+Both commands work without a config file using sensible defaults.
+
+### Custom pack template
+
+Point `prompts.pack` at a markdown file to wrap packed context in a prompt:
+
+```json
+{
+  "prompts": {
+    "pack": ".kodu/prompts/pack.md"
+  }
+}
+```
+
+Available template variables: `{{context}}`, `{{fileList}}`, `{{tokenCount}}`, `{{usdEstimate}}`.
 
 ---
 
-## 🏎️ Tech Stack (Fresh & Modern)
+## Privacy
 
-Built for speed and maintainability.
-
-*   **Runtime:** Node.js (ESM)
-*   **Framework:** NestJS + Commander
-*   **Parsing:** `ts-morph` (AST-based, not Regex)
-*   **Globbing:** `tinyglobby`
-*   **UI:** `@inquirer` + `yocto-spinner`
+- All processing runs locally
+- No data sent anywhere
+- API keys are never stored — only read from env vars
 
 ---
 
 <div align="center">
-  <sub>Built with ❤️ for productive developers.</sub>
+  <sub>Built for productive developers.</sub>
   <br>
   <a href="CONTRIBUTING.md">Contributing</a> • <a href="LICENSE">License</a>
 </div>

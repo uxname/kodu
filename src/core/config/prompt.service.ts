@@ -1,19 +1,13 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { Injectable } from '@nestjs/common';
-import { replacePromptVariables } from './default-prompts';
-
-type Variables = Record<string, string | number>;
 
 @Injectable()
 export class PromptService {
   private readonly cache = new Map<string, string>();
 
-  async load(source: string, variables?: Variables): Promise<string> {
-    const raw = await this.readSource(source);
-    return variables
-      ? replacePromptVariables(raw, this.normalize(variables))
-      : raw;
+  async load(source: string): Promise<string> {
+    return this.readSource(source);
   }
 
   async loadFromPromptsDir(name: string): Promise<string> {
@@ -66,29 +60,13 @@ export class PromptService {
     }
     const hasPathSegments = value.includes('/') || value.includes('\\');
     const hasExtension = path.extname(value) !== '';
-
     return value.trim().length > 0 && !hasPathSegments && !hasExtension;
   }
 
   private buildCandidates(name: string): string[] {
     const names = path.extname(name) ? [name] : [`${name}.md`, `${name}.txt`];
-
-    const roots = [path.join(process.cwd(), '.kodu', 'prompts')];
-
-    const candidates: string[] = [];
-    for (const root of roots) {
-      for (const variant of names) {
-        candidates.push(path.join(root, variant));
-      }
-    }
-
-    return candidates;
-  }
-
-  private normalize(variables: Variables): Record<string, string> {
-    return Object.fromEntries(
-      Object.entries(variables).map(([key, value]) => [key, value.toString()]),
-    );
+    const root = path.join(process.cwd(), '.kodu', 'prompts');
+    return names.map((variant) => path.join(root, variant));
   }
 
   private async exists(target: string): Promise<boolean> {

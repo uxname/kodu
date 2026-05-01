@@ -4,11 +4,10 @@ This file provides guidelines and instructions for AI assistants working on the 
 
 ## 1. Project Overview
 
-**Kodu** is a high-performance CLI utility that bridges local development environments with LLMs. It automates context preparation, code cleaning, reviews, and commit drafting.
+**Kodu** is a high-performance CLI utility that bridges local development environments with LLMs. It automates context preparation and code cleaning.
 
 - **Key Goals:** Speed (<0.5s startup), Determinism (no AI for critical file ops), DX (Developer Experience)
-- **Current Phase:** Phase 4 - AI Integration with Mastra/Git
-- **Available Commands:** `init`, `pack`, `clean`, `review`, `commit`, `ops`
+- **Available Commands:** `pack`, `clean`
 
 ## 2. Technology Stack (Enforced)
 
@@ -18,10 +17,8 @@ This file provides guidelines and instructions for AI assistants working on the 
 | File System | node:fs/promises + tinyglobby | fs-extra, glob, rimraf |
 | Config | lilconfig | cosmiconfig, rc |
 | Validation | zod | class-validator, joi |
-| Process/Git | execa | child_process, shelljs |
 | CLI UI | @inquirer/prompts + picocolors | inquirer (legacy), chalk |
 | Spinners | yocto-spinner | ora, cli-spinners |
-| AI Agent | mastra | Direct openai SDK |
 | AST/Parsing | ts-morph | Regex, babel |
 | Tokens | js-tiktoken | gpt-3-encoder |
 | Clipboard | clipboardy | Native APIs |
@@ -39,16 +36,10 @@ src/
 ├── shared/                 # Shared Business Logic
 │   ├── tokenizer/          # TokenizerModule
 │   ├── git/                # GitModule
-│   ├── ai/                 # AiModule (Mastra)
 │   └── cleaner/            # CleanerService (AST)
-│   └── ssh/                # SshModule (remote ops via SSH)
 └── commands/               # Feature Commands
-    ├── init/               # kodu init
     ├── pack/               # kodu pack
-    ├── clean/              # kodu clean
-    ├── review/             # kodu review
-    ├── commit/             # kodu commit
-    └── ops/                # kodu ops <subcommand>
+    └── clean/              # kodu clean
 ```
 
 ## 4. Build, Lint & Test Commands
@@ -70,26 +61,6 @@ npm run lint:fix           # Biome with auto-fix
 
 # Full check (required before commit)
 npm run check              # TypeCheck + Biome + Knip
-
-# Run tests (if configured)
-npm test                   # Run all tests
-npm test -- <pattern>      # Run tests matching pattern
-npm test -- --testPathPattern=<pattern>  # Alternative
-```
-
-### Running a Single Test
-```bash
-# By file name
-npm test -- filename
-
-# By pattern
-npm test -- --testNamePattern="test name"
-
-# Watch mode
-npm test -- --watch
-
-# With coverage
-npm test -- --coverage
 ```
 
 ## 5. Code Style Guidelines
@@ -136,10 +107,6 @@ npm test -- --coverage
 
 ```json
 {
-  "llm": {
-    "model": "openai/gpt-4o",
-    "apiKeyEnv": "OPENAI_API_KEY"
-  },
   "cleaner": {
     "whitelist": ["//!"],
     "keepJSDoc": true,
@@ -148,48 +115,46 @@ npm test -- --coverage
   "packer": {
     "ignore": ["*.lock", "node_modules", "dist"],
     "useGitignore": true
-  },
-  "ops": {
-    "servers": {
-      "dev": {
-        "host": "example.com",
-        "port": 22,
-        "user": "ubuntu",
-        "sshKeyPath": "~/.ssh/id_rsa",
-        "paths": {
-          "apps": "/var/agent-apps",
-          "caddy": "/var/agent-apps/caddy"
-        }
-      }
-    }
   }
 }
 ```
 
-- Model format: `provider/model-name` (e.g., `openai/gpt-4o`, `anthropic/claude-4-5-sonnet`)
-- API keys from env vars only (never store in config)
 - Config validated via Zod on startup
+- `kodu.json` must be in current working directory
 
 ## 7. Commands Reference
 
-| Command | Description | Key Options |
-|---------|-------------|-------------|
-| `kodu init` | Interactive setup wizard | - |
-| `kodu pack` | Bundle files for LLM | `--copy`, `--template`, `--out` |
-| `kodu clean` | Remove comments (AST-based) | `--dry-run` |
-| `kodu review` | AI code review | `--mode`, `--ci`, `--output` |
-| `kodu commit` | Generate commit message | `--ci`, `--output` |
-| `kodu ops` | Remote server operations over SSH (JSON-only) | `sysinfo`, `env`, `routes`, `service` |
+### `kodu pack`
+
+Bundle project files into a single context file for LLMs.
+
+| Option | Description |
+|--------|-------------|
+| `-c, --copy` | Copy result to clipboard |
+| `-o, --out <path>` | Path to save result (default: `.kodu/context.txt`) |
+| `-p, --path <path>` | Directory or glob to include (repeatable) |
+| `-e, --exclude <pattern>` | Additional exclude pattern (repeatable) |
+| `-l, --list` | Print file list only, without content |
+| `-f, --format <format>` | Output format: `xml` (default) or `text` |
+| `-t, --template <name>` | Template name from `.kodu/prompts` |
+
+Output format `xml` wraps each file in `<file path="...">` tags — recommended for LLM consumption. Format `text` uses `// file: ...` header comments.
+
+### `kodu clean`
+
+Remove comments from source files using AST-based parsing (deterministic, no AI).
+
+| Option | Description |
+|--------|-------------|
+| `-d, --dry-run` | Show what will be removed without modifying files |
+| `-c, --changed` | Clean only git-changed files |
 
 ## 8. Critical Constraints
 
-1. **No AI in Cleaner:** `clean` command is deterministic (AST-based), never AI-generated
+1. **No AI:** Both commands are deterministic — no AI integration
 2. **Validation First:** Invalid `kodu.json` causes graceful crash with Zod error
-3. **Secrets:** Never commit secrets. API keys from env vars only
-4. **Performance:** Mindful of import costs. Use lightweight libraries
-5. **Git Preconditions:** AI commands require git repo with staged changes
-6. **Config Location:** `kodu.json` must be in current working directory
-7. **AgentOps Output Contract:** `kodu ops` commands must return strict JSON (no spinners/colors/prompts)
+3. **Performance:** Mindful of import costs. Use lightweight libraries
+4. **Config Location:** `kodu.json` must be in current working directory
 
 ## 9. Development Workflow
 
@@ -199,7 +164,7 @@ npm test -- --coverage
 3. Implement `run()` extending `CommandRunner`
 4. Decorate with `@Command()` from `nest-commander`
 5. Register module in `app.module.ts`
-6. Test: `npm run build && node dist/main.js <name>`
+6. Test: `npm run build && node dist/src/main.js <name>`
 
 ### Before Commit
 Always run:
@@ -214,7 +179,6 @@ This executes: TypeScript check + Biome lint + Knip dead code detection.
 - **Primary Gate:** Static analysis (TypeScript + Biome + Knip)
 - **No Legacy Tests:** Project relies on strict static typing
 - If tests exist: place in `__tests__/` or `*.test.ts` files
-- Use Vitest or Jest (check package.json for actual test runner)
 
 ## 11. Handling Uncertainties
 

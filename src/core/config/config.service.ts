@@ -21,14 +21,14 @@ export class ConfigService {
 
     if (!result || result.isEmpty || !result.config) {
       this.terminate(
-        'kodu.json config not found. Run `kodu init` to create the file.',
+        'kodu.json not found. Create it in the project root to configure kodu.',
       );
     }
 
     const parsed = configSchema.safeParse(result.config);
 
     if (!parsed.success) {
-      console.error(pc.red('kodu.json config is invalid:'));
+      console.error(pc.red('kodu.json is invalid:'));
       parsed.error.issues.forEach((issue) => {
         const path = issue.path.join('.') || '(root)';
         console.error(pc.red(`- ${path}: ${issue.message}`));

@@ -8,11 +8,16 @@ import { FsService } from '../../core/file-system/fs.service';
 import { UiService } from '../../core/ui/ui.service';
 import { TokenizerService } from '../../shared/tokenizer/tokenizer.service';
 
+type OutputFormat = 'xml' | 'text';
+
 type PackOptions = {
   copy?: boolean;
   template?: string;
   out?: string;
   path?: string[];
+  exclude?: string[];
+  list?: boolean;
+  format?: OutputFormat;
 };
 
 type TemplateContext = {
@@ -66,6 +71,34 @@ export class PackCommand extends CommandRunner {
     return [...previous, value];
   }
 
+  @Option({
+    flags: '-e, --exclude <pattern>',
+    description: 'Additional exclude pattern (repeatable)',
+  })
+  parseExclude(value: string, previous: string[] = []): string[] {
+    return [...previous, value];
+  }
+
+  @Option({
+    flags: '-l, --list',
+    description: 'Print file list only, without content',
+  })
+  parseList(): boolean {
+    return true;
+  }
+
+  @Option({
+    flags: '-f, --format <format>',
+    description: 'Output format: xml (default) or text',
+  })
+  parseFormat(value: string): OutputFormat {
+    if (value !== 'xml' && value !== 'text') {
+      this.ui.log.warn(`Unknown format "${value}", using "xml"`);
+      return 'xml';
+    }
+    return value;
+  }
+
   async run(_inputs: string[], options: PackOptions): Promise<void> {
     const spinner = this.ui
       .createSpinner({ text: 'Collecting files...' })
@@ -73,10 +106,11 @@ export class PackCommand extends CommandRunner {
 
     try {
       const { packer } = this.configService.getConfig();
+      const extraExcludes = options.exclude ?? [];
       const files = await this.fsService.findProjectFiles({
         excludeBinary: true,
         useGitignore: packer.useGitignore,
-        ignore: packer.ignore,
+        ignore: [...packer.ignore, ...extraExcludes],
         contentBasedBinaryDetection: packer.contentBasedBinaryDetection,
         rootPaths: options.path,
       });
@@ -87,7 +121,16 @@ export class PackCommand extends CommandRunner {
         return;
       }
 
-      const context = await this.buildContext(files);
+      if (options.list) {
+        spinner.success(`Found ${files.length} files`);
+        for (const file of files) {
+          this.ui.log.info(file);
+        }
+        return;
+      }
+
+      const format: OutputFormat = options.format ?? 'xml';
+      const context = await this.buildContext(files, format);
       const fileList = files.join('\n');
       const { tokens, usdEstimate } = this.tokenizer.count(context);
 
@@ -117,6 +160,7 @@ export class PackCommand extends CommandRunner {
       this.ui.log.info(`Files: ${files.length}`);
       this.ui.log.info(`Tokens: ${tokens}`);
       this.ui.log.info(`Cost estimate: ~$${usdEstimate.toFixed(4)}`);
+      this.ui.log.info(`Format: ${format}`);
       this.ui.log.success(`Saved to ${outputPath}`);
 
       if (options.copy) {
@@ -130,14 +174,23 @@ export class PackCommand extends CommandRunner {
     }
   }
 
-  private async buildContext(files: string[]): Promise<string> {
+  private async buildContext(
+    files: string[],
+    format: OutputFormat,
+  ): Promise<string> {
     const chunks = await Promise.all(
       files.map(async (file) => {
         const content = await this.fsService.readFileRelative(file);
+        if (format === 'xml') {
+          return `<file path="${file}">\n${content}\n</file>`;
+        }
         return `// file: ${file}\n${content}`;
       }),
     );
 
+    if (format === 'xml') {
+      return `<files>\n${chunks.join('\n\n')}\n</files>`;
+    }
     return chunks.join('\n\n');
   }
 
