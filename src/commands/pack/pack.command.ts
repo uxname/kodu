@@ -7,6 +7,7 @@ import { PromptService } from '../../core/config/prompt.service';
 import { FsService } from '../../core/file-system/fs.service';
 import { UiService } from '../../core/ui/ui.service';
 import { CleanerService } from '../../shared/cleaner/cleaner.service';
+import { DepsService } from '../../shared/deps/deps.service';
 import { TokenizerService } from '../../shared/tokenizer/tokenizer.service';
 
 type OutputFormat = 'xml' | 'text';
@@ -20,6 +21,9 @@ type PackOptions = {
   list?: boolean;
   format?: OutputFormat;
   clean?: boolean;
+  deps?: boolean;
+  depsDepth?: number;
+  explain?: boolean;
 };
 
 type TemplateContext = {
@@ -41,6 +45,7 @@ export class PackCommand extends CommandRunner {
     private readonly fsService: FsService,
     private readonly tokenizer: TokenizerService,
     private readonly cleaner: CleanerService,
+    private readonly depsService: DepsService,
   ) {
     super();
   }
@@ -99,6 +104,36 @@ export class PackCommand extends CommandRunner {
   }
 
   @Option({
+    flags: '--deps',
+    description:
+      'Trace imports from entry point(s) and include their dependencies',
+  })
+  parseDeps(): boolean {
+    return true;
+  }
+
+  @Option({
+    flags: '--deps-depth <n>',
+    description: 'Max import depth when using --deps (default: unlimited)',
+  })
+  parseDepsDepth(value: string): number {
+    const n = Number.parseInt(value, 10);
+    if (Number.isNaN(n) || n < 1) {
+      this.ui.log.warn(`Invalid --deps-depth "${value}", ignoring`);
+      return Infinity;
+    }
+    return n;
+  }
+
+  @Option({
+    flags: '--explain',
+    description: 'Print why each file was included (requires --deps)',
+  })
+  parseExplain(): boolean {
+    return true;
+  }
+
+  @Option({
     flags: '-f, --format <format>',
     description: 'Output format: xml (default) or text',
   })
@@ -110,7 +145,7 @@ export class PackCommand extends CommandRunner {
     return value;
   }
 
-  async run(_inputs: string[], options: PackOptions): Promise<void> {
+  async run(inputs: string[], options: PackOptions): Promise<void> {
     const spinner = this.ui
       .createSpinner({ text: 'Collecting files...' })
       .start();
@@ -118,13 +153,39 @@ export class PackCommand extends CommandRunner {
     try {
       const { packer } = this.configService.getConfig();
       const extraExcludes = options.exclude ?? [];
-      const files = await this.fsService.findProjectFiles({
-        excludeBinary: true,
-        useGitignore: packer.useGitignore,
-        ignore: [...packer.ignore, ...extraExcludes],
-        contentBasedBinaryDetection: packer.contentBasedBinaryDetection,
-        rootPaths: options.path,
-      });
+
+      let files: string[];
+      let explainMap: Map<string, string> | undefined;
+
+      if (options.deps) {
+        if (inputs.length === 0) {
+          spinner.error('--deps requires at least one entry file as argument');
+          this.ui.log.error('Usage: kodu pack <entry.ts> [more.ts...] --deps');
+          process.exitCode = 1;
+          return;
+        }
+
+        spinner.text = 'Resolving dependency graph...';
+        const result = this.depsService.collectDependencies(
+          inputs,
+          process.cwd(),
+          {
+            maxDepth: options.depsDepth,
+            includeTypes: true,
+            includeDynamic: false,
+          },
+        );
+        files = result.files;
+        explainMap = result.explain;
+      } else {
+        files = await this.fsService.findProjectFiles({
+          excludeBinary: true,
+          useGitignore: packer.useGitignore,
+          ignore: [...packer.ignore, ...extraExcludes],
+          contentBasedBinaryDetection: packer.contentBasedBinaryDetection,
+          rootPaths: inputs.length > 0 ? inputs : options.path,
+        });
+      }
 
       if (files.length === 0) {
         spinner.stop('No files to pack.');
@@ -135,9 +196,26 @@ export class PackCommand extends CommandRunner {
       if (options.list) {
         spinner.success(`Found ${files.length} files`);
         for (const file of files) {
-          this.ui.log.info(file);
+          if (options.explain && explainMap) {
+            const absFile = path.resolve(process.cwd(), file);
+            const reason =
+              explainMap.get(absFile) ?? explainMap.get(file) ?? '';
+            this.ui.log.info(`${file}  ← ${reason}`);
+          } else {
+            this.ui.log.info(file);
+          }
         }
         return;
+      }
+
+      if (options.explain && explainMap) {
+        spinner.success(`Found ${files.length} files`);
+        this.ui.log.info('Dependency explanation:');
+        for (const file of files) {
+          const absFile = path.resolve(process.cwd(), file);
+          const reason = explainMap.get(absFile) ?? explainMap.get(file) ?? '';
+          this.ui.log.info(`  ${file}  ← ${reason}`);
+        }
       }
 
       const format: OutputFormat = options.format ?? 'xml';
