@@ -242,8 +242,13 @@ export class PackCommand extends CommandRunner {
       return ctx.context;
     }
 
-    const template = await this.promptService.load(packPrompt);
-    return this.fillTemplate(template, ctx);
+    try {
+      const template = await this.promptService.load(packPrompt);
+      return this.fillTemplate(template, ctx);
+    } catch {
+      this.ui.log.warn(`Prompt file not found: ${packPrompt}, using raw context`);
+      return ctx.context;
+    }
   }
 
   private fillTemplate(template: string, ctx: TemplateContext): string {
