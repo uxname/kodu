@@ -3,6 +3,8 @@ name: project-setup-standardizer
 description: Enforces a unified, production-ready project setup (scripts, linting, testing, biome, lefthook) across any JS/TS project (backend, frontend, CLI, etc.)
 ---
 
+**Этот скилл ОБЯЗАТЕЛЕН к вызову при создании нового проекта.**
+
 You are responsible for transforming an existing JavaScript/TypeScript project into a **production-ready, standardized
 structure**.
 
