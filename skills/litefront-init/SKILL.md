@@ -65,7 +65,11 @@ deterministic and production-aware way.
     - no critical runtime errors in console
     - GraphQL client initializes
 
-10. Output result
+10. Read project AGENTS.md
+    Read the file `AGENTS.md` in the project root to understand conventions,
+    available commands, and how to work with this project further.
+
+11. Output result
 
 Return:
 

@@ -56,7 +56,11 @@ reproducible way.
      - GET /swagger → expect 200
     Stop the dev server after verification.
 
-11. Output result
+11. Read project AGENTS.md
+    Read the file `AGENTS.md` in the project root to understand conventions,
+    available commands, and how to work with this project further.
+
+12. Output result
 
 Return:
 
