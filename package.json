@@ -1,6 +1,6 @@
 {
   "name": "kodu",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "High-performance CLI to prepare codebase for LLMs, automate reviews, and draft commits.",
   "repository": {
     "type": "git",
