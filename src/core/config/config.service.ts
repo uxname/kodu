@@ -19,13 +19,10 @@ export class ConfigService {
     const explorer = lilconfigSync('kodu', { searchPlaces: ['kodu.json'] });
     const result = explorer.search(process.cwd());
 
-    if (!result || result.isEmpty || !result.config) {
-      this.terminate(
-        'kodu.json not found. Create it in the project root to configure kodu.',
-      );
-    }
+    const rawConfig =
+      result && !result.isEmpty && result.config ? result.config : {};
 
-    const parsed = configSchema.safeParse(result.config);
+    const parsed = configSchema.safeParse(rawConfig);
 
     if (!parsed.success) {
       console.error(pc.red('kodu.json is invalid:'));
