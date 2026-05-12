@@ -2,15 +2,26 @@
 name: litefront-prototype
 description: >
   Создание интерактивных прототипов на базе LiteFront (Vite, React 19, TanStack Router,
-  URQL, OIDC, FSD, Tailwind v4 + DaisyUI v5). Приоритет: скорость прототипирования
+  URQL, FSD, Tailwind v4 + DaisyUI v5). Приоритет: скорость прототипирования
   и визуальное качество через существующую инфраструктуру проекта.
 ---
 
 # LiteFront Prototype Skill
 
-Твоя задача — генерировать код интерактивного MVP внутри существующего
-LiteFront-проекта. Весь функционал работает против GraphQL API (LiteEnd-бэкенд
-или заглушки).
+> **ПРОТОТИП — всё симулируется.** Нет реального бэкенда, нет реального API, нет реальной авторизации, нет реальной загрузки файлов. Цель — интерактивный UI, который работает офлайн без внешних зависимостей.
+
+## Правила прототипа (строго соблюдать)
+
+| Что | Правило |
+|-----|---------|
+| **Авторизация** | `VITE_MOCK_AUTH=true` → `MockAuthProvider`. **Не подключать** Logto / любой OIDC-сервер |
+| **GraphQL API** | Только `createMockExchange` — никаких реальных HTTP-запросов к бэкенду |
+| **Загрузка файлов** | Симулировать через `mockUpload` — никакого реального upload-сервера |
+| **Внешние сервисы** | Любые внешние вызовы — только через моки в памяти |
+| **Генерация типов** | `npm run gen` не нужен — типы писать вручную |
+| **Переменные окружения** | `VITE_GRAPHQL_API_URL` и другие API-переменные игнорируются при мокинге |
+
+---
 
 ## Директория и инициализация
 
@@ -25,14 +36,16 @@ npm install
 cp .env.example .env
 ```
 
+Сразу после инициализации добавить в `.env`:
+```
+VITE_MOCK_AUTH=true
+```
+
 **После инициализации (обязательно):**
-1. **Прочитай `prototype/AGENTS.md`** — это главный источник конвенций
-   проекта: структура файлов, архитектура, команды, паттерны кода.
-   Без этого нельзя правильно генерировать код.
+1. **Прочитай `prototype/AGENTS.md`** — главный источник конвенций проекта: структура файлов, архитектура, команды, паттерны кода. Без этого нельзя правильно генерировать код.
 2. Изучи `src/` — какие слои FSD уже есть, какие компоненты существуют.
 3. Проверь `package.json` — список доступных скриптов и зависимостей.
-4. Запусти `npm run gen` — только если есть реальный GraphQL-эндпоинт
-   (иначе см. раздел «Прототипирование без бэкенда» ниже).
+4. Убедись, что в `.env` установлено `VITE_MOCK_AUTH=true`.
 
 ## Технологический стек
 
@@ -40,10 +53,10 @@ cp .env.example .env
 |------|-----------|
 | **Билд** | Vite 8 + React 19 + TypeScript 6 (strict) |
 | **Роутинг** | TanStack Router v1 (file-based, авто-код-сплиттинг) |
-| **Данные** | GraphQL + URQL (codegen → `@generated/graphql`) |
-| **Стейт** | Zustand 5 (локальный), URQL (серверный) |
+| **Данные** | URQL + `createMockExchange` (никакого реального GraphQL API) |
+| **Стейт** | Zustand 5 (локальный), URQL с моками (серверный) |
 | **Стили** | Tailwind v4 + DaisyUI v5 (themes: cmyk / dark) |
-| **Аутентификация** | OIDC через `react-oidc-context` + `oidc-client-ts` |
+| **Аутентификация** | `MockAuthProvider` через `VITE_MOCK_AUTH=true` (без реального OIDC) |
 | **i18n** | ParaglideJS (Inlang), `messages/{locale}.json` |
 | **UI-кит** | DaisyUI, Lucide-React (иконки), Sonner (тосты) |
 | **Архитектура** | Feature-Sliced Design (FSD) |
@@ -144,7 +157,7 @@ export function ProjectsPage() {
 }
 ```
 
-**Auth guard на роут:**
+**Auth guard на роут (симулированный):**
 ```tsx
 // src/routes/protected/index.tsx
 import { createFileRoute, redirect } from '@tanstack/react-router';
@@ -155,9 +168,10 @@ export const Route = createFileRoute('/protected/')({
       throw redirect({ to: '/' });
     }
   },
-  // ...
 });
 ```
+
+С `VITE_MOCK_AUTH=true` `context.auth.isAuthenticated` всегда `true` — редирект не произойдёт.
 
 **Навигация в коде:** `useNavigate()` из `@tanstack/react-router`.
 **Запрещено** использовать `<a href>`.
@@ -165,181 +179,26 @@ export const Route = createFileRoute('/protected/')({
 **После создания нового файла роута — запусти `npm run gen:routes`**
 для перегенерации `src/generated/routeTree.gen.ts`.
 
-## 3. GraphQL + данные
+## 3. Авторизация (только симуляция)
 
-### Новый запрос
-
-```graphql
-# src/graphql/queries/get-projects.graphql
-query GetProjects {
-  projects {
-    id
-    name
-    status
-  }
-}
-```
-
-После добавления — запусти `npm run gen`. Импортируй хук из `@generated/graphql`:
+`VITE_MOCK_AUTH=true` в `.env` активирует `MockAuthProvider` из `@features/auth`.
+**Не подключать** реальный OIDC-сервер (Logto или любой другой) — прототип работает без него.
 
 ```tsx
-import { Link } from '@tanstack/react-router';
-import { Edit } from 'lucide-react';
-import { useGetProjectsQuery } from '@generated/graphql';
-
-function ProjectsList() {
-  const [{ data, fetching, error }] = useGetProjectsQuery();
-
-  if (fetching) return <span className="loading loading-spinner loading-lg" />;
-  if (error) return <p className="text-error">{error.message}</p>;
-  if (!data?.projects.length)
-    return (
-      <div className="text-center py-20 bg-base-100 rounded-xl border-2 border-dashed border-base-300">
-        <p className="text-base-content/50">No projects yet</p>
-      </div>
-    );
-
-  return (
-    <div className="overflow-x-auto bg-base-100 rounded-xl shadow-sm border border-base-300">
-      <table className="table table-zebra">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th className="text-right">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.projects.map((project) => (
-            <tr key={project.id} className="hover">
-              <td>{project.name}</td>
-              <td className="flex justify-end gap-2">
-                <Link to="/projects/$id" params={{ id: project.id }}
-                      className="btn btn-sm btn-ghost">
-                  <Edit className="size-4" />
-                </Link>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
+// Мок-пользователь доступен сразу без логина:
+const auth = useAuth();
+// auth.isAuthenticated === true
+// auth.user?.profile?.email === 'mock@example.com'
 ```
 
-### Мутация
+`AuthGuard` и защищённые роуты работают через мок — дополнительной настройки не нужно.
 
-```graphql
-# src/graphql/mutations/create-project.graphql
-mutation CreateProject($input: CreateProjectInput!) {
-  createProject(input: $input) {
-    id
-    name
-  }
-}
-```
+## 4. Данные (только моки, без GraphQL API)
 
-```tsx
-import { useCreateProjectMutation } from '@generated/graphql';
-import { toast } from '@shared/ui/Toaster';
+В прототипе **нет реального GraphQL API**. Все данные хранятся в памяти и возвращаются через `createMockExchange`.
+Никаких HTTP-запросов к бэкенду. `npm run gen` не нужен.
 
-function CreateProjectForm() {
-  const [, createProject] = useCreateProjectMutation();
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    const form = new FormData(e.currentTarget);
-    const { error } = await createProject({
-      input: { name: form.get('name') as string },
-    });
-    if (error) { toast.error(error.message); return; }
-    toast.success('Project created');
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <input name="name" className="input input-bordered w-full"
-             placeholder="Project name" required />
-      <button type="submit" className="btn btn-primary">Create</button>
-    </form>
-  );
-}
-```
-
-### Auth + GraphQL
-
-Токен авторизации автоматически прокидывается в GraphQL-клиент
-в `__root.tsx` через `auth.user?.id_token`. Ничего дополнительно делать
-не нужно.
-
-## 4. Локальный стейт (Zustand)
-
-Для стейта, который не идёт через GraphQL:
-
-```tsx
-import { create } from 'zustand';
-import { devtools } from 'zustand/middleware';
-
-interface UIState {
-  sidebarOpen: boolean;
-  toggleSidebar: () => void;
-}
-
-export const useUIStore = create(
-  devtools<UIState>((set) => ({
-    sidebarOpen: false,
-    toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
-  })),
-);
-```
-
-## 5. Стили (Tailwind + DaisyUI)
-
-- **DaisyUI:** `btn`, `card`, `input`, `badge`, `modal`, `table`, `table-zebra`, `loading loading-spinner`, `toggle`, `select`, `alert`, `avatar`, `tooltip`.
-- **Модалки:** используй тег `<dialog>` + `useRef`. Открытие: `.showModal()`.
-  Закрытие: `<form method="dialog">`.
-- **Иконки:** `lucide-react`.
-- **Темы:** `cmyk` (светлая, по умолчанию), `dark` (тёмная, prefers-color-scheme).
-  DaisyUI-темы подключаются через атрибут `data-theme` на `<html>`.
-- **Цвета DaisyUI:** `bg-base-100`, `text-base-content`, `text-primary`,
-  `border-base-300`, `bg-primary`, `text-primary-content` и т.д.
-  Не используй хардкодные цвета — только семантические токены темы.
-
-## 6. i18n (ParaglideJS)
-
-Сообщения — в `messages/{locale}.json`. Используй готовые или добавляй новые.
-
-```json
-{
-  "projects_title": "Projects",
-  "project_created": "Project created successfully"
-}
-```
-
-Импорт в коде:
-```tsx
-import * as m from '@generated/paraglide/messages';
-// m.projects_title() → "Projects"
-// Параметры: m.project_created({ name: 'My Project' })
-```
-
-Для нового прототипа i18n можно временно пропустить — используй
-прямые строки. Добавишь переводы потом.
-
-## 7. Прототипирование без бэкенда (моки)
-
-В прототипе **нет реального бэкенда** — все данные должны быть замоканы.
-Моки должны работать из коробки, без запуска внешних сервисов.
-
-### Auth (уже встроено)
-
-В `.env` установи `VITE_MOCK_AUTH=true` — включится `MockAuthProvider`,
-который не требует OIDC-сервера. Пользователь считается аутентифицированным.
-
-### GraphQL — правильный mock exchange
-
-Создай кастомный URQL exchange, который перехватывает операции
-и возвращает мок-данные, **не делая запрос в сеть**:
+### Mock exchange
 
 ```ts
 // src/shared/api/mock-exchange.ts
@@ -364,15 +223,13 @@ export const createMockExchange = (mocks: Mocks): Exchange => {
           return fromValue(makeResult(operation, { data }));
         }
 
-        // нет мока — пропускаем дальше по цепочке (до fetchExchange)
         return pipe(fromValue(operation), forward);
       }),
     );
 };
 ```
 
-**Как подключить в существующий GraphQL-клиент:**
-добавь exchange в список **перед** `fetchExchange`:
+### Подключение в GraphQL-клиент
 
 ```ts
 // src/shared/api/graphql-client.ts
@@ -403,7 +260,7 @@ export const createGraphQLClient = (
 };
 ```
 
-**Где передать моки — в `__root.tsx`:**
+### Мок-данные в `__root.tsx`
 
 ```tsx
 // src/routes/__root.tsx
@@ -431,77 +288,197 @@ function RootComponent() {
 }
 ```
 
-**Итоговая схема для прототипа:**
+### Пример компонента с мок-данными
 
+```tsx
+import { useGetProjectsQuery } from '@generated/graphql';
+
+function ProjectsList() {
+  const [{ data, fetching, error }] = useGetProjectsQuery();
+
+  if (fetching) return <span className="loading loading-spinner loading-lg" />;
+  if (error) return <p className="text-error">{error.message}</p>;
+  if (!data?.projects.length)
+    return (
+      <div className="text-center py-20 bg-base-100 rounded-xl border-2 border-dashed border-base-300">
+        <p className="text-base-content/50">No projects yet</p>
+      </div>
+    );
+
+  return (
+    <div className="overflow-x-auto bg-base-100 rounded-xl shadow-sm border border-base-300">
+      <table className="table table-zebra">
+        <thead>
+          <tr>
+            <th>Name</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.projects.map((project) => (
+            <tr key={project.id} className="hover">
+              <td>{project.name}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 ```
-VITE_MOCK_AUTH=true         → MockAuthProvider (уже есть)
-mocks в createGraphQLClient → URQL не ходит в сеть
-```
 
-### Генерация типов без бэкенда
-
-`npm run gen` не нужен — типы пишутся вручную, либо используй
-локальную схему:
-
-```yaml
-# codegen.yml (прототип)
-schema: "./src/generated/schema.graphql"
-documents: "./src/graphql/**/*.graphql"
-generates:
-  src/generated/graphql.tsx:
-    plugins:
-      - "typescript"
-      - "typescript-operations"
-      - "typescript-urql"
-```
-
-Схему скопируй из любого GraphQL-проекта или сгенерируй,
-указав временный endpoint.
-
-### Правила мокинга
+### Правила мок-данных
 
 1. Все данные — в памяти, никаких внешних сервисов.
-2. UI должен выглядеть как с реальными данными: таблицы непустые,
-   навигация работает, тосты показываются.
-3. Для списков — минимум 2-3 элемента, чтобы было видно состояние
-   «с данными» (не пусто и не единичная запись).
-4. Для ошибок — опционально, но loading/empty/error states должны быть
-   видны при соответствующих условиях.
+2. UI должен выглядеть как с реальными данными: таблицы непустые, навигация работает, тосты показываются.
+3. Для списков — минимум 2–3 элемента (не пусто, не единичная запись).
+4. Состояния loading/empty/error должны быть визуально видны при соответствующих условиях.
 
-## 8. Порядок действий при генерации кода
+### Типы без codegen
+
+`npm run gen` не нужен. Типы писать вручную:
+
+```ts
+// src/shared/api/mock-types.ts
+export interface Project {
+  id: string;
+  name: string;
+  status: 'active' | 'draft' | 'archived';
+}
+```
+
+Либо использовать локальную схему в `codegen.yml`:
+```yaml
+schema: "./src/generated/schema.graphql"
+documents: "./src/graphql/**/*.graphql"
+```
+
+## 5. Загрузка файлов (только симуляция)
+
+В прототипе файлы **не загружаются на сервер**. Симулировать через `mockUpload`:
+
+```ts
+// src/shared/api/mock-upload.ts
+export async function mockUpload(file: File): Promise<{ url: string; name: string }> {
+  await new Promise((r) => setTimeout(r, 800)); // имитация задержки
+  return {
+    url: URL.createObjectURL(file), // временный локальный URL для превью
+    name: file.name,
+  };
+}
+```
+
+```tsx
+import { mockUpload } from '@shared/api/mock-upload';
+import { toast } from '@shared/ui/Toaster';
+
+function FileUploader() {
+  const [preview, setPreview] = useState<string | null>(null);
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const result = await mockUpload(file);
+    setPreview(result.url);
+    toast.success(`Файл загружен: ${result.name}`);
+  };
+
+  return (
+    <div>
+      <input type="file" onChange={handleFile} className="file-input file-input-bordered" />
+      {preview && <img src={preview} alt="preview" className="mt-2 max-h-48 rounded-lg" />}
+    </div>
+  );
+}
+```
+
+Для файлов не-изображений — показывать имя и размер, возвращать мок-URL `/mock/uploaded/<filename>`.
+
+## 6. Локальный стейт (Zustand)
+
+Для стейта, который не идёт через GraphQL:
+
+```tsx
+import { create } from 'zustand';
+import { devtools } from 'zustand/middleware';
+
+interface UIState {
+  sidebarOpen: boolean;
+  toggleSidebar: () => void;
+}
+
+export const useUIStore = create(
+  devtools<UIState>((set) => ({
+    sidebarOpen: false,
+    toggleSidebar: () => set((s) => ({ sidebarOpen: !s.sidebarOpen })),
+  })),
+);
+```
+
+## 7. Стили (Tailwind + DaisyUI)
+
+- **DaisyUI:** `btn`, `card`, `input`, `badge`, `modal`, `table`, `table-zebra`, `loading loading-spinner`, `toggle`, `select`, `alert`, `avatar`, `tooltip`.
+- **Модалки:** используй тег `<dialog>` + `useRef`. Открытие: `.showModal()`.
+  Закрытие: `<form method="dialog">`.
+- **Иконки:** `lucide-react`.
+- **Темы:** `cmyk` (светлая, по умолчанию), `dark` (тёмная, prefers-color-scheme).
+  DaisyUI-темы подключаются через атрибут `data-theme` на `<html>`.
+- **Цвета DaisyUI:** `bg-base-100`, `text-base-content`, `text-primary`,
+  `border-base-300`, `bg-primary`, `text-primary-content` и т.д.
+  Не используй хардкодные цвета — только семантические токены темы.
+
+## 8. i18n (ParaglideJS)
+
+Сообщения — в `messages/{locale}.json`. Используй готовые или добавляй новые.
+
+```json
+{
+  "projects_title": "Projects",
+  "project_created": "Project created successfully"
+}
+```
+
+Импорт в коде:
+```tsx
+import * as m from '@generated/paraglide/messages';
+// m.projects_title() → "Projects"
+```
+
+Для прототипа i18n можно временно пропустить — используй прямые строки.
+
+## 9. Порядок действий при генерации кода
 
 1. **Прочитай `prototype/AGENTS.md`** — конвенции проекта, структура, паттерны.
-2. Изучи существующую структуру `src/` — какие слайсы FSD уже есть.
+2. Изучи структуру `src/` — какие слайсы FSD уже есть.
 3. Определи, в какой слой FSD ложится новая фича.
-4. Настрой моки (см. секцию 7) — в прототипе всё должно работать офлайн.
-5. Если нужны новые GraphQL-операции — создай `.graphql`-файл, запусти `npm run gen`
-   (или напиши типы вручную, если бэкенда нет).
-6. Добавь мок-данные для новых операций в `mockData`.
-7. Импортируй сгенерированные хуки из `@generated/graphql`.
+4. **Настрой моки данных** — все операции через `createMockExchange` (никаких реальных API-вызовов).
+5. **Авторизация — только через `VITE_MOCK_AUTH=true`**, не подключать Logto.
+6. **Загрузка файлов — только через `mockUpload`**, без реального сервера.
+7. Добавь мок-данные для новых операций в `mockData` в `__root.tsx`.
 8. Используй существующие компоненты где возможно.
-9. Следуй паттернам, которые уже есть в проекте (смотри на существующие страницы).
+9. Следуй паттернам из существующих страниц.
 
-## 9. Команды
+## 10. Команды
 
 ```bash
-npm run start:dev   # Dev-сервер (localhost:3000)
-npm run gen         # Генерация GraphQL-типов
-npm run gen:routes  # Генерация routeTree.gen.ts
-npm run check       # Линтинг + typecheck + Knip
-npm run lint:fix    # Biome с автофиксом
-npm run build       # Production-сборка
-npm run test:dev    # Тесты (Vitest, watch)
+npm run start:dev    # Dev-сервер (localhost:3000)
+npm run gen:routes   # Генерация routeTree.gen.ts (нужен после нового роута)
+npm run check        # Линтинг + typecheck + Knip
+npm run lint:fix     # Biome с автофиксом
+npm run build        # Production-сборка
+npm run test:dev     # Тесты (Vitest, watch)
 npm run test:e2e:dev # Playwright UI mode
 ```
 
-## 10. Формат ответа
+`npm run gen` (GraphQL codegen) в прототипе **не нужен** — типы пишутся вручную.
+
+## 11. Формат ответа
 
 Отвечай **только** блоками кода. Перед каждым блоком указывай путь
 (относительно `prototype/`). Выводи файлы целиком.
 
 ```
-**`src/graphql/queries/get-projects.graphql`**
-\`\`\`graphql
-query GetProjects { ... }
+**`src/pages/projects/ui/index.tsx`**
+\`\`\`tsx
+// полный код файла
 \`\`\`
 ```

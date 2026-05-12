@@ -39,7 +39,7 @@ STRUCTURE = {
         "headings": [
             "## Ссылки", "## Как устроена система", "## Глоссарий",
             "## Сущности", "## Страницы и экраны", "## Ключевые операции",
-            "## Интеграции", "## Тестирование",
+            "## Интеграции", "## Тестирование", "## Артефакты",
         ],
         "min_section_chars": 60,
     },
@@ -48,6 +48,7 @@ STRUCTURE = {
 # Секции, освобождённые от проверки минимальной длины
 _SECTION_LEN_EXEMPT = {
     "## Ссылки", "## Навигация", "## Быстрые ссылки", "## Интеграции",
+    "## Артефакты",
 }
 _MIN_SECTION_CHARS = 60
 
@@ -229,6 +230,7 @@ def _index_template(name: str) -> str:
 - [Ключевые возможности](./1_PRODUCT_VISION/VISION.md#ключевые-возможности)
 - [Страницы и экраны](./2_PRODUCT_SPEC/SPEC.md#страницы-и-экраны)
 - [Тестирование](./2_PRODUCT_SPEC/SPEC.md#тестирование)
+- [Артефакты](./2_PRODUCT_SPEC/SPEC.md#артефакты)
 """
 
 
@@ -335,6 +337,12 @@ def _spec_template(name: str) -> str:
 
 **Негативные сценарии** (поведение системы при ошибках и отменах):
 - [Пользователь выполняет X с ошибочными данными → система возвращает сообщение Z, действие не выполняется]
+
+## Артефакты
+Вспомогательные материалы для разработки и запуска продукта.
+Если артефактов нет — написать: «Артефактов нет.»
+
+Артефактов нет.
 """
 
 
@@ -389,6 +397,12 @@ def cmd_generate(args: argparse.Namespace) -> int:
         if _should_write(spec_path, args.update):
             spec_path.write_text(_spec_template(args.name), encoding="utf-8")
             ok("2_PRODUCT_SPEC/SPEC.md")
+
+    # 3_ARTIFACTS/ — структура папок для вспомогательных материалов
+    if not only:
+        for subdir in ["legal", "media/images", "media/video", "content", "examples"]:
+            (target_dir / "3_ARTIFACTS" / subdir).mkdir(parents=True, exist_ok=True)
+        ok("3_ARTIFACTS/ (legal/, media/images/, media/video/, content/, examples/)")
 
     print(f"\n{C.GREEN}✅ Готово:{C.RESET} {target_dir}")
     print(f"{C.YELLOW}Следующий шаг:{C.RESET} заполните документы, затем запустите валидацию:")
@@ -603,6 +617,33 @@ def _check_consistency(vision_path: Path, spec_path: Path) -> list[str]:
     return issues
 
 
+# ─── Проверка артефактов ──────────────────────────────────────────────────────
+
+def _check_artifacts(target_dir: Path) -> list[str]:
+    """Каждый файл в 3_ARTIFACTS/ должен быть упомянут хотя бы в одном документе."""
+    artifacts_dir = target_dir / "3_ARTIFACTS"
+    if not artifacts_dir.exists():
+        return []
+
+    doc_texts: list[str] = []
+    for rel in ("INDEX.md", "1_PRODUCT_VISION/VISION.md", "2_PRODUCT_SPEC/SPEC.md"):
+        fp = target_dir / rel
+        if fp.exists():
+            doc_texts.append(fp.read_text(encoding="utf-8"))
+    combined = "\n".join(doc_texts)
+
+    issues: list[str] = []
+    for artifact in sorted(artifacts_dir.rglob("*")):
+        if not artifact.is_file():
+            continue
+        rel_str = str(artifact.relative_to(target_dir)).replace("\\", "/")
+        if artifact.name not in combined and rel_str not in combined:
+            issues.append(
+                f"[ARTIFACTS] Артефакт «{rel_str}» не упомянут ни в одном документе"
+            )
+    return issues
+
+
 # ─── Команды ──────────────────────────────────────────────────────────────────
 
 def cmd_consistency(args: argparse.Namespace) -> int:
@@ -781,9 +822,28 @@ def cmd_validate(args: argparse.Namespace) -> int:
         return 1
 
     ok("Противоречий и несогласованностей не обнаружено.")
+
+    # ── Блок 3: артефакты без упоминания в документации ───────────────────────
+    artifacts_dir = target_dir / "3_ARTIFACTS"
+    has_artifacts = artifacts_dir.exists() and any(
+        f for f in artifacts_dir.rglob("*") if f.is_file()
+    )
+    if has_artifacts:
+        print(f"\n{C.YELLOW}── Артефакты ────────────────────────────────{C.RESET}")
+        a_issues = _check_artifacts(target_dir)
+        if a_issues:
+            for issue in a_issues:
+                err(issue)
+            print(
+                f"\n{C.RED}Итог: {len(a_issues)} артефактов без упоминания в документации. "
+                f"Добавьте ссылки в SPEC.md → ## Артефакты.{C.RESET}\n"
+            )
+            return 1
+        ok("Все артефакты задокументированы.")
+
     print(
         f"\n{C.GREEN}✅ Документация «{args.name}» прошла полную проверку "
-        f"(структура + содержимое + согласованность).{C.RESET}\n"
+        f"(структура + содержимое + согласованность + артефакты).{C.RESET}\n"
     )
     return 0
 
