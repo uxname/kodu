@@ -48,11 +48,11 @@ metadata:
 
 ---
 
-## Boilerplate: уже реализовано
+## Стартовые шаблоны: что уже реализовано
 
-Оба шаблона (liteend / litefront) содержат готовый код. **Не проектировать заново** то, что уже есть — только расширять.
+Проекты строятся на основе двух предготовленных стартовых шаблонов (boilerplate — готовая кодовая база с решёнными базовыми задачами): шаблон для бэкенда (NestJS) и шаблон для фронтенда (React). В них уже реализованы авторизация, работа с пользователями и тестовая инфраструктура. **Не проектировать заново** — только расширять.
 
-### Backend (liteend)
+### Backend
 
 **Prisma-модель `Profile` (уже существует, не дублировать):**
 ```prisma
@@ -92,9 +92,9 @@ enum ProfileRole { ADMIN  USER }
 - `clearDatabase()` + `clearRedis()` — обязательно в `beforeEach()`
 - `OIDC_MOCK_ENABLED=true` — режим мок-авторизации в `.env.test`
 
-### Frontend (litefront)
+### Frontend
 
-**FSD-слайсы (уже реализованы, не включать в Blueprint):**
+**FSD-слайсы** (FSD — Feature-Sliced Design, методология структуры фронтенд-кода по бизнес-слоям) **уже реализованы, не включать в Blueprint:**
 | Слой | Слайс | Что содержит |
 |------|-------|-------------|
 | `features` | `auth` | OIDC PKCE конфигурация, `AuthGuard`, `MockAuthProvider` |
@@ -154,11 +154,11 @@ mkdir -p blueprint/<ИмяПроекта>/3_TECH_BLUEPRINT
 - Спецификация: [SPEC.md](../2_PRODUCT_SPEC/SPEC.md)
 
 ## Контекст реализации
-- **ORM:** Prisma — схема в `prisma/schema.prisma`, миграции через `prisma migrate dev`
+- **ORM:** Prisma (TypeScript ORM) — схема в `prisma/schema.prisma`, миграции через `prisma migrate dev`
 - **БД:** PostgreSQL
-- **`Profile` уже существует** (boilerplate): `id`, `oidcSub @unique`, `roles`, `avatarUrl`. Для связи с пользователем добавлять `profileId Int` + `@relation`.
-- **Авторизация:** внешний OIDC-провайдер. Таблицы `User`, `Session`, `AuthToken` — **не создавать**.
-- **Soft delete:** `deletedAt DateTime?` — сущность не удаляется физически. Фильтр: `WHERE deletedAt IS NULL`.
+- **`Profile` — модель текущего пользователя** (уже существует в стартовом шаблоне, не дублировать): содержит `id`, `oidcSub @unique` (идентификатор из OIDC-провайдера), `roles`, `avatarUrl`. Для связи бизнес-сущности с пользователем: `profileId Int` + `@relation(fields: [profileId], references: [id])`.
+- **Авторизация через OIDC** (OpenID Connect — протокол входа через внешний сервис, например Logto или Keycloak): таблицы `User`, `Session`, `AuthToken` — **не создавать**. Авторизация целиком вынесена на сторону внешнего провайдера.
+- **Soft delete:** `deletedAt DateTime?` — сущность не удаляется физически. Запросы к таким моделям всегда фильтруют: `WHERE deletedAt IS NULL`.
 
 ## Сущности и отношения
 <для каждой модели: что хранит, ключевые поля, связи — язык бизнеса, не базы данных>
@@ -260,12 +260,16 @@ model Session { /* OIDC — внешний провайдер */ }
 - Модель данных: [DATABASE_MODEL.md](./DATABASE_MODEL.md)
 
 ## Контекст реализации
-- **GraphQL-движок:** MercuriusDriver (Fastify) — не Apollo Server
-- **Auth guards:** `JwtAuthGuard`, `JwtOptionalAuthGuard`, `RolesGuard`, декораторы `@CurrentUser()`, `@Roles()`
-- **Boilerplate-операции (уже готовы, не включать):** `me`, `updateProfile`, `profileUpdated`, `debug`, `echo`
-- **Ошибки:** `gqlErrorFormatter` маппит `ZodValidationException` и `HttpException` в GraphQL-ошибки автоматически
-- **Subscriptions:** WebSocket + Redis pub/sub — инфраструктура настроена в boilerplate
-- **OIDC:** операции `login`, `register`, `logout`, `refreshToken` — **не описывать**
+- **GraphQL-движок:** MercuriusDriver — реализация GraphQL для веб-фреймворка Fastify (используется вместо Apollo Server; поведение идентично, отличается только конфигурацией).
+- **Гарды авторизации** (NestJS guard — декоратор, проверяющий права доступа перед выполнением резолвера):
+  - `@UseGuards(JwtAuthGuard)` — требует действующий JWT-токен
+  - `@UseGuards(JwtOptionalAuthGuard)` — авторизация необязательна (работает и с токеном, и без)
+  - `@UseGuards(JwtAuthGuard) @Roles(ProfileRole.ADMIN)` — только для роли ADMIN
+  - `@CurrentUser()` — декоратор параметра резолвера, возвращает текущий `Profile`
+- **Операции стартового шаблона (уже готовы, не включать в Blueprint):** `me`, `updateProfile`, `profileUpdated`, `debug`, `echo`
+- **Обработка ошибок:** `gqlErrorFormatter` автоматически преобразует `ZodValidationException` и `HttpException` в корректные GraphQL-ошибки — не нужно обрабатывать вручную.
+- **Subscriptions:** работают через WebSocket + Redis pub/sub — инфраструктура уже настроена, просто использовать.
+- **OIDC-операции** (вход/выход/регистрация): `login`, `register`, `logout`, `refreshToken` — **не описывать**, они находятся в OIDC-провайдере (внешний сервис).
 
 ## Обзор API
 <количество операций, основные домены, принципиальные решения>
@@ -380,17 +384,21 @@ union CreateOrderResult = Order | OrderError | InsufficientStockError
 ## Контекст реализации
 
 **Стек:**
-- Backend: NestJS, Prisma, PostgreSQL, GraphQL (MercuriusDriver/Fastify), Redis (BullMQ, pub/sub)
-- Frontend: React, TanStack Router (file-based), FSD, URQL, Zustand, ParaglideJS
+- Бэкенд: NestJS + Fastify, Prisma ORM, PostgreSQL, GraphQL (MercuriusDriver), Redis (BullMQ — очереди задач; pub/sub — GraphQL Subscriptions)
+- Фронтенд: React + Vite, TanStack Router (файловый роутинг), FSD (Feature-Sliced Design — методология структуры кода по бизнес-слоям), URQL (GraphQL-клиент с кэшированием), Zustand (хранилище UI-состояния), ParaglideJS (i18n-библиотека для Vite)
 
-**Уже реализовано в boilerplate (не включать в Blueprint):**
+**Уже реализовано в стартовых шаблонах (не включать в Blueprint):**
+
 | Слой | Что готово |
-|------|-----------|
-| BE | Auth (JwtAuthGuard, OIDC JWT), Profile GraphQL (`me`, `updateProfile`, `profileUpdated`), Health, BullMQ, i18n |
-| FE | `features/auth` (OIDC, AuthGuard, MockAuthProvider), `widgets/Header`, `pages/404`, `shared/api/graphql-client` |
-| FE | Роуты `/callback` и `*` (404 через `defaultNotFoundComponent`) |
+|----------|------------|
+| Бэкенд | Auth: гарды `JwtAuthGuard`, `JwtOptionalAuthGuard`, `RolesGuard`; OIDC JWT через внешний провайдер |
+| Бэкенд | Profile GraphQL: операции `me`, `updateProfile`, `profileUpdated`; модель `Profile` в БД |
+| Бэкенд | Инфраструктура: Health check `GET /health`, BullMQ, Redis pub/sub, i18n (en/ru), gqlErrorFormatter |
+| Фронтенд | `features/auth` — OIDC PKCE-авторизация, `AuthGuard` (блокирует неавторизованных), `MockAuthProvider` (для тестов) |
+| Фронтенд | `widgets/Header` (навигация + кнопки входа/выхода), `pages/404`, `shared/api/graphql-client` (URQL с Bearer-токеном) |
+| Фронтенд | Роуты: `/callback` (OIDC redirect после входа), `*` (404 через `defaultNotFoundComponent`) |
 
-**Protected routes (TanStack Router):** паттерн `beforeLoad` + `redirect()`. Контент страницы оборачивается в `AuthGuard`.
+**Protected routes (TanStack Router):** паттерн `beforeLoad` + `redirect()`. Контент страницы оборачивается в `AuthGuard` — компонент, перенаправляющий неавторизованного пользователя.
 
 ## Backend: NestJS-модули
 | Модуль | Ответственность | Зависимости |
@@ -452,11 +460,11 @@ union CreateOrderResult = Order | OrderError | InsufficientStockError
 контент страницы оборачивается в AuthGuard
 ```
 
-**Уже существующие FSD-слайсы boilerplate — не включать в Blueprint:**
-- `features/auth` — OIDC, `AuthGuard`, `MockAuthProvider`
-- `widgets/Header` — навигация с auth-кнопками
-- `pages/404` — страница не найдено
-- `shared/api/graphql-client` — URQL с Bearer-token
+**Уже существующие FSD-слайсы из стартового шаблона — не включать в Blueprint:**
+- `features/auth` — OIDC-авторизация, `AuthGuard`, `MockAuthProvider`
+- `widgets/Header` — навигация с кнопками входа/выхода
+- `pages/404` — страница «не найдено»
+- `shared/api/graphql-client` — URQL (GraphQL-клиент) с Bearer-токеном
 
 **Zustand: паттерн со store.** Все новые store используют обёртку с devtools:
 ```typescript
@@ -487,14 +495,15 @@ create(devtools<MyStore>((set) => ({ ... })))
 
 ## Контекст тестирования
 
-**Backend (Vitest):**
-- E2E: `E2EClient.loginAs(profile)` — auth через `x-mock-sub` header
-- Очистка: `clearDatabase()` + `clearRedis()` — обязательно в `beforeEach()`
-- Env: `OIDC_MOCK_ENABLED=true` в `.env.test`
+**Бэкенд (Vitest):**
+- `E2EClient` — встроенная тест-утилита из `test/utils/`, выполняет GraphQL-запросы с авторизацией через специальный HTTP-заголовок `x-mock-sub` (без реального OIDC-провайдера).
+- Использование: `await client.loginAs(profile)` — выполнить запросы от имени пользователя.
+- Обязательно в `beforeEach()`: `clearDatabase()` (очистить таблицы БД) + `clearRedis()` (сбросить кэш Redis) — чтобы тесты не влияли друг на друга.
+- В `.env.test`: `OIDC_MOCK_ENABLED=true` — включает мок-режим авторизации, JWT проверяется через `x-mock-sub`, не через реальный OIDC.
 
-**Frontend (Vitest + RTL + Playwright):**
-- Unit/component: OIDC замокан через `tests/setup.ts` — работает без дополнительной настройки
-- E2E (Playwright): сборка с `VITE_MOCK_AUTH=true` → `MockAuthProvider` авторизует автоматически
+**Фронтенд (Vitest + React Testing Library + Playwright):**
+- Unit/component тесты: `tests/setup.ts` глобально мокает `react-oidc-context` (библиотека OIDC-авторизации) — OIDC-состояние доступно в тестах без дополнительной настройки.
+- E2E тесты (Playwright): запускать с `VITE_MOCK_AUTH=true` — активирует `MockAuthProvider`, который автоматически авторизует пользователя в браузере без реального OIDC-провайдера.
 
 **Coverage targets:** lines / functions / statements ≥ 80%, branches ≥ 70%
 
@@ -519,7 +528,7 @@ create(devtools<MyStore>((set) => ({ ... })))
 - E2E-сценарии берутся из SPEC.md §Тестирование. Каждый сценарий ссылается на источник.
 - Критические пути и негативные сценарии из SPEC.md переносятся полностью.
 
-### Backend: конкретные паттерны (liteend)
+### Backend: конкретные паттерны
 
 **E2E-тесты** используют готовую инфраструктуру из `test/utils/`:
 ```typescript
@@ -538,7 +547,7 @@ await clearRedis()
 
 **Unit-тесты:** Vitest + NestJS Testing Module. Моки сервисов — через фабрики из `test/utils/mocks.ts`.
 
-### Frontend: конкретные паттерны (litefront)
+### Frontend: конкретные паттерны
 
 **Три уровня тестирования:**
 | Уровень | Инструмент | Что тестировать |
@@ -572,35 +581,35 @@ await clearRedis()
 
 ## Стек
 
-| Слой | Технология |
-|------|-----------|
-| Backend | NestJS + Fastify |
-| GraphQL | MercuriusDriver |
-| ORM | Prisma |
-| БД | PostgreSQL |
-| Queue | BullMQ + Redis |
-| Frontend | React + Vite |
-| Роутер | TanStack Router (file-based) |
-| GraphQL client | URQL |
-| UI-стейт | Zustand |
-| i18n | ParaglideJS |
-| BE-тесты | Vitest + E2EClient |
-| FE-тесты | Vitest + RTL + Playwright |
+| Слой | Технология | Назначение |
+|------|-----------|-----------|
+| Бэкенд | NestJS + Fastify | Node.js-фреймворк для API-сервера |
+| GraphQL | MercuriusDriver | GraphQL-сервер (адаптер Fastify) |
+| ORM | Prisma | TypeScript ORM для работы с БД |
+| БД | PostgreSQL | Реляционная база данных |
+| Очереди | BullMQ + Redis | Фоновые задачи и очереди |
+| Фронтенд | React + Vite | UI-библиотека + сборщик |
+| Роутер | TanStack Router | Файловый роутинг для React |
+| GraphQL-клиент | URQL | Запросы к API с кэшированием |
+| UI-состояние | Zustand | Хранилище локального состояния |
+| i18n | ParaglideJS | Локализация (Vite-плагин) |
+| Тесты бэкенда | Vitest + E2EClient | Юнит и E2E для бэкенда |
+| Тесты фронтенда | Vitest + RTL + Playwright | Юнит, компонент, E2E для фронтенда |
 
 ## Что уже реализовано
 
-> Эти части **не нужно писать** — они готовы в boilerplate.
+> Эти части **не нужно писать** — они готовы в стартовых шаблонах проекта.
 
-### Backend (liteend)
-- **Auth:** OIDC JWT (Logto/Keycloak). Гарды: `JwtAuthGuard`, `JwtOptionalAuthGuard`, `RolesGuard`. Декораторы: `@CurrentUser()`, `@Roles()`.
-- **Profile:** модель `Profile { id, oidcSub @unique, roles, avatarUrl }`. GraphQL: `me`, `updateProfile`, `profileUpdated`.
-- **Инфраструктура:** Health `GET /health`, BullMQ, Redis pub/sub, nestjs-i18n (en/ru), `gqlErrorFormatter`.
+### Бэкенд
+- **Авторизация (OIDC JWT):** вход через внешний OIDC-провайдер (Logto/Keycloak). Гарды NestJS: `JwtAuthGuard` (требует токен), `JwtOptionalAuthGuard` (необязательно), `RolesGuard` (по роли). Декораторы резолвера: `@CurrentUser()` (получить текущий Profile), `@Roles(ProfileRole.ADMIN)` (ограничить по роли).
+- **Profile — модель пользователя:** `Profile { id, oidcSub @unique, roles, avatarUrl }`. Уже реализованы GraphQL-операции: `me` (получить свой профиль), `updateProfile` (обновить), `profileUpdated` (подписка на изменения).
+- **Инфраструктура:** Health check `GET /health`, BullMQ (очереди задач на Redis), Redis pub/sub (для GraphQL Subscriptions), nestjs-i18n en/ru, `gqlErrorFormatter` (автоматический маппинг ошибок в GraphQL-формат).
 
-### Frontend (litefront)
-- **Auth:** OIDC PKCE (`react-oidc-context`). `features/auth`: `AuthGuard`, `MockAuthProvider`.
-- **UI:** `widgets/Header` (навигация + auth-кнопки), `pages/404`.
-- **API:** `shared/api/graphql-client` — URQL с Bearer-token.
-- **Роуты:** `/callback` (OIDC redirect), `*` (404 через `defaultNotFoundComponent`).
+### Фронтенд
+- **Авторизация (OIDC PKCE):** `react-oidc-context` — библиотека для OAuth2/OIDC в React. FSD-слайс `features/auth` содержит: `AuthGuard` (блокирует доступ неавторизованным), `MockAuthProvider` (автоматическая авторизация в тестах).
+- **Готовые UI-компоненты:** `widgets/Header` (навигация с кнопками входа/выхода), `pages/404` (страница ошибки с кнопками «Назад» и «На главную»).
+- **GraphQL API:** `shared/api/graphql-client` — настроенный URQL-клиент (GraphQL-клиент для React) с автоматической подстановкой Bearer-токена авторизации.
+- **Роутинг (TanStack Router):** `/callback` — обработчик OIDC-редиректа после входа; `*` — 404-заглушка через `defaultNotFoundComponent`.
 
 ## Что нужно реализовать
 
@@ -841,6 +850,27 @@ python3 {BLUEPRINT} validate "ИмяПроекта" --output /путь/к/bluepr
 git add blueprint/<ИмяПроекта>/3_TECH_BLUEPRINT/
 git commit -m "feat(blueprint): технические контракты <ИмяПроекта>"
 ```
+
+---
+
+## Глоссарий
+
+| Термин | Значение |
+|--------|---------|
+| Boilerplate | Стартовый шаблон проекта с готовыми базовыми решениями (auth, инфраструктура) |
+| OIDC | OpenID Connect — протокол авторизации через внешний сервис (Logto, Keycloak, Google) |
+| JWT | JSON Web Token — подписанный токен, подтверждающий личность пользователя |
+| FSD | Feature-Sliced Design — методология структуры фронтенда по слоям: app, pages, widgets, features, entities, shared |
+| MercuriusDriver | NestJS-адаптер GraphQL для веб-фреймворка Fastify (альтернатива Apollo Server) |
+| URQL | GraphQL-клиент для React с встроенным кэшем и инвалидацией |
+| Zustand | Минималистичная библиотека состояния для React (альтернатива Redux) |
+| ParaglideJS | i18n-библиотека с типизированными ключами переводов, работает как Vite-плагин |
+| BullMQ | Библиотека очередей задач для Node.js на основе Redis |
+| E2EClient | Встроенная тест-утилита (`test/utils/`) для выполнения GraphQL-запросов с мок-авторизацией |
+| Profile | Модель пользователя в БД; связана с OIDC через поле `oidcSub @unique` |
+| TanStack Router | Файловый роутер для React: маршруты определяются структурой папок `src/routes/` |
+| AuthGuard | FSD-слайс-компонент, перенаправляющий неавторизованного пользователя с защищённой страницы |
+| beforeLoad | Хук TanStack Router для проверки условий перед загрузкой страницы (используется для защиты роутов) |
 
 ---
 
