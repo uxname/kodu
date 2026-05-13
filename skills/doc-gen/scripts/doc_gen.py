@@ -398,11 +398,8 @@ def cmd_generate(args: argparse.Namespace) -> int:
             spec_path.write_text(_spec_template(args.name), encoding="utf-8")
             ok("2_PRODUCT_SPEC/SPEC.md")
 
-    # 3_ARTIFACTS/ — структура папок для вспомогательных материалов
-    if not only:
-        for subdir in ["legal", "media/images", "media/video", "content", "examples"]:
-            (target_dir / "3_ARTIFACTS" / subdir).mkdir(parents=True, exist_ok=True)
-        ok("3_ARTIFACTS/ (legal/, media/images/, media/video/, content/, examples/)")
+    # 3_ARTIFACTS/ — НЕ создаётся автоматически.
+    # Папку и подпапки создавать только при размещении реального файла-артефакта.
 
     print(f"\n{C.GREEN}✅ Готово:{C.RESET} {target_dir}")
     print(f"{C.YELLOW}Следующий шаг:{C.RESET} заполните документы, затем запустите валидацию:")
