@@ -361,8 +361,8 @@ def build_parser() -> argparse.ArgumentParser:
     val = sub.add_parser("validate", help="Проверить папку 3_TECH_BLUEPRINT/")
     val.add_argument("name", metavar="ИмяПроекта")
     val.add_argument(
-        "--output", default="./docs", metavar="PATH",
-        help="Корневая папка проектов (по умолчанию: ./docs)",
+        "--output", default="./blueprint", metavar="PATH",
+        help="Корневая папка проектов (по умолчанию: ./blueprint)",
     )
     val.add_argument(
         "--update-mode", action="store_true",
