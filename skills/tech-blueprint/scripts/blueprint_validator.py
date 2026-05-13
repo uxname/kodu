@@ -29,6 +29,7 @@ def warn(msg: str) -> None: print(f"{C.YELLOW}⟳{C.RESET} {msg}")
 # ─── Константы ────────────────────────────────────────────────────────────────
 
 REQUIRED_FILES = [
+    "IMPLEMENTATION_GUIDE.md",
     "DATABASE_MODEL.md",
     "API_CONTRACTS.md",
     "ARCHITECTURE.md",
@@ -46,6 +47,15 @@ _SPEC_REF_RE       = re.compile(r"(SPEC\.md|VISION\.md)")
 _PRISMA_MODEL_RE   = re.compile(r"model\s+(\w+)\s*\{([\s\S]*?)\n\}", re.MULTILINE)
 _MIGRATION_SEC_RE  = re.compile(
     r"^#{1,3}\s*(план миграции|изменения бд|migration plan|db changes|database changes)",
+    re.MULTILINE | re.IGNORECASE,
+)
+_IMPL_STACK_RE     = re.compile(r"^#{1,3}\s*(стек|stack)\b", re.MULTILINE | re.IGNORECASE)
+_IMPL_DONE_RE      = re.compile(
+    r"^#{1,3}\s*(что уже реализовано|already implemented|what.s already)",
+    re.MULTILINE | re.IGNORECASE,
+)
+_IMPL_LAUNCH_RE    = re.compile(
+    r"^#{1,3}\s*(локальный запуск|local (setup|run|start)|getting started|quick start)",
     re.MULTILINE | re.IGNORECASE,
 )
 
@@ -220,6 +230,22 @@ def check_prisma_timestamps(blueprint_dir: Path) -> list[str]:
     return errors
 
 
+def check_implementation_guide(blueprint_dir: Path) -> list[str]:
+    """Проверка 8: IMPLEMENTATION_GUIDE.md содержит обязательные разделы."""
+    guide_path = blueprint_dir / "IMPLEMENTATION_GUIDE.md"
+    if not guide_path.exists():
+        return []  # уже зафиксировано в check_files
+    content = _read(guide_path)
+    errors: list[str] = []
+    if not _IMPL_STACK_RE.search(content):
+        errors.append("IMPLEMENTATION_GUIDE.md: отсутствует раздел «## Стек»")
+    if not _IMPL_DONE_RE.search(content):
+        errors.append("IMPLEMENTATION_GUIDE.md: отсутствует раздел «## Что уже реализовано»")
+    if not _IMPL_LAUNCH_RE.search(content):
+        errors.append("IMPLEMENTATION_GUIDE.md: отсутствует раздел «## Локальный запуск»")
+    return errors
+
+
 def check_migration_section(blueprint_dir: Path) -> list[str]:
     """Проверка 8 (--update-mode): DATABASE_MODEL.md содержит раздел «План миграции»."""
     db = _read(blueprint_dir / "DATABASE_MODEL.md")
@@ -316,9 +342,18 @@ def cmd_validate(args: argparse.Namespace) -> int:
         if not ts_errors:
             ok("Все модели (кроме join-таблиц) содержат createdAt/updatedAt")
 
-    # ── 8. Режим обновления ───────────────────────────────────────────────────
+    # ── 8. IMPLEMENTATION_GUIDE.md ────────────────────────────────────────────
+    print(f"\n{C.YELLOW}── IMPLEMENTATION_GUIDE.md ─────────────────{C.RESET}")
+    guide_errors = check_implementation_guide(blueprint_dir)
+    for e in guide_errors:
+        err(e)
+    all_errors.extend(guide_errors)
+    if not guide_errors:
+        ok("IMPLEMENTATION_GUIDE.md содержит обязательные разделы")
+
+    # ── 9. Режим обновления ───────────────────────────────────────────────────
     if args.update_mode:
-        print(f"\n{C.YELLOW}── Режим обновления ────────────────────────{C.RESET}")
+        print(f"\n{C.YELLOW}── Режим обновления (миграция) ─────────────{C.RESET}")
         mig_errors = check_migration_section(blueprint_dir)
         for e in mig_errors:
             err(e)

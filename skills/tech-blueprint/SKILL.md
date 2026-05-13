@@ -10,7 +10,8 @@ metadata:
 
 ## Назначение
 
-Скилл создаёт четыре документа, полностью описывающих техническую реализацию продукта:
+Скилл создаёт пять документов, полностью описывающих техническую реализацию продукта:
+- **IMPLEMENTATION_GUIDE.md** — онбординг разработчика: стек, что уже готово, как запустить
 - **DATABASE_MODEL.md** — Prisma-схема, отношения, индексы
 - **API_CONTRACTS.md** — GraphQL-схема с типами, операциями и правилами доступа
 - **ARCHITECTURE.md** — NestJS-модули, FSD-слайсы, управление состоянием
@@ -126,6 +127,7 @@ docs/<имя_проекта>/          ← продуктовая докумен
 
 blueprint/<имя_проекта>/     ← технические контракты (этот скилл)
 └── 3_TECH_BLUEPRINT/
+    ├── IMPLEMENTATION_GUIDE.md   ← онбординг разработчика (генерировать первым)
     ├── DATABASE_MODEL.md
     ├── API_CONTRACTS.md
     ├── ARCHITECTURE.md
@@ -150,6 +152,13 @@ mkdir -p blueprint/<ИмяПроекта>/3_TECH_BLUEPRINT
 
 ## Ссылки
 - Спецификация: [SPEC.md](../2_PRODUCT_SPEC/SPEC.md)
+
+## Контекст реализации
+- **ORM:** Prisma — схема в `prisma/schema.prisma`, миграции через `prisma migrate dev`
+- **БД:** PostgreSQL
+- **`Profile` уже существует** (boilerplate): `id`, `oidcSub @unique`, `roles`, `avatarUrl`. Для связи с пользователем добавлять `profileId Int` + `@relation`.
+- **Авторизация:** внешний OIDC-провайдер. Таблицы `User`, `Session`, `AuthToken` — **не создавать**.
+- **Soft delete:** `deletedAt DateTime?` — сущность не удаляется физически. Фильтр: `WHERE deletedAt IS NULL`.
 
 ## Сущности и отношения
 <для каждой модели: что хранит, ключевые поля, связи — язык бизнеса, не базы данных>
@@ -249,6 +258,14 @@ model Session { /* OIDC — внешний провайдер */ }
 ## Ссылки
 - Спецификация: [SPEC.md](../2_PRODUCT_SPEC/SPEC.md)
 - Модель данных: [DATABASE_MODEL.md](./DATABASE_MODEL.md)
+
+## Контекст реализации
+- **GraphQL-движок:** MercuriusDriver (Fastify) — не Apollo Server
+- **Auth guards:** `JwtAuthGuard`, `JwtOptionalAuthGuard`, `RolesGuard`, декораторы `@CurrentUser()`, `@Roles()`
+- **Boilerplate-операции (уже готовы, не включать):** `me`, `updateProfile`, `profileUpdated`, `debug`, `echo`
+- **Ошибки:** `gqlErrorFormatter` маппит `ZodValidationException` и `HttpException` в GraphQL-ошибки автоматически
+- **Subscriptions:** WebSocket + Redis pub/sub — инфраструктура настроена в boilerplate
+- **OIDC:** операции `login`, `register`, `logout`, `refreshToken` — **не описывать**
 
 ## Обзор API
 <количество операций, основные домены, принципиальные решения>
@@ -360,6 +377,21 @@ union CreateOrderResult = Order | OrderError | InsufficientStockError
 ## Ссылки
 - Спецификация: [SPEC.md](../2_PRODUCT_SPEC/SPEC.md)
 
+## Контекст реализации
+
+**Стек:**
+- Backend: NestJS, Prisma, PostgreSQL, GraphQL (MercuriusDriver/Fastify), Redis (BullMQ, pub/sub)
+- Frontend: React, TanStack Router (file-based), FSD, URQL, Zustand, ParaglideJS
+
+**Уже реализовано в boilerplate (не включать в Blueprint):**
+| Слой | Что готово |
+|------|-----------|
+| BE | Auth (JwtAuthGuard, OIDC JWT), Profile GraphQL (`me`, `updateProfile`, `profileUpdated`), Health, BullMQ, i18n |
+| FE | `features/auth` (OIDC, AuthGuard, MockAuthProvider), `widgets/Header`, `pages/404`, `shared/api/graphql-client` |
+| FE | Роуты `/callback` и `*` (404 через `defaultNotFoundComponent`) |
+
+**Protected routes (TanStack Router):** паттерн `beforeLoad` + `redirect()`. Контент страницы оборачивается в `AuthGuard`.
+
 ## Backend: NestJS-модули
 | Модуль | Ответственность | Зависимости |
 |--------|----------------|-------------|
@@ -453,6 +485,19 @@ create(devtools<MyStore>((set) => ({ ... })))
 ## Ссылки
 - Спецификация: [SPEC.md](../2_PRODUCT_SPEC/SPEC.md) — источник сценариев
 
+## Контекст тестирования
+
+**Backend (Vitest):**
+- E2E: `E2EClient.loginAs(profile)` — auth через `x-mock-sub` header
+- Очистка: `clearDatabase()` + `clearRedis()` — обязательно в `beforeEach()`
+- Env: `OIDC_MOCK_ENABLED=true` в `.env.test`
+
+**Frontend (Vitest + RTL + Playwright):**
+- Unit/component: OIDC замокан через `tests/setup.ts` — работает без дополнительной настройки
+- E2E (Playwright): сборка с `VITE_MOCK_AUTH=true` → `MockAuthProvider` авторизует автоматически
+
+**Coverage targets:** lines / functions / statements ≥ 80%, branches ≥ 70%
+
 ## Unit-тесты: сложная бизнес-логика
 | Что тестируем | Входные данные | Ожидаемый результат | Почему нетривиально |
 |--------------|----------------|--------------------|--------------------|
@@ -512,6 +557,136 @@ await clearRedis()
 
 ---
 
+## Правила генерации: IMPLEMENTATION_GUIDE.md
+
+### Назначение
+
+Онбординг-документ: позволяет новому разработчику взять Blueprint и начать работу **без знакомства с boilerplate**. Генерировать **последним** — после DATABASE_MODEL.md, API_CONTRACTS.md, ARCHITECTURE.md, TESTING_PLAN.md, так как суммирует их содержимое.
+
+### Структура файла
+
+```markdown
+# Руководство по реализации: <Название продукта>
+
+**Статус:** черновик | **Дата:** YYYY-MM-DD
+
+## Стек
+
+| Слой | Технология |
+|------|-----------|
+| Backend | NestJS + Fastify |
+| GraphQL | MercuriusDriver |
+| ORM | Prisma |
+| БД | PostgreSQL |
+| Queue | BullMQ + Redis |
+| Frontend | React + Vite |
+| Роутер | TanStack Router (file-based) |
+| GraphQL client | URQL |
+| UI-стейт | Zustand |
+| i18n | ParaglideJS |
+| BE-тесты | Vitest + E2EClient |
+| FE-тесты | Vitest + RTL + Playwright |
+
+## Что уже реализовано
+
+> Эти части **не нужно писать** — они готовы в boilerplate.
+
+### Backend (liteend)
+- **Auth:** OIDC JWT (Logto/Keycloak). Гарды: `JwtAuthGuard`, `JwtOptionalAuthGuard`, `RolesGuard`. Декораторы: `@CurrentUser()`, `@Roles()`.
+- **Profile:** модель `Profile { id, oidcSub @unique, roles, avatarUrl }`. GraphQL: `me`, `updateProfile`, `profileUpdated`.
+- **Инфраструктура:** Health `GET /health`, BullMQ, Redis pub/sub, nestjs-i18n (en/ru), `gqlErrorFormatter`.
+
+### Frontend (litefront)
+- **Auth:** OIDC PKCE (`react-oidc-context`). `features/auth`: `AuthGuard`, `MockAuthProvider`.
+- **UI:** `widgets/Header` (навигация + auth-кнопки), `pages/404`.
+- **API:** `shared/api/graphql-client` — URQL с Bearer-token.
+- **Роуты:** `/callback` (OIDC redirect), `*` (404 через `defaultNotFoundComponent`).
+
+## Что нужно реализовать
+
+> Всё описанное в данном Blueprint.
+
+### Backend-модули
+<список из ARCHITECTURE.md §Backend: NestJS-модули>
+
+### Frontend-слайсы (новые)
+<список из ARCHITECTURE.md §Frontend: FSD-слайсы — только те, которых нет в boilerplate>
+
+## Локальный запуск
+
+### Требования
+- Node.js 20+, pnpm
+- Docker (PostgreSQL + Redis)
+- OIDC: для разработки используется mock-режим
+
+### Backend
+```bash
+pnpm install
+cp .env.example .env
+# Заполнить: DATABASE_URL, REDIS_URL, JWT_SECRET, OIDC_ISSUER
+
+docker compose up -d postgres redis
+pnpm prisma migrate dev
+pnpm start:dev
+```
+
+### Frontend
+```bash
+pnpm install
+cp .env.example .env
+# Заполнить: VITE_API_URL, VITE_OIDC_AUTHORITY, VITE_OIDC_CLIENT_ID
+
+VITE_MOCK_AUTH=true pnpm dev   # разработка с мок-авторизацией
+```
+
+## Тестирование
+
+### Backend
+```bash
+pnpm test         # unit (Vitest)
+pnpm test:e2e     # e2e (требует Postgres + Redis)
+```
+
+### Frontend
+```bash
+pnpm test                              # unit + component (Vitest + RTL)
+VITE_MOCK_AUTH=true pnpm test:e2e      # e2e (Playwright)
+```
+
+**Coverage:** lines / functions / statements ≥ 80%, branches ≥ 70%
+
+## Ключевые решения
+
+<Обоснование нетривиальных технических решений.
+Пример: «Soft delete для Order — SPEC.md §Данные запрещает физическое удаление».
+Если нетривиальных решений нет — написать «Особых нетривиальных решений нет».>
+
+## Ссылки
+
+- Спецификация: [SPEC.md](../../docs/<имя>/2_PRODUCT_SPEC/SPEC.md)
+- [DATABASE_MODEL.md](./DATABASE_MODEL.md)
+- [API_CONTRACTS.md](./API_CONTRACTS.md)
+- [ARCHITECTURE.md](./ARCHITECTURE.md)
+- [TESTING_PLAN.md](./TESTING_PLAN.md)
+```
+
+### Обязательные правила
+
+- `## Стек` — полная таблица технологий без сокращений
+- `## Что уже реализовано` — точный список boilerplate: разработчик видит, что **не нужно писать**
+- `## Что нужно реализовать` — конкретный список модулей и слайсов из ARCHITECTURE.md, не общие фразы
+- `## Локальный запуск` — реальные shell-команды с `.env` и docker; не «см. README»
+- `## Тестирование` — команды запуска + coverage targets
+- `## Ключевые решения` — не пустой раздел: либо обоснование решений, либо явная фраза «нет нетривиальных решений»
+
+**Запрещено:**
+- Пустые разделы
+- `## Что нужно реализовать` без списка конкретных модулей/слайсов
+- Общие фразы вместо команд в `## Локальный запуск`
+- Дублирование полного содержимого других документов Blueprint
+
+---
+
 ## Адаптивность: режим обновления проекта
 
 Если в проекте уже существуют `schema.prisma` или `schema.graphql`:
@@ -550,9 +725,9 @@ python3 {BLUEPRINT} validate "ИмяПроекта"
 python3 {BLUEPRINT} validate "ИмяПроекта" --update-mode
 ```
 
-### Шаг 2. Прочитать все 4 файла полностью
+### Шаг 2. Прочитать все 5 файлов полностью
 
-`DATABASE_MODEL.md`, `API_CONTRACTS.md`, `ARCHITECTURE.md`, `TESTING_PLAN.md`
+`IMPLEMENTATION_GUIDE.md`, `DATABASE_MODEL.md`, `API_CONTRACTS.md`, `ARCHITECTURE.md`, `TESTING_PLAN.md`
 
 ### Шаг 3. Ручная проверка противоречий с boilerplate
 
@@ -619,9 +794,9 @@ python3 {BLUEPRINT} validate "ИмяПроекта" --update-mode
 
 Заполнять строго в порядке:
 ```
-DATABASE_MODEL.md → API_CONTRACTS.md → ARCHITECTURE.md → TESTING_PLAN.md
+DATABASE_MODEL.md → API_CONTRACTS.md → ARCHITECTURE.md → TESTING_PLAN.md → IMPLEMENTATION_GUIDE.md
 ```
-Каждый следующий документ опирается на предыдущий (API — на модели БД, архитектура — на API).
+Каждый следующий документ опирается на предыдущий (API — на модели БД, архитектура — на API). IMPLEMENTATION_GUIDE.md — последним: он суммирует все четыре документа.
 
 ### Шаг 3. Самопроверка перед валидатором
 
@@ -632,6 +807,7 @@ DATABASE_MODEL.md → API_CONTRACTS.md → ARCHITECTURE.md → TESTING_PLAN.md
 - [ ] В ARCHITECTURE.md нет ни одного файлового пути (`src/`, `app/`)
 - [ ] В DATABASE_MODEL.md и API_CONTRACTS.md есть ссылки на SPEC.md
 - [ ] Если режим обновления — раздел `## План миграции` существует
+- [ ] IMPLEMENTATION_GUIDE.md содержит разделы `## Стек`, `## Что уже реализовано`, `## Локальный запуск`
 
 ### Шаг 4. Валидация (обязательно)
 
@@ -648,15 +824,16 @@ python3 {BLUEPRINT} validate "ИмяПроекта" --output /путь/к/bluepr
 
 **Документация не считается готовой, пока валидация не пройдена без ошибок.**
 
-Скрипт выполняет 7 или 8 проверок:
-1. Наличие всех 4 файлов
+Скрипт выполняет 8 или 9 проверок:
+1. Наличие всех 5 файлов (включая IMPLEMENTATION_GUIDE.md)
 2. Наличие блоков ` ```prisma ` и ` ```graphql `
 3. Отсутствие FSD-путей в ARCHITECTURE.md
 4. Кросс-чек: Prisma-модели покрыты в API_CONTRACTS.md (≥50%)
 5. Трассируемость: ссылки на SPEC.md в DATABASE_MODEL.md и API_CONTRACTS.md
 6. Пагинация: все Query/Mutation-поля с `[...]` имеют аргументы пагинации
 7. Технические поля: `createdAt`/`updatedAt` в каждой Prisma-модели (кроме join-таблиц)
-8. *(только с `--update-mode`)* Наличие раздела «План миграции» в DATABASE_MODEL.md
+8. IMPLEMENTATION_GUIDE.md содержит обязательные разделы (`## Стек`, `## Что уже реализовано`, `## Локальный запуск`)
+9. *(только с `--update-mode`)* Наличие раздела «План миграции» в DATABASE_MODEL.md
 
 ### Шаг 5. Git-коммит (обязательно)
 
