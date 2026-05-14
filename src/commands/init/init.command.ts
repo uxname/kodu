@@ -52,7 +52,7 @@ export class InitCommand extends CommandRunner {
 
     await fs.writeFile(
       configPath,
-      JSON.stringify(DEFAULT_KODU_JSON, null, 2) + '\n',
+      `${JSON.stringify(DEFAULT_KODU_JSON, null, 2)}\n`,
       'utf8',
     );
     this.ui.log.success('Created kodu.json');

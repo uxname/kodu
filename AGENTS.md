@@ -184,7 +184,29 @@ This executes: TypeScript check + Biome lint + Knip dead code detection.
 - **No Legacy Tests:** Project relies on strict static typing
 - If tests exist: place in `__tests__/` or `*.test.ts` files
 
-## 11. Handling Uncertainties
+## 11. Release Process
+
+### Prerequisites
+- Working directory must be clean (`git status` — no dirty files)
+- All changes committed and pushed
+- You have npm publish access
+
+### Steps
+```bash
+# 1. Ensure clean working directory
+git status
+
+# 2. Bump version, build, publish
+npm version patch && npm run build && npm publish --access public
+
+# 3. Push the version bump commit and tag
+git push && git push --tags
+```
+
+- Use `npm version minor` for new features, `npm version major` for breaking changes
+- The `npm version` command creates a git tag automatically (e.g. `v2.1.3`)
+
+## 12. Handling Uncertainties
 
 - Unclear requirements? Ask the user first
 - Library not in Tech Stack section? Prefer native Node.js APIs
