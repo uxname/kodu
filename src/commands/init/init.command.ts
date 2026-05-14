@@ -5,15 +5,52 @@ import { UiService } from '../../core/ui/ui.service';
 
 const GITIGNORE_ENTRY = '.kodu/context.txt';
 
-@Command({ name: 'init', description: 'Add kodu output to .gitignore' })
+const DEFAULT_KODU_JSON = {
+  $schema: 'https://raw.githubusercontent.com/anomalyco/kodu/main/kodu.schema.json',
+  cleaner: {
+    whitelist: ['//!'],
+    keepJSDoc: true,
+    useGitignore: true,
+    ignore: [],
+  },
+  packer: {
+    ignore: [
+      'package-lock.json',
+      'yarn.lock',
+      'pnpm-lock.yaml',
+      '.git',
+      '.kodu',
+      'node_modules',
+      'dist',
+      'coverage',
+    ],
+    useGitignore: true,
+    contentBasedBinaryDetection: false,
+  },
+};
+
+@Command({ name: 'init', description: 'Initialize kodu configuration' })
 export class InitCommand extends CommandRunner {
   constructor(private readonly ui: UiService) {
     super();
   }
 
   async run(): Promise<void> {
+    await this.ensureKoduJson();
     await this.updateGitignore();
     this.ui.log.success('Done.');
+  }
+
+  private async ensureKoduJson(): Promise<void> {
+    const configPath = path.join(process.cwd(), 'kodu.json');
+
+    if (await this.exists(configPath)) {
+      this.ui.log.info('kodu.json already exists');
+      return;
+    }
+
+    await fs.writeFile(configPath, JSON.stringify(DEFAULT_KODU_JSON, null, 2) + '\n', 'utf8');
+    this.ui.log.success('Created kodu.json');
   }
 
   private async updateGitignore(): Promise<void> {
