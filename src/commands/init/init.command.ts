@@ -6,7 +6,8 @@ import { UiService } from '../../core/ui/ui.service';
 const GITIGNORE_ENTRY = '.kodu/context.txt';
 
 const DEFAULT_KODU_JSON = {
-  $schema: 'https://raw.githubusercontent.com/anomalyco/kodu/main/kodu.schema.json',
+  $schema:
+    'https://raw.githubusercontent.com/anomalyco/kodu/main/kodu.schema.json',
   cleaner: {
     whitelist: ['//!'],
     keepJSDoc: true,
@@ -49,7 +50,11 @@ export class InitCommand extends CommandRunner {
       return;
     }
 
-    await fs.writeFile(configPath, JSON.stringify(DEFAULT_KODU_JSON, null, 2) + '\n', 'utf8');
+    await fs.writeFile(
+      configPath,
+      JSON.stringify(DEFAULT_KODU_JSON, null, 2) + '\n',
+      'utf8',
+    );
     this.ui.log.success('Created kodu.json');
   }
 
