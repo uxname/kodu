@@ -35,6 +35,8 @@ description: >
 | 10 | **OWASP Security** | `audit-owasp` | инъекции, broken auth, IDOR, SSRF |
 | 11 | **Performance** | `audit-performance` | N+1, heavy queries, blocking I/O, memory leaks |
 | 12 | **Deployment** | `audit-deployment` | Dockerfile, env vars, CI/CD конфигурации |
+| 13 | **Bugs & Logic** | `audit-bugs` | логические ошибки, off-by-one, null dereference, забытый await, type coercion |
+| 14 | **API Contracts** | `audit-api-contracts` | консистентность ответов, HTTP-коды, версионирование, документация vs реализация |
 
 Порядок вызова: последовательно, по одному скиллу на направление. Результат каждого скилла собирай и агрегируй в итоговый отчёт (Шаг 3).
 

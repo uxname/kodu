@@ -37,10 +37,10 @@ description: >
 - Отсутствие circuit breaker для внешних HTTP-зависимостей
 - Нет fallback для кэша при недоступности Redis
 
-**Ошибки типов и граничные случаи:**
-- `null`/`undefined` dereference без проверки
-- Array access без bounds check
-- Деление на ноль без проверки
+## Граница с другими аудитами
+
+- **null/undefined dereference, array bounds, деление на ноль** — логические баги, зона `audit-bugs`
+- **Race conditions, транзакции БД** — зона `audit-concurrency`
 
 ## Формат вывода
 
