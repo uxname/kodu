@@ -19,22 +19,26 @@ description: >
 
 ## Шаг 2 — Анализ по 12 направлениям
 
-Для каждого компонента последовательно примени следующие проверки, **соблюдая правило применимости каждой**:
+**ОБЯЗАТЕЛЬНО:** Для каждого направления вызови соответствующий специализированный скилл через `Skill`. Прямой анализ без вызова скилла недопустим.
 
-1. **Secrets Leak** — захардкоженные ключи, токены, пароли
-2. **Logging** — качество, безопасность, избыточность логов
-3. **Naming** — читаемость, стандарты именования
-4. **Architecture** — нарушения слоёв, circular deps, структура
-5. **Tests & Linters** — конфигурации тестов, TS, линтеров
-6. **YAGNI** — over-engineering, мёртвый код, лишние абстракции
-7. **Boundary Validation** — валидация входящих данных
-8. **Error Handling** — обработка ошибок, таймауты, retry
-9. **Concurrency** — race conditions, shared state, транзакции
-10. **OWASP Security** — инъекции, broken auth, IDOR, SSRF
-11. **Performance** — N+1, heavy queries, blocking I/O, memory leaks
-12. **Deployment** — Dockerfile, env vars, CI/CD конфигурации
+| # | Направление | Скилл | Описание |
+|---|-------------|-------|----------|
+| 1 | **Secrets Leak** | `audit-secrets` | захардкоженные ключи, токены, пароли |
+| 2 | **Logging** | `audit-logging` | качество, безопасность, избыточность логов |
+| 3 | **Naming** | `audit-naming` | читаемость, стандарты именования |
+| 4 | **Architecture** | `audit-architecture` | нарушения слоёв, circular deps, структура |
+| 5 | **Tests & Linters** | `audit-tests` | конфигурации тестов, TS, линтеров |
+| 6 | **YAGNI** | `audit-yagni` | over-engineering, мёртвый код, лишние абстракции |
+| 7 | **Boundary Validation** | `audit-validation` | валидация входящих данных |
+| 8 | **Error Handling** | `audit-errors` | обработка ошибок, таймауты, retry |
+| 9 | **Concurrency** | `audit-concurrency` | race conditions, shared state, транзакции |
+| 10 | **OWASP Security** | `audit-owasp` | инъекции, broken auth, IDOR, SSRF |
+| 11 | **Performance** | `audit-performance` | N+1, heavy queries, blocking I/O, memory leaks |
+| 12 | **Deployment** | `audit-deployment` | Dockerfile, env vars, CI/CD конфигурации |
 
-**Правило пропуска:** Если для данного компонента аудит по направлению нерелевантен — пропусти его полностью без упоминания.
+Порядок вызова: последовательно, по одному скиллу на направление. Результат каждого скилла собирай и агрегируй в итоговый отчёт (Шаг 3).
+
+**Правило пропуска:** Если для данного компонента аудит по направлению нерелевантен — пропусти вызов скилла и не упоминай это направление в отчёте.
 
 ## Шаг 3 — Формат вывода: по компонентам
 
