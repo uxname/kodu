@@ -13,14 +13,12 @@ description: >
 
 | Check ID | Проверка |
 |----------|----------|
-| BUG-01 | Number()/parseInt() проверяются на NaN |
-| BUG-02 | Нет await внутри forEach |
-| BUG-03 | Нет обращений к свойствам без null-проверки |
-| BUG-04 | Array.sort() не мутирует входной аргумент |
-| BUG-05 | parseInt всегда с radix 10 |
-| BUG-06 | Нет if(asyncFn()) без await |
-| BUG-07 | switch на enum имеет default |
-| BUG-08 | Нет деления на ноль без guard |
+| BUG-01 | Преобразования типов безопасны (NaN, radix, coercion) |
+| BUG-02 | async/await используется корректно (нет await в forEach, нет if(asyncFn())) |
+| BUG-03 | Null-safety соблюдается — обращения к свойствам защищены от undefined/null |
+| BUG-04 | Функции не мутируют входные аргументы (sort, splice, object spread) |
+| BUG-05 | Exhaustive handling — все enum/union-ветки обработаны |
+| BUG-06 | Математические guard-условия (деление на ноль, граничные значения) |
 
 ## Правила верификации
 
@@ -43,35 +41,37 @@ cat ./docs/audit-baseline.yml
 
 ## Контекст анализа
 
-**Неверные условия:**
-- Инвертированные флаги (`!isValid` там где нужен `isValid`)
-- Неправильные операторы сравнения (`>=` вместо `>`)
-- Неверная булева логика (`&&` вместо `||` и наоборот)
+**BUG-01 — Преобразования типов безопасны:**
+- `parseInt` без явного основания системы счисления (radix)
+- `Number()` / `parseInt()` без проверки результата на NaN
+- Неявное приведение типов: конкатенация числа со строкой вместо сложения
+- Сравнение с `==` вместо `===` приводит к неожиданному coercion
 
-**Null / undefined dereference:**
+**BUG-02 — async/await используется корректно:**
+- `await` внутри `forEach` — forEach не ждёт промисов, итерация не последовательна
+- Условие `if (asyncFn())` вместо `if (await asyncFn())` — всегда truthy (Promise объект)
+- Async-функция вызвана без `await` — возвращается Promise вместо значения
+- `Promise` без `.catch()` или `try/await` без `catch`
+
+**BUG-03 — Null-safety соблюдается:**
 - Обращение к свойству без проверки на null/undefined
 - Опциональная цепочка пропущена (`obj.a.b` там где `obj.a` может быть undefined)
 - Деструктуризация без дефолтного значения при возможном undefined
 
-**Забытый await:**
-- Async-функция вызвана без `await` — возвращается Promise вместо значения
-- `await` внутри `forEach` (forEach не ждёт промисов)
-- Условие `if (asyncFn())` вместо `if (await asyncFn())`
-
-**Type coercion и сравнение типов:**
-- `parseInt` без явного основания системы счисления
-- Конкатенация числа со строкой вместо сложения
-
-**Мутация аргументов:**
-- Функция изменяет переданный объект/массив вместо создания копии
+**BUG-04 — Функции не мутируют входные аргументы:**
 - `Array.sort()` на переданном массиве без предварительного `.slice()`
+- `Array.splice()` изменяет оригинальный массив-аргумент
+- Прямое присваивание свойств объекта-аргумента вместо создания копии через spread
 
-**Деление и математика:**
-- Деление на ноль без guard-проверки
-- `Number()` / `parseInt()` без проверки на NaN
+**BUG-05 — Exhaustive handling:**
+- `switch` без `default` на enum-значении — новое значение enum пройдёт незамеченным
+- Union type без обработки всех вариантов в if/else цепочке
+- Отсутствие never-проверки для исчерпывающего TypeScript switch
 
-**Switch / enum exhaustiveness:**
-- `switch` без `default` на enum-значении (новое значение enum пройдёт незамеченным)
+**BUG-06 — Математические guard-условия:**
+- Деление на ноль без guard-проверки знаменателя
+- `Number()` / `parseInt()` без проверки результата на NaN перед использованием
+- Граничные значения не проверяются (отрицательный индекс, пустой массив)
 
 ## Граница с другими аудитами
 
@@ -84,9 +84,9 @@ cat ./docs/audit-baseline.yml
 
 | Check ID | Проверка | Статус | Доказательство | Решение |
 |----------|----------|--------|----------------|---------|
-| BUG-01 | Number()/parseInt() проверяются на NaN | ✅ PASS | — | — |
-| BUG-03 | Нет обращений к свойствам без null-проверки | ❌ FAIL 🟠 | `services/order.ts:55` | **1. Добавить опциональную цепочку: `user?.address?.city`** \\ 2. Добавить guard-проверку перед обращением \\ 3. Использовать nullish coalescing с дефолтом |
-| BUG-07 | switch на enum имеет default | ⏸ ACCEPTED | `handlers/event.ts:23` | В baseline: exhaustive check через TypeScript never |
+| BUG-01 | Преобразования типов безопасны (NaN, radix, coercion) | ✅ PASS | — | — |
+| BUG-03 | Null-safety соблюдается — обращения к свойствам защищены от undefined/null | ❌ FAIL 🟠 | `services/order.ts:55` | **1. Добавить опциональную цепочку: `user?.address?.city`** \\ 2. Добавить guard-проверку перед обращением \\ 3. Использовать nullish coalescing с дефолтом |
+| BUG-05 | Exhaustive handling — все enum/union-ветки обработаны | ⏸ ACCEPTED | `handlers/event.ts:23` | В baseline: exhaustive check через TypeScript never |
 
 Статусы: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED`
 

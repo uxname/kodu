@@ -14,12 +14,12 @@ description: >
 | Check ID | Проверка |
 |----------|----------|
 | TST-01 | TypeScript strict mode включён |
-| TST-02 | Coverage thresholds настроены |
-| TST-03 | Pre-commit/pre-push хуки запускают тесты |
-| TST-04 | Критические пути покрыты (auth, validation, errors) |
-| TST-05 | Тесты изолированы (нет shared mutable state) |
-| TST-06 | Нет .only/.skip в тестах |
-| TST-07 | Нет tautology-тестов |
+| TST-02 | Coverage thresholds настроены и применяются в CI |
+| TST-03 | Pre-commit/pre-push хуки запускают проверки (tests, lint, typecheck) |
+| TST-04 | Критические пути покрыты тестами (auth, validation, error handling) |
+| TST-05 | Тесты изолированы — нет shared mutable state между тестами |
+| TST-06 | Нет пропущенных или зафиксированных тестов (.only/.skip без обоснования) |
+| TST-07 | Тесты проверяют поведение, а не детали реализации |
 
 ## Правила верификации
 
@@ -42,37 +42,52 @@ cat ./docs/audit-baseline.yml
 
 ## Контекст анализа
 
-**Конфигурация тестов:**
-- `jest.config` / `vitest.config` без coverage thresholds
-- Моки, перекрывающие реальное поведение (mock DB вместо real DB)
-- Глобальные моки, влияющие на изоляцию тестов
-- Отсутствие setup/teardown для интеграционных тестов
-- Тесты, зависящие от порядка выполнения
-
-**Качество тестов:**
-- Тесты без assertions (пустые expect)
-- `expect(true).toBe(true)` и другие tautology-тесты
-- Тесты, проверяющие implementation details вместо behavior
-- Отсутствие тестов для error paths и edge cases
-- Один огромный тест вместо нескольких изолированных
-
-**TypeScript конфигурация:**
+**TST-01 — TypeScript strict mode:**
 - `strict: false` или отключенные важные флаги (`noImplicitAny`, `strictNullChecks`)
 - `ts-ignore` / `@ts-expect-error` без объяснений
 - `any` типы в публичных API
+- Отключённые важные lint-правила без обоснования
 
-**Линтер конфигурация:**
-- Отключённые важные правила без обоснования (no-any, no-explicit-any)
-- `eslint-disable` без комментария
-- Несовместимые правила между lint и formatter
+**TST-02 — Coverage thresholds в CI:**
+- `jest.config` / `vitest.config` без coverage thresholds
+- Thresholds настроены но не применяются в CI pipeline
+- Пороги установлены слишком низко (0% или не заданы)
+
+**TST-03 — Pre-commit/pre-push хуки:**
+- Отсутствие git hooks (lefthook, husky или аналог)
+- Хуки не запускают typecheck / lint / тесты
+- Хуки настроены но отключены или пропускаются через `--no-verify`
+
+**TST-04 — Критические пути покрыты:**
+- Auth пути (login, logout, token refresh) без тестов
+- Validation logic без тестов для невалидных входных данных
+- Error handling пути (что происходит при сбое DB, внешнего API) не протестированы
+- Edge cases (пустой список, максимальное значение, null) не покрыты
+
+**TST-05 — Тесты изолированы:**
+- Глобальные моки, влияющие на изоляцию других тестов
+- Shared mutable state между тест-кейсами в одном suite
+- Тесты, зависящие от порядка выполнения
+- Отсутствие setup/teardown для интеграционных тестов
+
+**TST-06 — Нет пропущенных/зафиксированных тестов:**
+- `.only` в тестах — остальные тесты не запускаются
+- `.skip` без обоснования — тест пропускается в CI
+- Закомментированные тесты без объяснения
+
+**TST-07 — Тесты проверяют поведение:**
+- `expect(true).toBe(true)` и другие tautology-тесты
+- Тесты без assertions (пустые expect, всегда зелёные)
+- Тесты, проверяющие implementation details (внутренние переменные, private методы) вместо behavior
+- Один огромный тест вместо нескольких изолированных по сценарию
 
 ## Формат вывода
 
 | Check ID | Проверка | Статус | Доказательство | Решение |
 |----------|----------|--------|----------------|---------|
 | TST-01 | TypeScript strict mode включён | ✅ PASS | — | — |
-| TST-02 | Coverage thresholds настроены | ❌ FAIL 🟠 | `jest.config.ts:1` | **1. Добавить `coverageThreshold: { global: { lines: 80 } }`** \\ 2. Настроить thresholds только для критических модулей \\ 3. Добавить coverage check в CI без блокировки |
-| TST-06 | Нет .only/.skip в тестах | ⏸ ACCEPTED | `tests/auth.test.ts:45` | В baseline: временно для дебага, будет убрано |
+| TST-02 | Coverage thresholds настроены и применяются в CI | ❌ FAIL 🟠 | `jest.config.ts:1` | **1. Добавить `coverageThreshold: { global: { lines: 80 } }`** \\ 2. Настроить thresholds только для критических модулей \\ 3. Добавить coverage check в CI без блокировки |
+| TST-06 | Нет пропущенных или зафиксированных тестов (.only/.skip без обоснования) | ⏸ ACCEPTED | `tests/auth.test.ts:45` | В baseline: временно для дебага, будет убрано |
 
 Статусы: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED`
 

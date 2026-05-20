@@ -13,16 +13,16 @@ description: >
 
 | Check ID | Проверка |
 |----------|----------|
-| DEP-01 | Dockerfile не использует :latest |
-| DEP-02 | Dockerfile имеет USER nonroot |
-| DEP-03 | Multi-stage build (dev deps не в prod) |
-| DEP-04 | .dockerignore включает node_modules, .git |
-| DEP-05 | HEALTHCHECK определён |
-| DEP-06 | Нет secrets в ENV Dockerfile |
-| DEP-07 | .env в .gitignore |
-| DEP-08 | .env.example существует |
-| DEP-09 | NODE_ENV устанавливается при деплое |
-| DEP-10 | npm ci вместо npm install в Docker |
+| DEP-01 | Docker images используют pinned versions (нет :latest) |
+| DEP-02 | Контейнеры запускаются от непривилегированного пользователя (USER nonroot) |
+| DEP-03 | Multi-stage build разделяет dev и prod зависимости |
+| DEP-04 | .dockerignore исключает node_modules, .git, .env |
+| DEP-05 | HEALTHCHECK определён в Dockerfile |
+| DEP-06 | Секреты не hardcoded в Dockerfile (нет в ENV) |
+| DEP-07 | .env исключён из VCS |
+| DEP-08 | .env.example документирует все переменные окружения |
+| DEP-09 | NODE_ENV корректно устанавливается для production |
+| DEP-10 | npm ci используется вместо npm install в Docker |
 
 ## Правила верификации
 
@@ -45,37 +45,57 @@ cat ./docs/audit-baseline.yml
 
 ## Контекст анализа
 
-**Dockerfile:**
-- Базовый образ `:latest` без pinning версии
-- Запуск как root без `USER nonroot`
-- Secrets в ENV директиве (видны в docker inspect и layers)
+**DEP-01 — Pinned versions:**
+- Базовый образ `:latest` без pinning версии (непредсказуемые обновления)
+- Тег `:alpine` без конкретной версии
+- Digest-based pinning отсутствует для критичных образов
+
+**DEP-02 — Непривилегированный пользователь:**
+- Запуск контейнера как root без `USER nonroot` / `USER node`
+- Отсутствие создания non-root пользователя перед переключением
+
+**DEP-03 — Multi-stage build:**
 - Отсутствие multi-stage build (dev dependencies в prod образе)
+- devDependencies устанавливаются в production stage
+- Build artifacts не копируются из builder stage
+
+**DEP-04 — .dockerignore:**
 - Нет `.dockerignore` или `.dockerignore` не включает node_modules, .git
-- Отсутствие health check
-- `npm install` вместо `npm ci` (не детерминированная сборка)
+- `.env` файлы не исключены из Docker build context
+- Тесты и документация попадают в production образ
 
-**Переменные окружения:**
-- Секреты в docker-compose.yml в открытом виде
+**DEP-05 — HEALTHCHECK:**
+- HEALTHCHECK отсутствует в Dockerfile
+- Health check endpoint не существует в приложении
+
+**DEP-06 — Секреты не в Dockerfile ENV:**
+- Secrets в `ENV` директивах Dockerfile (видны в docker inspect и слоях образа)
+- Credentials в `ARG` без использования build secrets (`--secret`)
+
+**DEP-07 — .env исключён из VCS:**
 - `.env` файл с реальными credentials закоммичен в репозиторий
-- Отсутствие `.env.example` для документирования required vars
-- Production secrets в CI/CD конфиге в открытом виде (не masked)
+- Отсутствие `.env*` в `.gitignore`
 
-**CI/CD:**
-- Отсутствие проверки secrets scanning в pipeline
-- Нет dependency vulnerability scan (npm audit, Snyk)
-- Нет timeout для CI jobs (бесконечный run при зависании)
+**DEP-08 — .env.example документирует переменные:**
+- `.env.example` отсутствует
+- `.env.example` содержит реальные credentials
+- Не все обязательные переменные задокументированы
 
-**Kubernetes / Compose:**
-- Containers без resource limits (CPU/Memory)
-- Отсутствие readinessProbe / livenessProbe
+**DEP-09 — NODE_ENV для production:**
+- `NODE_ENV` не устанавливается или устанавливается как `development` в prod образе
+- Отсутствие `NODE_ENV=production` ведёт к загрузке devDependencies в runtime
+
+**DEP-10 — npm ci в Docker:**
+- `npm install` вместо `npm ci` (не детерминированная, более медленная сборка)
+- Отсутствие `package-lock.json` при использовании npm
 
 ## Формат вывода
 
 | Check ID | Проверка | Статус | Доказательство | Решение |
 |----------|----------|--------|----------------|---------|
-| DEP-01 | Dockerfile не использует :latest | ✅ PASS | — | — |
-| DEP-02 | Dockerfile имеет USER nonroot | ❌ FAIL 🟠 | `Dockerfile:12` | **1. Добавить `RUN addgroup -S app && adduser -S app -G app` и `USER app`** \\ 2. Использовать образ с встроенным nonroot пользователем (node:alpine) \\ 3. Добавить `USER node` если базовый образ node |
-| DEP-05 | HEALTHCHECK определён | ⏸ ACCEPTED | — | В baseline: health check управляется Kubernetes liveness probe |
+| DEP-01 | Docker images используют pinned versions (нет :latest) | ✅ PASS | — | — |
+| DEP-02 | Контейнеры запускаются от непривилегированного пользователя (USER nonroot) | ❌ FAIL 🟠 | `Dockerfile:12` | **1. Добавить `RUN addgroup -S app && adduser -S app -G app` и `USER app`** \\ 2. Использовать образ с встроенным nonroot пользователем (node:alpine) \\ 3. Добавить `USER node` если базовый образ node |
+| DEP-05 | HEALTHCHECK определён в Dockerfile | ⏸ ACCEPTED | — | В baseline: health check управляется Kubernetes liveness probe |
 
 Статусы: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED`
 

@@ -13,11 +13,11 @@ description: >
 
 | Check ID | Проверка |
 |----------|----------|
-| CON-01 | Нет await внутри forEach/map |
-| CON-02 | DB read-modify-write операции в транзакциях |
-| CON-03 | Нет shared mutable state на module level |
+| CON-01 | async/await не используется в неасинхронных итераторах (forEach, map) |
+| CON-02 | Read-modify-write операции выполняются в транзакциях |
+| CON-03 | Нет shared mutable state на уровне модуля (синглтоны, кэши без locks) |
 | CON-04 | Module-level кэш имеет механизм инвалидации |
-| CON-05 | Webhook/event handlers идемпотентны |
+| CON-05 | Обработчики событий и webhook-handlers идемпотентны |
 
 ## Правила верификации
 
@@ -40,31 +40,33 @@ cat ./docs/audit-baseline.yml
 
 ## Контекст анализа
 
-**Race Conditions:**
-- Check-then-act без атомарности (читаем → проверяем → пишем без lock)
-- Двойное списание/начисление без транзакции
-- Кэш-инвалидация между чтением и записью
-- Конкурентные запись в один файл без координации
+**CON-01 — Корректное использование async в итераторах:**
+- `await` внутри `forEach` — forEach не ждёт промисов, итерация выполняется некорректно
+- `async` функция в `Array.map` без `Promise.all` — промисы создаются но не ожидаются
+- Shared state между параллельными async операциями без синхронизации
 
-**Shared Mutable State:**
+**CON-02 — Read-modify-write в транзакциях:**
+- SELECT + UPDATE без транзакции (TOCTOU — time-of-check to time-of-use)
+- Двойное списание/начисление без транзакции с блокировкой
+- Check-then-act без атомарности (читаем → проверяем → пишем без lock)
+- Optimistic locking без retry при конфликте версий
+- Кэш-инвалидация между чтением и записью
+
+**CON-03 — Нет shared mutable state на уровне модуля:**
 - Глобальные переменные, изменяемые из нескольких мест
 - Синглтоны с mutable state без синхронизации
 - Closure над изменяемой переменной в async callback
-- Module-level кэш без TTL и без механизма инвалидации
+- Конкурентная запись в один файл/ресурс без координации
 
-**Транзакции БД:**
-- SELECT + UPDATE без транзакции (TOCTOU)
-- Транзакции с lock escalation risk
-- Optimistic locking без retry при конфликте
+**CON-04 — Module-level кэш инвалидируется:**
+- Module-level кэш без механизма инвалидации при обновлении данных
+- Кэш без TTL (stale data не обновляется никогда)
+- Нет стратегии обновления кэша при изменении исходных данных
 
-**Async/Promise специфика (JS/TS):**
-- `await` внутри `forEach` (не работает как ожидается)
-- Параллельные Promise без `Promise.all`
-- Shared state между параллельными async операциями
-
-**Идемпотентность:**
-- Обработчики событий/сообщений без идемпотентности
-- Нет защиты от дублирующихся webhook-вызовов
+**CON-05 — Идемпотентность обработчиков:**
+- Обработчики событий/сообщений без идемпотентности (повторная доставка не безопасна)
+- Нет защиты от дублирующихся webhook-вызовов (нет проверки event_id)
+- Финансовые или критические операции без идемпотентного ключа
 
 ## Граница с другими аудитами
 
@@ -75,9 +77,9 @@ cat ./docs/audit-baseline.yml
 
 | Check ID | Проверка | Статус | Доказательство | Решение |
 |----------|----------|--------|----------------|---------|
-| CON-01 | Нет await внутри forEach/map | ✅ PASS | — | — |
-| CON-02 | DB read-modify-write операции в транзакциях | ❌ FAIL 🔴 | `services/wallet.ts:67` | **1. Обернуть в db.transaction() с SELECT FOR UPDATE** \\ 2. Использовать optimistic locking с retry \\ 3. Добавить уникальное ограничение на уровне БД |
-| CON-05 | Webhook/event handlers идемпотентны | ⏸ ACCEPTED | `handlers/stripe.ts:12` | В baseline: идемпотентность обеспечена через event_id |
+| CON-01 | async/await не используется в неасинхронных итераторах (forEach, map) | ✅ PASS | — | — |
+| CON-02 | Read-modify-write операции выполняются в транзакциях | ❌ FAIL 🔴 | `services/wallet.ts:67` | **1. Обернуть в db.transaction() с SELECT FOR UPDATE** \\ 2. Использовать optimistic locking с retry \\ 3. Добавить уникальное ограничение на уровне БД |
+| CON-05 | Обработчики событий и webhook-handlers идемпотентны | ⏸ ACCEPTED | `handlers/stripe.ts:12` | В baseline: идемпотентность обеспечена через event_id |
 
 Статусы: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED`
 

@@ -16,130 +16,120 @@ accepted:
 # ─────────────────────────────────────────
 #
 # audit-secrets:
-#   SEC-01  Нет hardcoded паролей/токенов/ключей в строковых литералах
-#   SEC-02  .env файлы в .gitignore
-#   SEC-03  Нет secrets в URL (query params, Basic Auth)
-#   SEC-04  .env.example не содержит реальных credentials
-#   SEC-05  Нет secrets в Dockerfile ENV директивах
-#   SEC-06  Нет credentials в комментариях
+#   SEC-01  Нет hardcoded credentials в коде (пароли, токены, API-ключи, приватные ключи)
+#   SEC-02  Файлы с секретами исключены из VCS (.env* в .gitignore)
+#   SEC-03  Секреты не передаются через URL (query params, Basic Auth в URL)
+#   SEC-04  .env.example содержит только placeholder-значения без реальных данных
+#   SEC-05  Dockerfile не содержит секретов в ENV-директивах
+#   SEC-06  Комментарии в коде не содержат credentials
 #
 # audit-owasp:
-#   OWA-01  A03: Нет конкатенации строк в DB/shell запросах
-#   OWA-02  A01: Все protected routes имеют auth middleware
-#   OWA-03  A01: Нет IDOR — resource ownership проверяется
-#   OWA-04  A02: Пароли хешируются через bcrypt/argon2/scrypt
-#   OWA-05  A05: CORS не wildcard в production
-#   OWA-06  A07: Rate limiting присутствует на API
-#   OWA-07  A05: Helmet/security headers установлены
-#   OWA-08  A05: express.json с limit или аналог
-#   OWA-09  A05: Stack trace не попадает в ответы
-#   OWA-10  A10: URL из user input не передаётся в HTTP-клиент без whitelist
+#   OWA-01  A03: Все запросы к БД/OS/LDAP параметризованы, нет injection
+#   OWA-02  A01: Все защищённые маршруты имеют auth-middleware
+#   OWA-03  A01: Resource ownership проверяется, нет IDOR
+#   OWA-04  A02: Пароли хранятся безопасно (bcrypt/argon2/scrypt)
+#   OWA-05  A05: Безопасная конфигурация сервера (CORS, security headers, body limits)
+#   OWA-06  A07: Защита от перебора (rate limiting на auth и чувствительных эндпоинтах)
+#   OWA-07  A09: Техническая информация не утекает в ответы (stack trace, внутренние пути)
+#   OWA-08  A10: URL из user input не передаётся в HTTP-клиент без whitelist (SSRF)
 #
 # audit-validation:
-#   VAL-01  Все req.body проходят schema validation
-#   VAL-02  Все path params типизированы и проверены
-#   VAL-03  Все query params валидированы
-#   VAL-04  Строки имеют maxLength ограничения
-#   VAL-05  Числовые params проверены на диапазон (min/max)
-#   VAL-06  Enum params проверяются по whitelist
-#   VAL-07  JSON.parse в try/catch с валидацией структуры
-#   VAL-08  User ID берётся из аутентифицированного контекста
+#   VAL-01  Все входящие данные (body, params, query) проходят schema-валидацию
+#   VAL-02  Строки имеют maxLength, числа — диапазон, enum-значения — whitelist
+#   VAL-03  JSON.parse обёрнут в try/catch с последующей валидацией структуры
+#   VAL-04  Identity данные берутся из аутентифицированного контекста (не из user input)
 #
 # audit-errors:
-#   ERR-01  Нет пустых catch блоков
-#   ERR-02  Stack trace не в production response
-#   ERR-03  Async handlers в asyncHandler или Express 5
-#   ERR-04  Есть process.on('unhandledRejection')
-#   ERR-05  HTTP клиенты имеют явный timeout
-#   ERR-06  Graceful shutdown реализован (SIGTERM)
-#   ERR-07  Error responses имеют консистентную структуру
-#   ERR-08  DB запросы имеют timeout
+#   ERR-01  Ошибки не проглатываются — catch-блоки обрабатывают или пробрасывают
+#   ERR-02  Внутренние детали (stack trace, пути, версии) не попадают в ответы
+#   ERR-03  Async handlers корректно пробрасывают исключения в error middleware
+#   ERR-04  Unhandled rejections и uncaught exceptions имеют process-level обработчики
+#   ERR-05  Внешние вызовы (HTTP-клиенты, DB) имеют явные таймауты
+#   ERR-06  Graceful shutdown реализован — SIGTERM обрабатывается
+#   ERR-07  Error responses консистентны по структуре во всём приложении
 #
 # audit-logging:
-#   LOG-01  Нет console.log в production коде
-#   LOG-02  Нет PII (email, phone, name) в log messages
-#   LOG-03  Нет secrets/tokens в logs
-#   LOG-04  Request ID присутствует для трейсинга
-#   LOG-05  Структурированный формат (JSON) в production
-#   LOG-06  Критические операции (auth, create, delete) логируются
-#   LOG-07  Нет log injection (user input санитизируется)
+#   LOG-01  Production-код не использует console.log/console.error напрямую
+#   LOG-02  PII не логируется (email, телефон, имена, адреса, финансовые данные)
+#   LOG-03  Секреты и токены не попадают в логи
+#   LOG-04  Запросы трассируются (Request ID или correlation ID сквозной)
+#   LOG-05  Формат логов структурирован (JSON) в production
+#   LOG-06  Критические операции логируются (auth, create, update, delete)
+#   LOG-07  User input санитизируется перед логированием (защита от log injection)
 #
 # audit-performance:
-#   PER-01  Нет DB запросов внутри циклов (N+1)
-#   PER-02  SELECT запросы имеют LIMIT/пагинацию
-#   PER-03  Нет blocking I/O в request handlers
-#   PER-04  CPU-intensive операции не в main thread
-#   PER-05  Независимые async операции параллельны (Promise.all)
-#   PER-06  Кэши имеют TTL и size limit
-#   PER-07  Event listeners удаляются при cleanup
+#   PER-01  Нет N+1: DB-запросы не выполняются внутри циклов
+#   PER-02  Выборки из БД ограничены (LIMIT, пагинация)
+#   PER-03  Обработчики запросов не содержат блокирующего I/O
+#   PER-04  CPU-интенсивные операции вынесены из main thread
+#   PER-05  Независимые async-операции выполняются параллельно
+#   PER-06  Кэши ограничены по размеру и времени жизни (TTL + size limit)
+#   PER-07  Event listeners и subscriptions очищаются при завершении
 #
 # audit-architecture:
-#   ARC-01  Бизнес-логика в service слое, не в route handlers
-#   ARC-02  Нет прямых DB вызовов из presentation layer
-#   ARC-03  Нет circular dependencies
-#   ARC-04  Нет God-файлов (>500 строк несвязанной логики)
-#   ARC-05  Config/env не используется вне config модуля
-#   ARC-06  Внешние зависимости инжектируются (DI)
+#   ARC-01  Бизнес-логика вынесена из route handlers в service/domain слой
+#   ARC-02  Presentation layer не взаимодействует с БД напрямую
+#   ARC-03  Нет circular dependencies между модулями
+#   ARC-04  Нет god-объектов: файлы и классы имеют единственную ответственность
+#   ARC-05  Конфигурация и env-переменные изолированы в config-модуле
+#   ARC-06  Внешние зависимости инжектируются (DI), не импортируются напрямую
 #
 # audit-concurrency:
-#   CON-01  Нет await внутри forEach/map
-#   CON-02  DB read-modify-write в транзакциях
-#   CON-03  Нет shared mutable state на module level
+#   CON-01  async/await не используется в неасинхронных итераторах (forEach, map)
+#   CON-02  Read-modify-write операции выполняются в транзакциях
+#   CON-03  Нет shared mutable state на уровне модуля (синглтоны, кэши без locks)
 #   CON-04  Module-level кэш имеет механизм инвалидации
-#   CON-05  Webhook/event handlers идемпотентны
+#   CON-05  Обработчики событий и webhook-handlers идемпотентны
 #
 # audit-naming:
-#   NAM-01  camelCase для переменных/функций (JS/TS)
-#   NAM-02  Нет однобуквенных переменных вне for-циклов
-#   NAM-03  Boolean переменные с префиксом is/has/can
-#   NAM-04  Нет misleading names (getX не меняет данные)
-#   NAM-05  Magic numbers заменены именованными константами
-#   NAM-06  Нет utils.ts/helpers.ts как свалки
+#   NAM-01  Соглашение об именовании соблюдается консистентно (camelCase/snake_case)
+#   NAM-02  Имена переменных, функций и классов описывают назначение, не реализацию
+#   NAM-03  Boolean-переменные имеют предикативные имена (is/has/can/should)
+#   NAM-04  Функции-читатели (get*/find*) не имеют side effects
+#   NAM-05  Magic numbers и magic strings заменены именованными константами
+#   NAM-06  Утилитные модули не являются свалкой несвязанного кода
 #
 # audit-yagni:
 #   YAGNI-01  Нет закомментированного кода
-#   YAGNI-02  Нет неиспользуемых экспортов
-#   YAGNI-03  Нет абстракций с единственной реализацией без тестов
-#   YAGNI-04  Feature flags не застряли в одном значении
-#   YAGNI-05  Нет TODO/FIXME старше 6 месяцев
+#   YAGNI-02  Нет dead code — неиспользуемых экспортов, функций, переменных
+#   YAGNI-03  Абстракции оправданы: интерфейс/фабрика имеет >1 реализации или требуется тестами
+#   YAGNI-04  Feature flags не зафиксированы в одном значении
+#   YAGNI-05  Технический долг актуален — нет заброшенных TODO/FIXME без даты или прогресса
 #
 # audit-bugs:
-#   BUG-01  Number()/parseInt() проверяются на NaN
-#   BUG-02  Нет await внутри forEach
-#   BUG-03  Нет обращений к свойствам без null-проверки
-#   BUG-04  Array.sort() не мутирует входной аргумент
-#   BUG-05  parseInt всегда с radix 10
-#   BUG-06  Нет if(asyncFn()) без await
-#   BUG-07  switch на enum имеет default
-#   BUG-08  Нет деления на ноль без guard
+#   BUG-01  Преобразования типов безопасны (NaN, radix, coercion)
+#   BUG-02  async/await используется корректно (нет await в forEach, нет if(asyncFn()))
+#   BUG-03  Null-safety соблюдается — обращения к свойствам защищены от undefined/null
+#   BUG-04  Функции не мутируют входные аргументы (sort, splice, object spread)
+#   BUG-05  Exhaustive handling — все enum/union-ветки обработаны
+#   BUG-06  Математические guard-условия (деление на ноль, граничные значения)
 #
 # audit-tests:
 #   TST-01  TypeScript strict mode включён
-#   TST-02  Coverage thresholds настроены
-#   TST-03  Pre-commit/pre-push хуки запускают тесты
-#   TST-04  Критические пути покрыты (auth, validation, errors)
-#   TST-05  Тесты изолированы (нет shared mutable state)
-#   TST-06  Нет .only/.skip в тестах
-#   TST-07  Нет tautology-тестов
+#   TST-02  Coverage thresholds настроены и применяются в CI
+#   TST-03  Pre-commit/pre-push хуки запускают проверки (tests, lint, typecheck)
+#   TST-04  Критические пути покрыты тестами (auth, validation, error handling)
+#   TST-05  Тесты изолированы — нет shared mutable state между тестами
+#   TST-06  Нет пропущенных или зафиксированных тестов (.only/.skip без обоснования)
+#   TST-07  Тесты проверяют поведение, а не детали реализации
 #
 # audit-deployment:
-#   DEP-01  Dockerfile не использует :latest
-#   DEP-02  Dockerfile имеет USER nonroot
-#   DEP-03  Multi-stage build (dev deps не в prod)
-#   DEP-04  .dockerignore включает node_modules, .git
-#   DEP-05  HEALTHCHECK определён
-#   DEP-06  Нет secrets в ENV Dockerfile
-#   DEP-07  .env в .gitignore
-#   DEP-08  .env.example существует
-#   DEP-09  NODE_ENV устанавливается при деплое
-#   DEP-10  npm ci вместо npm install в Docker
+#   DEP-01  Docker images используют pinned versions (нет :latest)
+#   DEP-02  Контейнеры запускаются от непривилегированного пользователя (USER nonroot)
+#   DEP-03  Multi-stage build разделяет dev и prod зависимости
+#   DEP-04  .dockerignore исключает node_modules, .git, .env
+#   DEP-05  HEALTHCHECK определён в Dockerfile
+#   DEP-06  Секреты не hardcoded в Dockerfile (нет в ENV)
+#   DEP-07  .env исключён из VCS
+#   DEP-08  .env.example документирует все переменные окружения
+#   DEP-09  NODE_ENV корректно устанавливается для production
+#   DEP-10  npm ci используется вместо npm install в Docker
 #
 # audit-api-contracts:
-#   API-01  Консистентный envelope ответов
-#   API-02  POST возвращает 201 при создании
-#   API-03  Нет 200 с error body
-#   API-04  Консистентное именование полей
-#   API-05  Error responses с machine-readable code
-#   API-06  Нет stack trace в error responses
-#   API-07  Пагинация включает метаданные (total/hasNext)
-#   API-08  Версионирование для публичного API
+#   API-01  Форма ответов консистентна — единый envelope или его отсутствие по всему API
+#   API-02  HTTP статус-коды семантически корректны (201 при создании, 4xx для client errors)
+#   API-03  Error responses машиночитаемы и консистентны по структуре
+#   API-04  Именование полей консистентно (camelCase или snake_case, не смешано)
+#   API-05  Stack trace и внутренние детали не попадают в error responses
+#   API-06  Пагинация включает метаданные (total/hasNext) где применима
+#   API-07  Публичный API имеет стратегию версионирования

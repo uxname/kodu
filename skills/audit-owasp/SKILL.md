@@ -13,16 +13,14 @@ description: >
 
 | Check ID | Проверка |
 |----------|----------|
-| OWA-01 | A03: Нет конкатенации строк в DB/shell запросах |
-| OWA-02 | A01: Все protected routes имеют auth middleware |
-| OWA-03 | A01: Нет IDOR — resource ownership проверяется |
-| OWA-04 | A02: Пароли хешируются через bcrypt/argon2/scrypt |
-| OWA-05 | A05: CORS не wildcard в production |
-| OWA-06 | A07: Rate limiting присутствует на API |
-| OWA-07 | A05: Helmet/security headers установлены |
-| OWA-08 | A05: express.json с limit или аналог |
-| OWA-09 | A05: Stack trace не попадает в ответы |
-| OWA-10 | A10: URL из user input не в HTTP-клиент без whitelist |
+| OWA-01 | A03: Все запросы к БД/OS/LDAP параметризованы, нет injection |
+| OWA-02 | A01: Все защищённые маршруты имеют auth-middleware |
+| OWA-03 | A01: Resource ownership проверяется, нет IDOR |
+| OWA-04 | A02: Пароли хранятся безопасно (bcrypt/argon2/scrypt) |
+| OWA-05 | A05: Безопасная конфигурация сервера (CORS, security headers, body limits) |
+| OWA-06 | A07: Защита от перебора (rate limiting на auth и чувствительных эндпоинтах) |
+| OWA-07 | A09: Техническая информация не утекает в ответы (stack trace, внутренние пути) |
+| OWA-08 | A10: URL из user input не передаётся в HTTP-клиент без whitelist (SSRF) |
 
 ## Правила верификации
 
@@ -45,31 +43,51 @@ cat ./docs/audit-baseline.yml
 
 ## Контекст анализа
 
-**A01 — Broken Access Control:**
-- IDOR: ресурс запрашивается по ID без проверки ownership
-- Privilege escalation: обычный пользователь может вызвать admin-действие
-- Отсутствие авторизации на отдельных маршрутах
-- Directory traversal в file operations
+**OWA-01 — Параметризованные запросы, нет injection:**
+- SQL строки, собранные через конкатенацию/template literals
+- NoSQL injection через неэкранированные операторы (`$where`, `$regex`)
+- Command injection: user input попадает в shell-команды без экранирования
+- LDAP/XPath запросы с неэкранированным user input
 
-**A02 — Cryptographic Failures:**
+**OWA-02 — Auth middleware на защищённых маршрутах:**
+- Protected routes без auth middleware
+- Privilege escalation: обычный пользователь вызывает admin-действие
+- Directory traversal в file operations
+- Отсутствие авторизации на отдельных маршрутах роутера
+
+**OWA-03 — Resource ownership проверяется:**
+- IDOR: ресурс запрашивается по ID без проверки ownership текущего пользователя
+- Bulk operations изменяют ресурсы других пользователей
+- Indirect object reference через связанные сущности без проверки доступа
+
+**OWA-04 — Безопасное хранение паролей:**
 - Слабые алгоритмы хеширования (MD5, SHA1 для паролей)
 - Пароли не хешируются через bcrypt/argon2/scrypt
 - Симметричное шифрование с hardcoded key
 - HTTP вместо HTTPS для передачи credentials
 
-**A03 — Injection:**
-- SQL строки, собранные через конкатенацию/template literals
-- NoSQL injection через неэкранированные операторы (`$where`, `$regex`)
-- Command injection: user input в shell команды
+**OWA-05 — Безопасная конфигурация сервера:**
+- CORS wildcard (`*`) в production или открытый origins без whitelist
+- Отсутствие security headers (Helmet или аналог: X-Frame-Options, CSP, HSTS)
+- express.json / bodyParser без limit (DoS через огромное тело запроса)
+- Открытые error pages с технической информацией
 
-**A07 — Auth & Session Failures:**
-- Отсутствие rate limiting на login endpoint
+**OWA-06 — Защита от перебора:**
+- Отсутствие rate limiting на login/register/reset-password эндпоинтах
+- Нет rate limiting на чувствительных операциях (смена пароля, OTP-проверка)
 - Слабые JWT алгоритмы (alg:none, HS256 с коротким ключом)
 - Session tokens не инвалидируются при logout
 
-**A10 — SSRF:**
-- URL из user input передаётся в HTTP-клиент без whitelist
-- Fetch к внутренним адресам (169.254.x.x, 10.x.x.x, localhost)
+**OWA-07 — Техническая информация не утекает:**
+- Stack trace в ответах production API
+- Внутренние пути файловой системы в error messages
+- Версии зависимостей/фреймворка в заголовках или ответах
+- SQL-ошибки или DB-специфичные сообщения в API responses
+
+**OWA-08 — SSRF: URL из user input без whitelist:**
+- URL из user input передаётся в HTTP-клиент (axios, fetch, got) без whitelist
+- Fetch к внутренним адресам (169.254.x.x, 10.x.x.x, localhost, metadata endpoints)
+- Редиректы на внутренние ресурсы без валидации destination
 
 ## Граница с другими аудитами
 
@@ -81,9 +99,9 @@ cat ./docs/audit-baseline.yml
 
 | Check ID | Проверка | Статус | Доказательство | Решение |
 |----------|----------|--------|----------------|---------|
-| OWA-01 | A03: Нет конкатенации строк в DB/shell запросах | ✅ PASS | — | — |
-| OWA-02 | A01: Все protected routes имеют auth middleware | ❌ FAIL 🔴 | `routes/admin.ts:14` | **1. Добавить authMiddleware на все /admin routes** \\ 2. Использовать router-level middleware \\ 3. Добавить проверку в каждый handler |
-| OWA-05 | A05: CORS не wildcard в production | ⏸ ACCEPTED | `app.ts:9` | В baseline: внутренний сервис |
+| OWA-01 | A03: Все запросы к БД/OS/LDAP параметризованы, нет injection | ✅ PASS | — | — |
+| OWA-02 | A01: Все защищённые маршруты имеют auth-middleware | ❌ FAIL 🔴 | `routes/admin.ts:14` | **1. Добавить authMiddleware на все /admin routes** \\ 2. Использовать router-level middleware \\ 3. Добавить проверку в каждый handler |
+| OWA-05 | A05: Безопасная конфигурация сервера (CORS, security headers, body limits) | ⏸ ACCEPTED | `app.ts:9` | В baseline: внутренний сервис |
 
 Статусы: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED`
 

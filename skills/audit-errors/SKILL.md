@@ -13,14 +13,13 @@ description: >
 
 | Check ID | Проверка |
 |----------|----------|
-| ERR-01 | Нет пустых catch блоков |
-| ERR-02 | Stack trace не в production response |
-| ERR-03 | Async handlers в asyncHandler или Express 5 |
-| ERR-04 | Есть process.on('unhandledRejection') |
-| ERR-05 | HTTP клиенты имеют явный timeout |
-| ERR-06 | Graceful shutdown реализован (SIGTERM) |
-| ERR-07 | Error responses имеют консистентную структуру |
-| ERR-08 | DB запросы имеют timeout |
+| ERR-01 | Ошибки не проглатываются — catch-блоки обрабатывают или пробрасывают |
+| ERR-02 | Внутренние детали (stack trace, пути, версии) не попадают в ответы |
+| ERR-03 | Async handlers корректно пробрасывают исключения в error middleware |
+| ERR-04 | Unhandled rejections и uncaught exceptions имеют process-level обработчики |
+| ERR-05 | Внешние вызовы (HTTP-клиенты, DB) имеют явные таймауты |
+| ERR-06 | Graceful shutdown реализован — SIGTERM обрабатывается |
+| ERR-07 | Error responses консистентны по структуре во всём приложении |
 
 ## Правила верификации
 
@@ -43,27 +42,43 @@ cat ./docs/audit-baseline.yml
 
 ## Контекст анализа
 
-**Проглоченные ошибки:**
+**ERR-01 — Ошибки не проглатываются:**
 - Пустые catch-блоки (`catch(e) {}`)
 - `catch` только с логом без восстановления и re-throw
 - Promise без `.catch()` или `try/await` без `catch`
-- Unhandled promise rejections
+- Unhandled promise rejections без обработки
 
-**Таймауты:**
-- HTTP-клиенты без явного timeout
-- БД-запросы без query timeout
-- Отсутствие timeout для очередей сообщений
+**ERR-02 — Внутренние детали не в ответах:**
+- Stack trace в production API responses
+- Внутренние пути файловой системы в error messages
+- Версии зависимостей/фреймворка в заголовках или ответах
+- DB-специфичные сообщения об ошибках (SQL syntax error) в API responses
+
+**ERR-03 — Async handlers пробрасывают исключения:**
+- Express async handlers без asyncHandler wrapper или Express 5
+- Promise rejection в middleware не пробрасывается в error middleware
+- Необработанные исключения в setTimeout/setInterval колбэках
+
+**ERR-04 — Process-level обработчики:**
+- Отсутствие `process.on('unhandledRejection')` 
+- Отсутствие `process.on('uncaughtException')`
+- Нет логирования и корректного выхода при критических ошибках процесса
+
+**ERR-05 — Явные таймауты для внешних вызовов:**
+- HTTP-клиенты (axios, fetch, got) без явного timeout
+- БД-запросы без query timeout / statement timeout
+- Отсутствие timeout для очередей сообщений и внешних gRPC вызовов
 - Бесконечные retry без exponential backoff и max attempts
 
-**Retry policies:**
-- Retry без различия transient vs permanent ошибок
-- Retry на non-idempotent операции (POST без идемпотентного ключа)
-- Отсутствие jitter в retry (thundering herd проблема)
+**ERR-06 — Graceful shutdown:**
+- Отсутствие `process.on('SIGTERM')` обработчика
+- Нет закрытия DB-пула и HTTP-сервера при shutdown
+- Незавершённые запросы не дожидаются окончания при shutdown
 
-**Graceful degradation:**
-- Падение всего сервиса при недоступности некритичного зависимости
-- Отсутствие circuit breaker для внешних HTTP-зависимостей
-- Нет fallback для кэша при недоступности Redis
+**ERR-07 — Консистентная структура error responses:**
+- Разный формат ошибок в разных endpoint'ах (нет единого error shape)
+- Отсутствие machine-readable error code (только human-readable message)
+- HTTP статус 200 при ошибке (должен быть 4xx/5xx)
 
 ## Граница с другими аудитами
 
@@ -74,9 +89,9 @@ cat ./docs/audit-baseline.yml
 
 | Check ID | Проверка | Статус | Доказательство | Решение |
 |----------|----------|--------|----------------|---------|
-| ERR-01 | Нет пустых catch блоков | ✅ PASS | — | — |
-| ERR-05 | HTTP клиенты имеют явный timeout | ❌ FAIL 🟠 | `services/api.ts:18` | **1. Добавить timeout в axios: `{ timeout: 5000 }`** \\ 2. Использовать AbortController с setTimeout \\ 3. Установить глобальный default timeout |
-| ERR-06 | Graceful shutdown реализован (SIGTERM) | ⏸ ACCEPTED | `server.ts:5` | В baseline: управляется оркестратором |
+| ERR-01 | Ошибки не проглатываются — catch-блоки обрабатывают или пробрасывают | ✅ PASS | — | — |
+| ERR-05 | Внешние вызовы (HTTP-клиенты, DB) имеют явные таймауты | ❌ FAIL 🟠 | `services/api.ts:18` | **1. Добавить timeout в axios: `{ timeout: 5000 }`** \\ 2. Использовать AbortController с setTimeout \\ 3. Установить глобальный default timeout |
+| ERR-06 | Graceful shutdown реализован — SIGTERM обрабатывается | ⏸ ACCEPTED | `server.ts:5` | В baseline: управляется оркестратором |
 
 Статусы: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED`
 

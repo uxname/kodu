@@ -14,12 +14,12 @@ description: >
 
 | Check ID | Проверка |
 |----------|----------|
-| SEC-01 | Нет hardcoded паролей/токенов/API-ключей в строковых литералах |
-| SEC-02 | .env файлы в .gitignore |
-| SEC-03 | Нет secrets в URL (query params, Basic Auth) |
-| SEC-04 | .env.example не содержит реальных credentials |
-| SEC-05 | Нет secrets в Dockerfile ENV директивах |
-| SEC-06 | Нет credentials в комментариях |
+| SEC-01 | Нет hardcoded credentials в коде (пароли, токены, API-ключи, приватные ключи) |
+| SEC-02 | Файлы с секретами исключены из VCS (.env* в .gitignore) |
+| SEC-03 | Секреты не передаются через URL (query params, Basic Auth в URL) |
+| SEC-04 | .env.example содержит только placeholder-значения без реальных данных |
+| SEC-05 | Dockerfile не содержит секретов в ENV-директивах |
+| SEC-06 | Комментарии в коде не содержат credentials |
 
 ## Правила верификации
 
@@ -42,24 +42,45 @@ cat ./docs/audit-baseline.yml
 
 ## Контекст анализа
 
-**Что искать:**
+**SEC-01 — Нет hardcoded credentials в коде:**
 - Пароли, токены, API-ключи в строковых литералах
-- Строки подключения к БД с credentials
+- Строки подключения к БД с credentials (`postgres://user:pass@host`)
 - Private keys, certificates, JWT secrets в коде
-- Секреты в URL (query params, Basic Auth в URL)
-- Credentials в комментариях
+- Base64-encoded credentials в коде
 - Тестовые/дев credentials, которые могут попасть в прод
 - Паттерны: `password = "..."`, `token = "..."`, `key = "..."`, `secret = "..."`
-- Base64-encoded credentials
-- Секреты в `.env`-файлах, закоммиченных в репозиторий
+
+**SEC-02 — Файлы с секретами исключены из VCS:**
+- `.env`, `.env.local`, `.env.production` не в `.gitignore`
+- Закоммиченные `.env`-файлы с реальными данными в репозитории
+- Certificate и key файлы (`*.pem`, `*.key`, `*.p12`) не исключены из VCS
+
+**SEC-03 — Секреты не в URL:**
+- API-ключи или токены в query params (`?api_key=...`)
+- Basic Auth credentials в URL (`https://user:pass@host`)
+- Секреты в redirect_uri или callback URL параметрах
+
+**SEC-04 — .env.example без реальных данных:**
+- `.env.example` содержит реальные значения вместо placeholders (`DB_PASS=realpassword`)
+- Placeholder-значения не описывают ожидаемый формат (`DB_URL=` без пояснения)
+
+**SEC-05 — Dockerfile без секретов в ENV:**
+- Секреты в `ENV` директивах Dockerfile (видны в docker inspect и слоях образа)
+- Credentials в `ARG` без использования build secrets
+- Секреты в LABEL или COPY-командах
+
+**SEC-06 — Комментарии без credentials:**
+- Пароли или токены в закомментированном коде
+- TODO-комментарии с примерами реальных credentials
+- Инструкции по настройке с реальными значениями
 
 ## Формат вывода
 
 | Check ID | Проверка | Статус | Доказательство | Решение |
 |----------|----------|--------|----------------|---------|
-| SEC-01 | Нет hardcoded паролей/токенов/API-ключей | ✅ PASS | — | — |
-| SEC-02 | .env файлы в .gitignore | ❌ FAIL 🔴 | `.gitignore:1` | **1. Добавить .env в .gitignore** \\ 2. Использовать git-crypt \\ 3. Удалить .env из истории через git-filter-repo |
-| SEC-03 | Нет secrets в URL | ⏸ ACCEPTED | `config.ts:9` | В baseline: legacy-интеграция, планируется замена |
+| SEC-01 | Нет hardcoded credentials в коде (пароли, токены, API-ключи, приватные ключи) | ✅ PASS | — | — |
+| SEC-02 | Файлы с секретами исключены из VCS (.env* в .gitignore) | ❌ FAIL 🔴 | `.gitignore:1` | **1. Добавить .env в .gitignore** \\ 2. Использовать git-crypt \\ 3. Удалить .env из истории через git-filter-repo |
+| SEC-03 | Секреты не передаются через URL (query params, Basic Auth в URL) | ⏸ ACCEPTED | `config.ts:9` | В baseline: legacy-интеграция, планируется замена |
 
 Статусы: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED`
 

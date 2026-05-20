@@ -13,13 +13,13 @@ description: >
 
 | Check ID | Проверка |
 |----------|----------|
-| PER-01 | Нет DB запросов внутри циклов (N+1) |
-| PER-02 | SELECT запросы имеют LIMIT/пагинацию |
-| PER-03 | Нет blocking I/O (fs.readFileSync) в request handlers |
-| PER-04 | CPU-intensive операции не в main thread |
-| PER-05 | Независимые async операции параллельны (Promise.all) |
-| PER-06 | Кэши имеют TTL и size limit |
-| PER-07 | Event listeners удаляются при cleanup |
+| PER-01 | Нет N+1: DB-запросы не выполняются внутри циклов |
+| PER-02 | Выборки из БД ограничены (LIMIT, пагинация) |
+| PER-03 | Обработчики запросов не содержат блокирующего I/O |
+| PER-04 | CPU-интенсивные операции вынесены из main thread |
+| PER-05 | Независимые async-операции выполняются параллельно |
+| PER-06 | Кэши ограничены по размеру и времени жизни (TTL + size limit) |
+| PER-07 | Event listeners и subscriptions очищаются при завершении |
 
 ## Правила верификации
 
@@ -42,37 +42,50 @@ cat ./docs/audit-baseline.yml
 
 ## Контекст анализа
 
-**N+1 запросы:**
+**PER-01 — Нет N+1:**
 - Запрос к БД внутри цикла по результатам другого запроса
 - ORM relations загружаются lazy внутри loop
-- Отсутствие `include`/`join` где это возможно
+- Отсутствие `include`/`join` там где возможна одна выборка
+- DataLoader / batch loading не используется при множественных точечных запросах
 
-**Тяжёлые запросы:**
+**PER-02 — Выборки ограничены:**
 - SELECT без LIMIT/пагинации (возможный full table scan)
 - Запросы без WHERE на индексированных полях
 - Агрегации на больших таблицах без materialized view / кэша
+- Нет cursor-based пагинации при больших наборах данных
 
-**Blocking I/O:**
+**PER-03 — Нет блокирующего I/O в handlers:**
 - Синхронные файловые операции в async контексте (`fs.readFileSync`)
-- `sleep`/`Thread.sleep` в request handler
-- CPU-intensive операции (crypto, image processing) в main thread без worker
+- `sleep`/busy-wait в request handler
+- Синхронные операции с большими буферами блокирующие event loop
 
-**Memory:**
+**PER-04 — CPU-операции вне main thread:**
+- CPU-intensive операции (crypto, image processing, compression) в main thread без worker
+- Тяжёлые вычисления (сортировка больших массивов, regex на длинных строках) в request path
+
+**PER-05 — Параллельные независимые операции:**
+- Последовательные независимые HTTP-запросы вместо `Promise.all`
+- Sequential await там где возможен parallel fetch
+- Повторные запросы к одному URL без мемоизации в рамках одного запроса
+
+**PER-06 — Кэши ограничены:**
+- Кэш без TTL (unbounded growth, stale data навсегда)
+- Кэш без size limit (memory leak в long-lived процессах)
+- In-memory кэш без механизма инвалидации при обновлении данных
+
+**PER-07 — Event listeners очищаются:**
+- Event listeners без `removeEventListener` / `off` (leak в long-lived процессах)
+- RxJS subscriptions без `unsubscribe` в destroy/cleanup
+- WebSocket / SSE connections без cleanup при завершении request lifecycle
 - Накопление данных в memory без flush (buffer без drain)
-- Event listeners без removeEventListener (leak в long-lived процессах)
-- Кэш без TTL и без size limit (unbounded growth)
-
-**Сетевые запросы:**
-- Последовательные независимые HTTP-запросы вместо параллельных
-- Повторные запросы к одному URL без мемоизации в рамках запроса
 
 ## Формат вывода
 
 | Check ID | Проверка | Статус | Доказательство | Решение |
 |----------|----------|--------|----------------|---------|
-| PER-01 | Нет DB запросов внутри циклов (N+1) | ✅ PASS | — | — |
-| PER-02 | SELECT запросы имеют LIMIT/пагинацию | ❌ FAIL 🟠 | `repos/user.ts:45` | **1. Добавить .take(limit).skip(offset) в запрос** \\ 2. Добавить cursor-based пагинацию \\ 3. Установить максимальный лимит через конфиг |
-| PER-06 | Кэши имеют TTL и size limit | ⏸ ACCEPTED | `cache/store.ts:12` | В baseline: кэш управляется Redis с TTL |
+| PER-01 | Нет N+1: DB-запросы не выполняются внутри циклов | ✅ PASS | — | — |
+| PER-02 | Выборки из БД ограничены (LIMIT, пагинация) | ❌ FAIL 🟠 | `repos/user.ts:45` | **1. Добавить .take(limit).skip(offset) в запрос** \\ 2. Добавить cursor-based пагинацию \\ 3. Установить максимальный лимит через конфиг |
+| PER-06 | Кэши ограничены по размеру и времени жизни (TTL + size limit) | ⏸ ACCEPTED | `cache/store.ts:12` | В baseline: кэш управляется Redis с TTL |
 
 Статусы: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED`
 
