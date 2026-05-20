@@ -21,6 +21,12 @@ ls -dt ./docs/audits/[0-9]*/ 2>/dev/null | tail -n +3 | xargs rm -rf 2>/dev/null
 mkdir -p ./docs/audits/$(date +"%Y-%m-%d_%H-%M")
 ```
 
+Для incremental-аудита (только изменённые файлы) — определи scope:
+```bash
+git diff --name-only HEAD~1 2>/dev/null | grep -E '\.(ts|js|py|go|rs)$' | head -30
+```
+Если список < 20 файлов — начинай аудит с них, затем критические пути.
+
 ## Шаг 2 — Baseline
 
 ```bash
@@ -42,7 +48,26 @@ cp ./skills/audit/audit-baseline-template.yml ./docs/audit-baseline.yml 2>/dev/n
 
 Перечисли логические компоненты (Аутентификация, API, Фоновые задачи и т.д.) перед запуском аудитов. Используй структуру папок как ориентир.
 
-## Шаг 4 — Анализ по 14 направлениям
+## Шаг 3.5 — Критические пути (Risk-Based Prioritization)
+
+```bash
+grep -rl "auth\|login\|payment\|billing\|webhook\|cron\|migration" ./src 2>/dev/null | head -20
+```
+
+Перечисли critical paths — файлы/модули с наибольшим blast radius:
+```
+Critical paths (exhaustive depth):
+- Authentication: src/auth/**
+- Payments: src/payments/**
+- Webhooks/Workers: src/workers/**
+
+Standard paths: src/api/**, src/services/**
+Low priority (naming/style): src/utils/**
+```
+
+Передавай список critical paths каждому sub-скиллу — они должны начинать с этих файлов.
+
+## Шаг 4 — Анализ по 15 направлениям
 
 **ОБЯЗАТЕЛЬНО:** Для каждого направления вызови специализированный скилл через `Skill`. Прямой анализ без скилла недопустим.
 

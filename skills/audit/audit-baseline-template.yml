@@ -7,9 +7,23 @@ accepted:
   # - check_id: OWA-06
   #   file: src/app.ts          # Опционально: ограничить конкретным файлом
   #   reason: "Rate limiting на nginx уровне"
+  #   type: accepted-risk        # accepted-risk | false-positive | intentional-design
   #   accepted_by: username
   #   accepted_date: 2026-01-01
   #   expires: 2026-12-31       # Опционально: когда пересмотреть
+
+# ─────────────────────────────────────────
+# Ложные срабатывания (инструмент ошибся, нарушения нет)
+false_positives:
+  # - check_id: ARC-03
+  #   reason: "import cycle from prisma-generated client, not real cycle"
+  #   type: false-positive
+
+# Намеренные архитектурные решения (не баги, обоснованный выбор)
+intentional:
+  # - check_id: NAM-06
+  #   reason: "utils.ts contains 3 tightly related helpers, intentional"
+  #   type: intentional-design
 
 # ─────────────────────────────────────────
 # ПОЛНЫЙ СПИСОК check_id

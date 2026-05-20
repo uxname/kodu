@@ -66,6 +66,23 @@ ls -dt ./docs/audits/[0-9]*/ 2>/dev/null | head -1 | sed 's|/$||'
 
 Если все доказательства достаточны → `✅ Evidence: все FAIL подкреплены доказательствами.`
 
+## Шаг 4.5 — False Positive Suppression Audit
+
+Проверь типы записей в `docs/audit-baseline.yml`. Правильный baseline различает:
+- `accepted-risk` — риск известен, намеренно принят
+- `false-positive` — инструмент ошибся, нарушения нет
+- `intentional-design` — архитектурное решение, не баг
+
+Для записей без поля `type` выведи:
+```
+### Записи baseline без типа (требуют уточнения)
+| check_id | reason | Рекомендуемый тип |
+|----------|--------|-------------------|
+| OWA-06 | nginx rate limit | accepted-risk |
+```
+
+Без `type` baseline превращается в свалку — уточнить обязательно.
+
 ## Шаг 5 — Отчёт
 
 ```
@@ -86,6 +103,7 @@ ls -dt ./docs/audits/[0-9]*/ 2>/dev/null | head -1 | sed 's|/$||'
 | Scope Coverage | ✅ / ⚠️ N модулей не покрыто |
 | Baseline Expiry | ✅ / ⚠️ N истёкших |
 | Evidence Quality | ✅ / ⚠️ N слабых доказательств |
+| Baseline Types | ✅ / ⚠️ N записей без type |
 ```
 
 ## Сохранение

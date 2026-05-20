@@ -9,6 +9,31 @@ description: >
 
 Этот аудит применим к любому коду с идентификаторами. Пропускай только автогенерированные файлы (миграции, protobuf-generated, build output). Для конфигурационных файлов без кода (JSON, YAML) — верни пустой ответ.
 
+## Runtime Detection
+
+До анализа определи runtime проекта:
+```bash
+cat package.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print('Node.js:', list(d.get('dependencies',{}).keys())[:8])" 2>/dev/null || \
+ls go.mod requirements.txt pyproject.toml Cargo.toml 2>/dev/null | head -3
+```
+
+⚠️ Этот чеклист оптимизирован для **Node.js/TypeScript**. При обнаружении другого runtime:
+- Go → `context.Context` вместо `AbortSignal`, `SIGTERM handler` вместо `process.on`
+- Python → `asyncio cancellation`, `signal.SIGTERM`
+- Java/Spring → `@Transactional`, `ApplicationContext lifecycle`
+- Для неизвестного runtime — JS-специфичные проверки помечай `🔍 UNVERIFIED`
+
+## Severity Guide
+
+| Severity | Критерий назначения |
+|----------|---------------------|
+| 🔴 Critical | RCE, auth bypass, data corruption, необратимый финансовый риск |
+| 🟠 High | Падение production, privilege escalation, утечка данных |
+| 🟡 Medium | Деградация производительности или поддерживаемости без immediate outage |
+| 🟢 Low | Стиль, читаемость, слабое нарушение конвенции |
+
+Правило: severity = impact × exploitability × blast radius. Одинаковый паттерн → одинаковый severity между аудитами.
+
 ## Чеклист
 
 | Check ID | Проверка |
@@ -28,6 +53,19 @@ description: >
 3. **Нет доказательства = UNVERIFIED**: не можешь указать `файл:строка` ни для нарушения, ни для подтверждения — ставь `🔍 UNVERIFIED`.
 4. **Baseline приоритетен**: check_id есть в `docs/audit-baseline.yml` → `⏸ ACCEPTED`.
 5. **Только 🔴/🟠 FAIL требуют решения**: 🟡/🟢 — решение необязательно.
+
+## Evidence Quality Rules
+
+Любой `❌ FAIL` обязан содержать:
+- Точный `file:line`
+- Минимальный код-фрагмент (1–3 строки)
+- Causal chain: почему именно это нарушение → какой риск возникает
+
+Запрещено:
+- Предполагать runtime behavior без evidence в коде
+- Предполагать prod-конфигурацию по dev-конфигу
+- Предполагать отсутствие middleware без проверки всей router chain
+- Если вывод основан на предположении — только `🔍 UNVERIFIED`
 
 ## Baseline
 
@@ -103,6 +141,20 @@ npx knip --reporter json 2>/dev/null | head -100 || true
 Уверенность: `High` — проверил несколько ключевых файлов, паттерн очевиден / `Medium` — проверил выборочно, паттерн вероятен / `Low` — ограниченный контекст, полная уверенность невозможна
 
 Для `❌ FAIL`: ровно 3 варианта решения, разделитель `\\`, вариант 1 жирным.
+
+Требования к решениям:
+- Взаимно исключающие (не перефразировки одного и того же)
+- Соответствуют текущему стеку проекта (не предлагать смену фреймворка)
+- Не требуют переписать всю систему — realistic migration cost
+- Вариант 3 может быть «оставить, задокументировать причину» при наличии обоснования
+
+В конце отчёта добавь раздел покрытия:
+```
+## Audit Coverage
+Проверено: src/module1/**, src/module2/**
+Пропущено: scripts/**, migrations/**, tests/**
+Файлов проверено: N | Пропущено: N
+```
 
 Если все PASS — выведи: `✅ Стандарты именования соблюдены.`
 
