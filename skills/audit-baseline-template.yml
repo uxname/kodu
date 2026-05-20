@@ -1,0 +1,145 @@
+# audit-baseline.yml
+# Принятые/отложенные риски. Совпадение по check_id → статус ⏸ ACCEPTED в отчёте.
+# Скопируй в корень проекта: docs/audit-baseline.yml
+
+accepted:
+  # Пример:
+  # - check_id: OWA-06
+  #   file: src/app.ts          # Опционально: ограничить конкретным файлом
+  #   reason: "Rate limiting на nginx уровне"
+  #   accepted_by: username
+  #   accepted_date: 2026-01-01
+  #   expires: 2026-12-31       # Опционально: когда пересмотреть
+
+# ─────────────────────────────────────────
+# ПОЛНЫЙ СПИСОК check_id
+# ─────────────────────────────────────────
+#
+# audit-secrets:
+#   SEC-01  Нет hardcoded паролей/токенов/ключей в строковых литералах
+#   SEC-02  .env файлы в .gitignore
+#   SEC-03  Нет secrets в URL (query params, Basic Auth)
+#   SEC-04  .env.example не содержит реальных credentials
+#   SEC-05  Нет secrets в Dockerfile ENV директивах
+#   SEC-06  Нет credentials в комментариях
+#
+# audit-owasp:
+#   OWA-01  A03: Нет конкатенации строк в DB/shell запросах
+#   OWA-02  A01: Все protected routes имеют auth middleware
+#   OWA-03  A01: Нет IDOR — resource ownership проверяется
+#   OWA-04  A02: Пароли хешируются через bcrypt/argon2/scrypt
+#   OWA-05  A05: CORS не wildcard в production
+#   OWA-06  A07: Rate limiting присутствует на API
+#   OWA-07  A05: Helmet/security headers установлены
+#   OWA-08  A05: express.json с limit или аналог
+#   OWA-09  A05: Stack trace не попадает в ответы
+#   OWA-10  A10: URL из user input не передаётся в HTTP-клиент без whitelist
+#
+# audit-validation:
+#   VAL-01  Все req.body проходят schema validation
+#   VAL-02  Все path params типизированы и проверены
+#   VAL-03  Все query params валидированы
+#   VAL-04  Строки имеют maxLength ограничения
+#   VAL-05  Числовые params проверены на диапазон (min/max)
+#   VAL-06  Enum params проверяются по whitelist
+#   VAL-07  JSON.parse в try/catch с валидацией структуры
+#   VAL-08  User ID берётся из аутентифицированного контекста
+#
+# audit-errors:
+#   ERR-01  Нет пустых catch блоков
+#   ERR-02  Stack trace не в production response
+#   ERR-03  Async handlers в asyncHandler или Express 5
+#   ERR-04  Есть process.on('unhandledRejection')
+#   ERR-05  HTTP клиенты имеют явный timeout
+#   ERR-06  Graceful shutdown реализован (SIGTERM)
+#   ERR-07  Error responses имеют консистентную структуру
+#   ERR-08  DB запросы имеют timeout
+#
+# audit-logging:
+#   LOG-01  Нет console.log в production коде
+#   LOG-02  Нет PII (email, phone, name) в log messages
+#   LOG-03  Нет secrets/tokens в logs
+#   LOG-04  Request ID присутствует для трейсинга
+#   LOG-05  Структурированный формат (JSON) в production
+#   LOG-06  Критические операции (auth, create, delete) логируются
+#   LOG-07  Нет log injection (user input санитизируется)
+#
+# audit-performance:
+#   PER-01  Нет DB запросов внутри циклов (N+1)
+#   PER-02  SELECT запросы имеют LIMIT/пагинацию
+#   PER-03  Нет blocking I/O в request handlers
+#   PER-04  CPU-intensive операции не в main thread
+#   PER-05  Независимые async операции параллельны (Promise.all)
+#   PER-06  Кэши имеют TTL и size limit
+#   PER-07  Event listeners удаляются при cleanup
+#
+# audit-architecture:
+#   ARC-01  Бизнес-логика в service слое, не в route handlers
+#   ARC-02  Нет прямых DB вызовов из presentation layer
+#   ARC-03  Нет circular dependencies
+#   ARC-04  Нет God-файлов (>500 строк несвязанной логики)
+#   ARC-05  Config/env не используется вне config модуля
+#   ARC-06  Внешние зависимости инжектируются (DI)
+#
+# audit-concurrency:
+#   CON-01  Нет await внутри forEach/map
+#   CON-02  DB read-modify-write в транзакциях
+#   CON-03  Нет shared mutable state на module level
+#   CON-04  Module-level кэш имеет механизм инвалидации
+#   CON-05  Webhook/event handlers идемпотентны
+#
+# audit-naming:
+#   NAM-01  camelCase для переменных/функций (JS/TS)
+#   NAM-02  Нет однобуквенных переменных вне for-циклов
+#   NAM-03  Boolean переменные с префиксом is/has/can
+#   NAM-04  Нет misleading names (getX не меняет данные)
+#   NAM-05  Magic numbers заменены именованными константами
+#   NAM-06  Нет utils.ts/helpers.ts как свалки
+#
+# audit-yagni:
+#   YAGNI-01  Нет закомментированного кода
+#   YAGNI-02  Нет неиспользуемых экспортов
+#   YAGNI-03  Нет абстракций с единственной реализацией без тестов
+#   YAGNI-04  Feature flags не застряли в одном значении
+#   YAGNI-05  Нет TODO/FIXME старше 6 месяцев
+#
+# audit-bugs:
+#   BUG-01  Number()/parseInt() проверяются на NaN
+#   BUG-02  Нет await внутри forEach
+#   BUG-03  Нет обращений к свойствам без null-проверки
+#   BUG-04  Array.sort() не мутирует входной аргумент
+#   BUG-05  parseInt всегда с radix 10
+#   BUG-06  Нет if(asyncFn()) без await
+#   BUG-07  switch на enum имеет default
+#   BUG-08  Нет деления на ноль без guard
+#
+# audit-tests:
+#   TST-01  TypeScript strict mode включён
+#   TST-02  Coverage thresholds настроены
+#   TST-03  Pre-commit/pre-push хуки запускают тесты
+#   TST-04  Критические пути покрыты (auth, validation, errors)
+#   TST-05  Тесты изолированы (нет shared mutable state)
+#   TST-06  Нет .only/.skip в тестах
+#   TST-07  Нет tautology-тестов
+#
+# audit-deployment:
+#   DEP-01  Dockerfile не использует :latest
+#   DEP-02  Dockerfile имеет USER nonroot
+#   DEP-03  Multi-stage build (dev deps не в prod)
+#   DEP-04  .dockerignore включает node_modules, .git
+#   DEP-05  HEALTHCHECK определён
+#   DEP-06  Нет secrets в ENV Dockerfile
+#   DEP-07  .env в .gitignore
+#   DEP-08  .env.example существует
+#   DEP-09  NODE_ENV устанавливается при деплое
+#   DEP-10  npm ci вместо npm install в Docker
+#
+# audit-api-contracts:
+#   API-01  Консистентный envelope ответов
+#   API-02  POST возвращает 201 при создании
+#   API-03  Нет 200 с error body
+#   API-04  Консистентное именование полей
+#   API-05  Error responses с machine-readable code
+#   API-06  Нет stack trace в error responses
+#   API-07  Пагинация включает метаданные (total/hasNext)
+#   API-08  Версионирование для публичного API
