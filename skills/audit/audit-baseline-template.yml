@@ -22,6 +22,7 @@ accepted:
 #   SEC-04  .env.example содержит только placeholder-значения без реальных данных
 #   SEC-05  Dockerfile не содержит секретов в ENV-директивах
 #   SEC-06  Комментарии в коде не содержат credentials
+#   SEC-07  Автоматическое сканирование секретов настроено (pre-commit или CI)
 #
 # audit-owasp:
 #   OWA-01  A03: Все запросы к БД/OS/LDAP параметризованы, нет injection
@@ -38,6 +39,8 @@ accepted:
 #   VAL-02  Строки имеют maxLength, числа — диапазон, enum-значения — whitelist
 #   VAL-03  JSON.parse обёрнут в try/catch с последующей валидацией структуры
 #   VAL-04  Identity данные берутся из аутентифицированного контекста (не из user input)
+#   VAL-05  Вложенные структуры и массивы ограничены (глубина, minItems/maxItems)
+#   VAL-06  Валидатор не выполняет неявный coercion
 #
 # audit-errors:
 #   ERR-01  Ошибки не проглатываются — catch-блоки обрабатывают или пробрасывают
@@ -47,6 +50,8 @@ accepted:
 #   ERR-05  Внешние вызовы (HTTP-клиенты, DB) имеют явные таймауты
 #   ERR-06  Graceful shutdown реализован — SIGTERM обрабатывается
 #   ERR-07  Error responses консистентны по структуре во всём приложении
+#   ERR-08  Retry-стратегии используют exponential backoff с jitter
+#   ERR-09  AbortSignal/CancellationToken пробрасывается во внешние вызовы
 #
 # audit-logging:
 #   LOG-01  Production-код не использует console.log/console.error напрямую
@@ -73,6 +78,7 @@ accepted:
 #   ARC-04  Нет god-объектов: файлы и классы имеют единственную ответственность
 #   ARC-05  Конфигурация и env-переменные изолированы в config-модуле
 #   ARC-06  Внешние зависимости инжектируются (DI), не импортируются напрямую
+#   ARC-07  Доменный слой не импортирует инфраструктурные модули
 #
 # audit-concurrency:
 #   CON-01  async/await не используется в неасинхронных итераторах (forEach, map)
@@ -88,6 +94,7 @@ accepted:
 #   NAM-04  Функции-читатели (get*/find*) не имеют side effects
 #   NAM-05  Magic numbers и magic strings заменены именованными константами
 #   NAM-06  Утилитные модули не являются свалкой несвязанного кода
+#   NAM-07  Ключевые сущности названы в соответствии с доменным глоссарием
 #
 # audit-yagni:
 #   YAGNI-01  Нет закомментированного кода
@@ -112,6 +119,8 @@ accepted:
 #   TST-05  Тесты изолированы — нет shared mutable state между тестами
 #   TST-06  Нет пропущенных или зафиксированных тестов (.only/.skip без обоснования)
 #   TST-07  Тесты проверяют поведение, а не детали реализации
+#   TST-08  Нет нестабильных тестов (Math.random, Date.now без mock, sleep)
+#   TST-09  Snapshot-тесты охватывают значимые изменения, не весь DOM
 #
 # audit-deployment:
 #   DEP-01  Docker images используют pinned versions (нет :latest)
@@ -124,6 +133,8 @@ accepted:
 #   DEP-08  .env.example документирует все переменные окружения
 #   DEP-09  NODE_ENV корректно устанавливается для production
 #   DEP-10  npm ci используется вместо npm install в Docker
+#   DEP-11  Ограничения ресурсов контейнера определены (CPU limits, Memory limits)
+#   DEP-12  Возможность запуска с read-only root filesystem проверена
 #
 # audit-api-contracts:
 #   API-01  Форма ответов консистентна — единый envelope или его отсутствие по всему API

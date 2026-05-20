@@ -23,13 +23,16 @@ description: >
 | DEP-08 | .env.example документирует все переменные окружения |
 | DEP-09 | NODE_ENV корректно устанавливается для production |
 | DEP-10 | npm ci используется вместо npm install в Docker |
+| DEP-11 | Ограничения ресурсов контейнера определены (CPU limits, Memory limits) |
+| DEP-12 | Возможность запуска с read-only root filesystem проверена |
 
 ## Правила верификации
 
 1. **Только чеклист**: оценивай ТОЛЬКО проверки выше. Не добавляй новые.
-2. **Нет доказательства = ✅ PASS**: не можешь указать `файл:строка` — ставь PASS.
-3. **Baseline приоритетен**: check_id есть в `docs/audit-baseline.yml` → `⏸ ACCEPTED`.
-4. **Только 🔴/🟠 FAIL требуют решения**: 🟡/🟢 — решение необязательно.
+2. **Явная верификация = PASS**: ставь `✅ PASS` только если явно проверил механизм (нашёл схему, конфиг, guard) и подтвердил отсутствие нарушения — укажи что именно проверено.
+3. **Нет доказательства = UNVERIFIED**: не можешь указать `файл:строка` ни для нарушения, ни для подтверждения — ставь `🔍 UNVERIFIED`.
+4. **Baseline приоритетен**: check_id есть в `docs/audit-baseline.yml` → `⏸ ACCEPTED`.
+5. **Только 🔴/🟠 FAIL требуют решения**: 🟡/🟢 — решение необязательно.
 
 ## Baseline
 
@@ -89,15 +92,26 @@ cat ./docs/audit-baseline.yml
 - `npm install` вместо `npm ci` (не детерминированная, более медленная сборка)
 - Отсутствие `package-lock.json` при использовании npm
 
+**Ограничения ресурсов:**
+- `docker-compose.yml` без `deploy.resources.limits.memory` и `cpus`
+- Kubernetes Deployment без `resources.limits` в контейнере
+- Нет ограничений → один контейнер с memory leak роняет весь хост
+
+**Read-only filesystem:**
+- Контейнер без `read_only: true` (docker-compose) или `readOnlyRootFilesystem: true` (K8s)
+- Если приложение пишет во временные файлы — проверить наличие tmpfs mount для `/tmp`
+
 ## Формат вывода
 
-| Check ID | Проверка | Статус | Доказательство | Решение |
-|----------|----------|--------|----------------|---------|
-| DEP-01 | Docker images используют pinned versions (нет :latest) | ✅ PASS | — | — |
-| DEP-02 | Контейнеры запускаются от непривилегированного пользователя (USER nonroot) | ❌ FAIL 🟠 | `Dockerfile:12` | **1. Добавить `RUN addgroup -S app && adduser -S app -G app` и `USER app`** \\ 2. Использовать образ с встроенным nonroot пользователем (node:alpine) \\ 3. Добавить `USER node` если базовый образ node |
-| DEP-05 | HEALTHCHECK определён в Dockerfile | ⏸ ACCEPTED | — | В baseline: health check управляется Kubernetes liveness probe |
+| Check ID | Проверка | Статус | Уверенность | Доказательство | Решение |
+|----------|----------|--------|-------------|----------------|---------|
+| DEP-01 | Docker images используют pinned versions (нет :latest) | ✅ PASS | High | `Dockerfile:1` — pinned version указана | — |
+| DEP-02 | Контейнеры запускаются от непривилегированного пользователя (USER nonroot) | ❌ FAIL 🟠 | High | `Dockerfile:12` | **1. Добавить `RUN addgroup -S app && adduser -S app -G app` и `USER app`** \\ 2. Использовать образ с встроенным nonroot пользователем (node:alpine) \\ 3. Добавить `USER node` если базовый образ node |
+| DEP-05 | HEALTHCHECK определён в Dockerfile | ⏸ ACCEPTED | Medium | — | В baseline: health check управляется Kubernetes liveness probe |
 
-Статусы: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED`
+Статусы: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED` / `🔍 UNVERIFIED`
+
+Уверенность: `High` — проверил несколько ключевых файлов, паттерн очевиден / `Medium` — проверил выборочно, паттерн вероятен / `Low` — ограниченный контекст, полная уверенность невозможна
 
 Для `❌ FAIL`: ровно 3 варианта решения, разделитель `\\`, вариант 1 жирным.
 

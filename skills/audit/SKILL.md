@@ -62,6 +62,7 @@ cp ./skills/audit/audit-baseline-template.yml ./docs/audit-baseline.yml 2>/dev/n
 | 12 | Deployment | `audit-deployment` |
 | 13 | Bugs & Logic | `audit-bugs` |
 | 14 | API Contracts | `audit-api-contracts` |
+| 15 | Meta-контроль | `audit-meta` |
 
 Порядок: последовательно. **Правило пропуска:** направление нерелевантно → пропусти без упоминания.
 
@@ -108,6 +109,8 @@ cp ./skills/audit/audit-baseline-template.yml ./docs/audit-baseline.yml 2>/dev/n
 ## Шаг 8 — Финальная верификация
 
 Вызови: `Skill("audit-verify")`
+
+Затем вызови: `Skill("audit-meta")`
 
 ## Шаг 9 — Сохранение
 
