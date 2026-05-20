@@ -45,6 +45,7 @@ ls go.mod requirements.txt pyproject.toml Cargo.toml 2>/dev/null | head -3
 | LOG-05 | Формат логов структурирован (JSON) в production |
 | LOG-06 | Критические операции логируются (auth, create, update, delete) |
 | LOG-07 | User input санитизируется перед логированием (защита от log injection) |
+| LOG-08 | Критические события безопасности логируются: успешный/неудачный вход, выход, изменение прав, массовая выгрузка данных [⚡ dynamic] |
 
 ## Правила верификации
 
@@ -115,6 +116,13 @@ cat ./docs/audit-baseline.yml
 - User input передаётся в лог напрямую без санитизации
 - Newline characters (`\n`, `\r`) в user input могут создавать поддельные log entries
 - ANSI escape codes из user input могут повредить log formatters
+
+**LOG-08 — Security audit trail:**
+- Успешная и неудачная аутентификация не логируется → невозможен forensics после инцидента
+- Изменение прав пользователя (role change, permission grant/revoke) без audit записи
+- Mass data export (выгрузка > N записей, bulk delete) без лога кто/когда/что
+- Password change / email change без записи в аудит-лог
+- Критические административные операции выполняются без trace
 
 ## Формат вывода
 

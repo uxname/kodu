@@ -47,6 +47,7 @@ intentional:
 #   OWA-06  A07: Защита от перебора (rate limiting на auth и чувствительных эндпоинтах)
 #   OWA-07  A09: Техническая информация не утекает в ответы (stack trace, внутренние пути)
 #   OWA-08  A10: URL из user input не передаётся в HTTP-клиент без whitelist (SSRF)
+#   OWA-09  A05: CSRF-защита реализована (SameSite cookies или CSRF-токены на state-changing запросах)
 #
 # audit-validation:
 #   VAL-01  Все входящие данные (body, params, query) проходят schema-валидацию
@@ -55,6 +56,8 @@ intentional:
 #   VAL-04  Identity данные берутся из аутентифицированного контекста (не из user input)
 #   VAL-05  Вложенные структуры и массивы ограничены (глубина, minItems/maxItems)
 #   VAL-06  Валидатор не выполняет неявный coercion
+#   VAL-07  Prototype pollution: merge/assign с user input фильтрует __proto__, constructor, prototype
+#   VAL-08  Загрузка файлов: MIME тип проверяется по содержимому, имя файла санитизировано, размер ограничен
 #
 # audit-errors:
 #   ERR-01  Ошибки не проглатываются — catch-блоки обрабатывают или пробрасывают
@@ -75,6 +78,7 @@ intentional:
 #   LOG-05  Формат логов структурирован (JSON) в production
 #   LOG-06  Критические операции логируются (auth, create, update, delete)
 #   LOG-07  User input санитизируется перед логированием (защита от log injection)
+#   LOG-08  Критические события безопасности логируются: вход, выход, изменение прав, массовая выгрузка данных
 #
 # audit-performance:
 #   PER-01  Нет N+1: DB-запросы не выполняются внутри циклов
@@ -84,6 +88,7 @@ intentional:
 #   PER-05  Независимые async-операции выполняются параллельно
 #   PER-06  Кэши ограничены по размеру и времени жизни (TTL + size limit)
 #   PER-07  Event listeners и subscriptions очищаются при завершении
+#   PER-08  Нет утечек памяти: timers и closures не удерживают большие объекты в долгоживущем scope
 #
 # audit-architecture:
 #   ARC-01  Бизнес-логика вынесена из route handlers в service/domain слой
@@ -100,6 +105,7 @@ intentional:
 #   CON-03  Нет shared mutable state на уровне модуля (синглтоны, кэши без locks)
 #   CON-04  Module-level кэш имеет механизм инвалидации
 #   CON-05  Обработчики событий и webhook-handlers идемпотентны
+#   CON-06  Background async операции имеют механизм отмены (AbortController/signal) и не блокируют graceful shutdown
 #
 # audit-naming:
 #   NAM-01  Соглашение об именовании соблюдается консистентно (camelCase/snake_case)
@@ -124,6 +130,10 @@ intentional:
 #   BUG-04  Функции не мутируют входные аргументы (sort, splice, object spread)
 #   BUG-05  Exhaustive handling — все enum/union-ветки обработаны
 #   BUG-06  Математические guard-условия (деление на ноль, граничные значения)
+#   BUG-07  Off-by-one: границы диапазонов корректны (< vs <=, индексы массивов, slice)
+#   BUG-08  Float comparison не использует === для проверки равенства
+#   BUG-09  Дата/время хранятся и обрабатываются в UTC, не локальном времени
+#   BUG-10  RegExp с user input не содержит катастрофического backtracking (ReDoS)
 #
 # audit-tests:
 #   TST-01  TypeScript strict mode включён

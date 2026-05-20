@@ -46,6 +46,7 @@ ls go.mod requirements.txt pyproject.toml Cargo.toml 2>/dev/null | head -3
 | OWA-06 | A07: Защита от перебора (rate limiting на auth и чувствительных эндпоинтах) |
 | OWA-07 | A09: Техническая информация не утекает в ответы (stack trace, внутренние пути) |
 | OWA-08 | A10: URL из user input не передаётся в HTTP-клиент без whitelist (SSRF) |
+| OWA-09 | A05: CSRF-защита реализована (SameSite cookies или CSRF-токены на state-changing запросах) |
 
 ## Правила верификации
 
@@ -117,6 +118,7 @@ cat ./docs/audit-baseline.yml
 - Нет rate limiting на чувствительных операциях (смена пароля, OTP-проверка)
 - Слабые JWT алгоритмы (alg:none, HS256 с коротким ключом)
 - Session tokens не инвалидируются при logout
+- `jwt.verify(token, secret)` без явного параметра `{ algorithms: ['HS256'] }` — атакующий может передать alg:none или RS256 с публичным ключом как HS256-секрет
 
 **OWA-07 — Техническая информация не утекает:**
 - Stack trace в ответах production API
@@ -129,9 +131,15 @@ cat ./docs/audit-baseline.yml
 - Fetch к внутренним адресам (169.254.x.x, 10.x.x.x, localhost, metadata endpoints)
 - Редиректы на внутренние ресурсы без валидации destination
 
+**OWA-09 — CSRF-защита:**
+- State-changing запросы (POST/PUT/PATCH/DELETE) принимаются без CSRF-токена и без проверки `Origin`/`Referer`
+- Cookies без атрибута `SameSite=Strict` или `SameSite=Lax` — браузер отправит cookie в cross-site запросе
+- GraphQL mutations доступны через GET-запрос — обходит CSRF-защиту
+- `SameSite=None` без явного обоснования (нужно только для cross-site iframe/embed сценариев)
+
 ## Граница с другими аудитами
 
-- **Stack trace в ответах** — первичный: `audit-errors` (ERR-02). Если обнаружено в audit-owasp — добавь перекрёстную ссылку: *«см. audit-errors ERR-02»*, не дублируй FAIL.
+- **Stack trace в ответах** (OWA-07) — первичный: `audit-errors` (ERR-02). Если обнаружено здесь — добавь cross-ref «*см. ERR-02*» в доказательство, не создавай дублирующий `❌ FAIL`.
 - **Валидация полей, типов, диапазонов** — первичный: `audit-validation`. Здесь не дублируй.
 - **Secrets в коде** — первичный: `audit-secrets`. Здесь не дублируй.
 - **API-контракты** — первичный: `audit-api-contracts`. Здесь не дублируй.

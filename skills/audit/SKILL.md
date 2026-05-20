@@ -71,25 +71,40 @@ Low priority (naming/style): src/utils/**
 
 **ОБЯЗАТЕЛЬНО:** Для каждого направления вызови специализированный скилл через `Skill`. Прямой анализ без скилла недопустим.
 
+**Правило пропуска:** направление нерелевантно → пропусти без упоминания.
+
+Скиллы сгруппированы для параллельного запуска. Группы выполняются последовательно — скиллы внутри группы можно запускать параллельно через Agent-вызовы.
+
+**Группа А — Безопасность:**
 | # | Направление | Скилл |
 |---|-------------|-------|
 | 1 | Secrets Leak | `audit-secrets` |
-| 2 | Logging | `audit-logging` |
-| 3 | Naming | `audit-naming` |
-| 4 | Architecture | `audit-architecture` |
-| 5 | Tests & Linters | `audit-tests` |
-| 6 | YAGNI | `audit-yagni` |
-| 7 | Boundary Validation | `audit-validation` |
-| 8 | Error Handling | `audit-errors` |
-| 9 | Concurrency | `audit-concurrency` |
-| 10 | OWASP Security | `audit-owasp` |
-| 11 | Performance | `audit-performance` |
-| 12 | Deployment | `audit-deployment` |
-| 13 | Bugs & Logic | `audit-bugs` |
+| 2 | OWASP Security | `audit-owasp` |
+| 3 | Boundary Validation | `audit-validation` |
+
+**Группа Б — Логика:**
+| # | Направление | Скилл |
+|---|-------------|-------|
+| 4 | Bugs & Logic | `audit-bugs` |
+| 5 | Error Handling | `audit-errors` |
+| 6 | Concurrency | `audit-concurrency` |
+
+**Группа В — Качество:**
+| # | Направление | Скилл |
+|---|-------------|-------|
+| 7 | Architecture | `audit-architecture` |
+| 8 | Naming | `audit-naming` |
+| 9 | YAGNI | `audit-yagni` |
+
+**Группа Г — Операции:**
+| # | Направление | Скилл |
+|---|-------------|-------|
+| 10 | Tests & Linters | `audit-tests` |
+| 11 | Logging | `audit-logging` |
+| 12 | Performance | `audit-performance` |
+| 13 | Deployment | `audit-deployment` |
 | 14 | API Contracts | `audit-api-contracts` |
 | 15 | Meta-контроль | `audit-meta` |
-
-Порядок: последовательно. **Правило пропуска:** направление нерелевантно → пропусти без упоминания.
 
 **Каждый скилл ОБЯЗАН сохранить файл в папку сессии: `./docs/audits/<SESSION>/audit-<name>.md`**
 

@@ -44,6 +44,8 @@ ls go.mod requirements.txt pyproject.toml Cargo.toml 2>/dev/null | head -3
 | VAL-04 | Identity данные берутся из аутентифицированного контекста (не из user input) |
 | VAL-05 | Вложенные структуры и массивы ограничены (глубина, minItems/maxItems) |
 | VAL-06 | Валидатор не выполняет неявный coercion (строка "false" → boolean true) [⚡ dynamic] |
+| VAL-07 | Prototype pollution: merge/assign с user input фильтрует `__proto__`, `constructor`, `prototype` |
+| VAL-08 | Загрузка файлов: MIME тип проверяется по содержимому, имя файла санитизировано, размер ограничен |
 
 ## Правила верификации
 
@@ -114,6 +116,18 @@ cat ./docs/audit-baseline.yml
 - Zod: `.coerce.boolean()` принимает строку "false" как true
 - Joi: без `.options({ convert: false })` неявно кастует типы
 - express-validator: без explicit type checks принимает "1" как число 1
+
+**VAL-07 — Prototype pollution:**
+- `Object.assign(target, userInput)` без проверки — ключ `__proto__` загрязняет Object.prototype
+- `_.merge(obj, userInput)` в lodash < 4.17.21 — уязвим к prototype pollution
+- Deep merge из user input без sanitize ключей (`constructor`, `prototype`, `__proto__`)
+- Последствие: `({}).isAdmin === true` для всех объектов после атаки
+
+**VAL-08 — Безопасная загрузка файлов:**
+- Проверка типа только через `file.mimetype` — значение подставлено клиентом, не верифицировано
+- `path.join(uploadDir, file.originalname)` — `originalname` может содержать path traversal (`../../../etc/passwd`)
+- Нет ограничения `maxFileSize` — DoS через огромный файл
+- Разрешённые расширения не ограничены — возможна загрузка исполняемых файлов (.sh, .exe, .php)
 
 ## Граница с другими аудитами
 

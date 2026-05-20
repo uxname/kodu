@@ -45,6 +45,7 @@ ls go.mod requirements.txt pyproject.toml Cargo.toml 2>/dev/null | head -3
 | PER-05 | Независимые async-операции выполняются параллельно |
 | PER-06 | Кэши ограничены по размеру и времени жизни (TTL + size limit) |
 | PER-07 | Event listeners и subscriptions очищаются при завершении |
+| PER-08 | Нет утечек памяти: timers и closures не удерживают большие объекты в долгоживущем scope |
 
 ## Правила верификации
 
@@ -118,6 +119,12 @@ cat ./docs/audit-baseline.yml
 - RxJS subscriptions без `unsubscribe` в destroy/cleanup
 - WebSocket / SSE connections без cleanup при завершении request lifecycle
 - Накопление данных в memory без flush (buffer без drain)
+
+**PER-08 — Нет утечек памяти через timers и closures:**
+- `setInterval` / `setTimeout` без соответствующего `clearInterval` / `clearTimeout` в cleanup
+- Closure в долгоживущем объекте захватывает большой массив/объект — GC не может его собрать
+- `global`-объект или module-level переменная накапливает записи без ограничения (unbounded grow)
+- Circular reference между объектами с WeakMap/WeakRef там где нужна сильная ссылка
 
 ## Формат вывода
 

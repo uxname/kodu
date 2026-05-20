@@ -43,6 +43,7 @@ ls go.mod requirements.txt pyproject.toml Cargo.toml 2>/dev/null | head -3
 | CON-03 | Нет shared mutable state на уровне модуля (синглтоны, кэши без locks) |
 | CON-04 | Module-level кэш имеет механизм инвалидации |
 | CON-05 | Обработчики событий и webhook-handlers идемпотентны [⚡ dynamic] |
+| CON-06 | Background async операции имеют механизм отмены (AbortController/signal) и не блокируют graceful shutdown |
 
 ## Правила верификации
 
@@ -107,6 +108,13 @@ cat ./docs/audit-baseline.yml
 - Обработчики событий/сообщений без идемпотентности (повторная доставка не безопасна)
 - Нет защиты от дублирующихся webhook-вызовов (нет проверки event_id)
 - Финансовые или критические операции без идемпотентного ключа
+
+**CON-06 — Background операции с механизмом отмены:**
+- Promise-цепочка запущена в фоне без `AbortController` / `signal` — при SIGTERM процесс не завершается чисто
+- `setInterval` / `setImmediate` внутри request handler без очистки — утечка при завершении запроса
+- Background job без timeout и без механизма принудительной остановки
+- Graceful shutdown не ожидает завершения фоновых задач (нет `await backgroundJob`)
+- `Promise.all` с неотменяемыми задачами — при ошибке одной остальные продолжают выполняться
 
 ## Граница с другими аудитами
 

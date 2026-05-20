@@ -44,6 +44,10 @@ ls go.mod requirements.txt pyproject.toml Cargo.toml 2>/dev/null | head -3
 | BUG-04 | Функции не мутируют входные аргументы (sort, splice, object spread) |
 | BUG-05 | Exhaustive handling — все enum/union-ветки обработаны |
 | BUG-06 | Математические guard-условия (деление на ноль, граничные значения) |
+| BUG-07 | Off-by-one: границы диапазонов корректны (`<` vs `<=`, индексы массивов, slice) |
+| BUG-08 | Float comparison не использует `===` для проверки равенства (используется epsilon или toFixed) |
+| BUG-09 | Дата/время хранятся и обрабатываются в UTC, не локальном времени |
+| BUG-10 | RegExp с user input не содержит катастрофического backtracking (ReDoS) |
 
 ## Правила верификации
 
@@ -111,6 +115,29 @@ cat ./docs/audit-baseline.yml
 - Деление на ноль без guard-проверки знаменателя
 - `Number()` / `parseInt()` без проверки результата на NaN перед использованием
 - Граничные значения не проверяются (отрицательный индекс, пустой массив)
+
+**BUG-07 — Off-by-one:**
+- `for (i = 0; i <= arr.length; i++)` — выход за границы массива
+- `slice(0, n)` / `slice(0, n-1)` — потеря или дублирование последнего элемента
+- Сравнение `index < arr.length - 1` там где нужно `index < arr.length`
+- Пагинация: `offset * limit` vs `(offset - 1) * limit` при 1-based страницах
+
+**BUG-08 — Float comparison:**
+- `a === b` где a и b — результаты float-арифметики (0.1 + 0.2 !== 0.3)
+- Сравнение денежных сумм через float вместо integer cents / BigDecimal
+- Условие `if (parseFloat(x) === 1.0)` вместо `Math.abs(x - 1.0) < epsilon`
+
+**BUG-09 — Дата/время в UTC:**
+- `new Date()` без явной UTC-обработки — результат зависит от timezone сервера
+- Сравнение дат через `toLocaleDateString()` — зависит от локали
+- Хранение timestamp как local datetime строки вместо ISO 8601 с `Z`
+- `new Date('2024-01-01')` парсится как UTC, `new Date('2024-01-01 00:00')` — как local
+
+**BUG-10 — ReDoS:**
+- `new RegExp(userInput)` — пользователь контролирует регулярное выражение
+- Вложенные quantifiers на перекрывающихся классах: `(a+)+`, `(a*)*`, `([a-zA-Z]+\s?)+`
+- Проверка: `'a'.repeat(50000) + 'x'` на подозрительном regex вешает event loop
+- Особо опасно в middleware (auth, routing), где regex применяется к каждому запросу
 
 ## Граница с другими аудитами
 

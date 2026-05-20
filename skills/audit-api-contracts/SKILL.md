@@ -121,6 +121,7 @@ cat ./docs/audit-baseline.yml
 
 ## Граница с другими аудитами
 
+- **Stack trace в ответах** (API-05) — первичный: `audit-errors` (ERR-02). Если обнаружено здесь — добавь cross-ref «*см. ERR-02*» в доказательство, не создавай дублирующий `❌ FAIL`.
 - **Валидация входных данных** (отсутствие проверки полей) → `audit-validation`
 - **OWASP-уязвимости** (injection, auth) → `audit-owasp`
 - **Производительность** (N+1 без DataLoader) → `audit-performance`
