@@ -33,7 +33,12 @@ description: >
 
 До анализа:
 ```bash
-cat ./docs/audit-baseline.yml 2>/dev/null
+if [ ! -f ./docs/audit-baseline.yml ]; then
+  mkdir -p ./docs
+  cp ./skills/audit/audit-baseline-template.yml ./docs/audit-baseline.yml 2>/dev/null || \
+    printf "accepted: []\n" > ./docs/audit-baseline.yml
+fi
+cat ./docs/audit-baseline.yml
 ```
 
 ## Контекст анализа
