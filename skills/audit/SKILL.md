@@ -30,7 +30,7 @@ cat ./docs/audit-baseline.yml 2>/dev/null
 Если файл не существует — создай:
 
 ```bash
-cp ./skills/audit-baseline-template.yml ./docs/audit-baseline.yml 2>/dev/null || \
+cp ./skills/audit/audit-baseline-template.yml ./docs/audit-baseline.yml 2>/dev/null || \
   printf "accepted: []\n" > ./docs/audit-baseline.yml
 ```
 
