@@ -115,10 +115,10 @@ Low priority (naming/style): src/utils/**
 ```
 ## Компонент: [Название]
 
-| Check ID | Проверка | Статус | Доказательство | Решение |
-|----------|----------|--------|----------------|---------|
-| OWA-02 | Auth на protected routes | ❌ FAIL 🔴 | `routes/admin.ts:14` | **1. Добавить authMiddleware** \\ 2. ... \\ 3. ... |
-| OWA-06 | Rate limiting | ⏸ ACCEPTED | `src/app.ts` | В baseline: nginx rate limit |
+| Check ID | Проверка | Статус | Доказательство | Решение | Исправлено |
+|----------|----------|--------|----------------|---------|------------|
+| OWA-02 | Auth на protected routes | ❌ FAIL 🔴 | `routes/admin.ts:14` | **1. Добавить authMiddleware** \\ 2. ... \\ 3. ... | Нет |
+| OWA-06 | Rate limiting | ⏸ ACCEPTED | `src/app.ts` | В baseline: nginx rate limit | — |
 ```
 
 Если все PASS — выведи: `✅ Проблем не обнаружено.`
@@ -165,3 +165,8 @@ Low priority (naming/style): src/utils/**
 ```
 
 Сообщи путь к папке сессии и число FAIL по severity.
+
+---
+
+> **Матрица взаимодействий** (межкомпонентные риски и сценарии сбоя) генерируется отдельно: `/audit-matrix`
+> Запускай после /audit для полного анализа системы.

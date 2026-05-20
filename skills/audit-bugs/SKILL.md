@@ -148,17 +148,19 @@ cat ./docs/audit-baseline.yml
 
 ## Формат вывода
 
-| Check ID | Проверка | Статус | Уверенность | Доказательство | Решение |
-|----------|----------|--------|-------------|----------------|---------|
-| BUG-01 | Преобразования типов безопасны (NaN, radix, coercion) | ✅ PASS | High | `src/` — parseInt всегда с radix | — |
-| BUG-03 | Null-safety соблюдается — обращения к свойствам защищены от undefined/null | ❌ FAIL 🟠 | High | `services/order.ts:55` | **1. Добавить опциональную цепочку: `user?.address?.city`** \\ 2. Добавить guard-проверку перед обращением \\ 3. Использовать nullish coalescing с дефолтом |
-| BUG-05 | Exhaustive handling — все enum/union-ветки обработаны | ⏸ ACCEPTED | Medium | `handlers/event.ts:23` | В baseline: exhaustive check через TypeScript never |
+| Check ID | Проверка | Статус | Уверенность | Доказательство | Решение | Исправлено |
+|----------|----------|--------|-------------|----------------|---------|------------|
+| BUG-01 | Преобразования типов безопасны (NaN, radix, coercion) | ✅ PASS | High | `src/` — parseInt всегда с radix | — | — |
+| BUG-03 | Null-safety соблюдается — обращения к свойствам защищены от undefined/null | ❌ FAIL 🟠 | High | `services/order.ts:55` | **1. Добавить опциональную цепочку: `user?.address?.city`** \\ 2. Добавить guard-проверку перед обращением \\ 3. Использовать nullish coalescing с дефолтом | Нет |
+| BUG-05 | Exhaustive handling — все enum/union-ветки обработаны | ⏸ ACCEPTED | Medium | `handlers/event.ts:23` | В baseline: exhaustive check через TypeScript never | — |
 
 Статусы: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED` / `🔍 UNVERIFIED`
 
 Уверенность: `High` — проверил несколько ключевых файлов, паттерн очевиден / `Medium` — проверил выборочно, паттерн вероятен / `Low` — ограниченный контекст, полная уверенность невозможна
 
 Для `❌ FAIL`: ровно 3 варианта решения, разделитель `\\`, вариант 1 жирным.
+
+`Исправлено`: FAIL → `Нет` (разработчик меняет на `✅ Да` вручную после фикса). PASS / ACCEPTED / UNVERIFIED → `—`.
 
 Требования к решениям:
 - Взаимно исключающие (не перефразировки одного и того же)

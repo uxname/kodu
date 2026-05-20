@@ -141,17 +141,19 @@ cat ./docs/audit-baseline.yml
 
 ## Формат вывода
 
-| Check ID | Проверка | Статус | Уверенность | Доказательство | Решение |
-|----------|----------|--------|-------------|----------------|---------|
-| DEP-01 | Docker images используют pinned versions (нет :latest) | ✅ PASS | High | `Dockerfile:1` — pinned version указана | — |
-| DEP-02 | Контейнеры запускаются от непривилегированного пользователя (USER nonroot) | ❌ FAIL 🟠 | High | `Dockerfile:12` | **1. Добавить `RUN addgroup -S app && adduser -S app -G app` и `USER app`** \\ 2. Использовать образ с встроенным nonroot пользователем (node:alpine) \\ 3. Добавить `USER node` если базовый образ node |
-| DEP-05 | HEALTHCHECK определён в Dockerfile | ⏸ ACCEPTED | Medium | — | В baseline: health check управляется Kubernetes liveness probe |
+| Check ID | Проверка | Статус | Уверенность | Доказательство | Решение | Исправлено |
+|----------|----------|--------|-------------|----------------|---------|------------|
+| DEP-01 | Docker images используют pinned versions (нет :latest) | ✅ PASS | High | `Dockerfile:1` — pinned version указана | — | — |
+| DEP-02 | Контейнеры запускаются от непривилегированного пользователя (USER nonroot) | ❌ FAIL 🟠 | High | `Dockerfile:12` | **1. Добавить `RUN addgroup -S app && adduser -S app -G app` и `USER app`** \\ 2. Использовать образ с встроенным nonroot пользователем (node:alpine) \\ 3. Добавить `USER node` если базовый образ node | Нет |
+| DEP-05 | HEALTHCHECK определён в Dockerfile | ⏸ ACCEPTED | Medium | — | В baseline: health check управляется Kubernetes liveness probe | — |
 
 Статусы: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED` / `🔍 UNVERIFIED`
 
 Уверенность: `High` — проверил несколько ключевых файлов, паттерн очевиден / `Medium` — проверил выборочно, паттерн вероятен / `Low` — ограниченный контекст, полная уверенность невозможна
 
 Для `❌ FAIL`: ровно 3 варианта решения, разделитель `\\`, вариант 1 жирным.
+
+`Исправлено`: FAIL → `Нет` (разработчик меняет на `✅ Да` вручную после фикса). PASS / ACCEPTED / UNVERIFIED → `—`.
 
 Требования к решениям:
 - Взаимно исключающие (не перефразировки одного и того же)
