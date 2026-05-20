@@ -64,9 +64,12 @@ description: >
 
 После завершения анализа выполни следующие шаги через инструменты:
 
-1. Получи timestamp через Bash: `date +"%Y-%m-%d_%H-%M"`
-2. Создай директорию через Bash: `mkdir -p ./docs/audits/`
-3. Сохрани отчёт через Write в файл: `./docs/audits/<TIMESTAMP>_audit-performance.md`
+1. Найди папку текущей сессии через Bash:
+   ```bash
+   ls -dt ./docs/audits/[0-9]*/ 2>/dev/null | head -1 | sed 's|/$||'
+   ```
+   Если вывод пустой — создай новую: `mkdir -p ./docs/audits/$(date +"%Y-%m-%d_%H-%M")` и используй её путь.
+2. Сохрани отчёт через Write в файл: `<AUDIT_DIR>/audit-performance.md`
 
 Структура файла:
 ```
