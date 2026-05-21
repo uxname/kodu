@@ -7,12 +7,11 @@ description: >
 
 ## Задача
 
-Верхнеуровневый архитектурный аудит: найти крупные компоненты системы, их связи
+Верхнеуровневый архитектурный аудит: Проанализируй весь проект и найти крупные компоненты системы, их связи
 и systemic risks (каскадные сбои, узкие горлышки, отсутствие защиты на уровне архитектуры).
 Не ищи мелкие баги — это задача других аудитов.
 
-Не полагайся на предопределенные списки технологий. Bash — только для навигации.
-Основной анализ: чтение конфигов, манифестов зависимостей, кода инициализации клиентов.
+Не полагайся на предопределенные списки технологий.
 Адаптируйся к любому стеку.
 
 ---
@@ -29,30 +28,6 @@ mkdir -p "$SESSION" && echo "Session: $SESSION"
 
 ## Шаг 2 — Обнаружение компонентов
 
-### Навигация
-
-```bash
-ls -la 2>/dev/null
-ls docker-compose* Dockerfile* 2>/dev/null
-ls kubernetes/ k8s/ helm/ deploy/ infra/ .env* config/ 2>/dev/null
-ls package.json requirements.txt Gemfile go.mod Cargo.toml pom.xml build.gradle 2>/dev/null
-ls .github/workflows/ .gitlab-ci.yml .circleci/ 2>/dev/null
-```
-
-### Deep Scan (читай содержимое найденного)
-
-- **Манифесты** — секции `dependencies`/`require`: драйверы БД, клиенты очередей, SDK.
-  *Пример: `pg` + `redis` + `@stripe/stripe-js` → PostgreSQL, Redis, Stripe*
-- **`.env` / `.env.example`** — все URL, ключи, хосты, порты
-- **Конфиги фреймворков** — `prisma/schema.prisma`, `application.yml`, `knexfile.js`, `config.js` и т.д.
-
-### Архитектурная парадигма
-
-- **Монолит:** один манифест в корне, код в `src/` или `app/`
-- **Микросервисы:** папки `services/`/`apps/`/`packages/` со своими манифестами
-- **Serverless:** `serverless.yml`, `functions/`, `lambda/`
-- **Монорепо:** `lerna.json`, `turbo.json`, `nx.json`, `workspaces` в package.json
-
 ### Список компонентов
 
 Для каждого зафиксируй: название, роль, размещение (Docker/облако/SaaS), как обнаружен
@@ -66,28 +41,13 @@ ls .github/workflows/ .gitlab-ci.yml .circleci/ 2>/dev/null
 
 ### Инициализация соединений
 
-Найди в коде места импорта и создания клиентов:
-- БД: `new Pool`, `PrismaClient`, `mongoose.connect`
-- Брокеры: `amqp.connect`, `kafka.Consumer`, `bull`
-- Внешние SDK: `new Stripe`, `new SendGrid`, `new AWS`
-
-**Прочитай параметры:** есть ли `timeout`, `maxRetries`, `poolSize`, `keepAlive`?
-
-### Контракты
-
-Ищи `.proto`, `.graphql`, `openapi.yml`, `swagger.json`, папки `contracts/`/`shared/`.
-Определи протоколы: REST, gRPC, GraphQL, AMQP, WebSocket.
-
-### Граф
-
+Построй граф взаимодействия
 ```
 Frontend → Backend API (REST/gRPC)
 Backend API → Database (SQL)
 Backend API → Worker (AMQP)
 Worker → External Email API (REST)
 ```
-
-Для каждой связи: `✅` — retry/fallback/таймауты, `⚠` — только таймауты, `❌` — нет защиты.
 
 ---
 
@@ -99,20 +59,7 @@ Worker → External Email API (REST)
 ### 4.1 По каждому компоненту
 
 Подходи как «злой гений»: не доверяй компонентам внутри сети, ищи «черных лебедей».
-
-**Базовые сценарии:**
-1. **Недоступность** — что видит пользователь? Fallback? Запросы копятся?
-2. **Замедление** — таймауты? Риск истощения пула соединений?
-3. **Потеря состояния** — персистентность? Данные в памяти?
-4. **Исчерпание ресурсов** — лимиты памяти, диска, соединений?
-5. **Ошибка миграции/обновления** — механизм отката?
-
-**Скрытые сценарии («черный лебедь»):**
-6. **Целостность при частичном отказе** — обрыв транзакции? Двойное выполнение из очереди? Clock drift?
-7. **Внутреннее доверие** — пароли на Redis/БД внутри Docker-сети? Секреты в логах?
-8. **Ресурсное истощение через логику** — тяжелые запросы без лимитов? Rate limiting? Размер файлов?
-
-Каждый сценарий подтверди ссылкой на файл: `src/db.ts:12 — нет connectionTimeout`
+Найди минимум 3 проблемы.
 
 ### 4.2 Каскадные сценарии
 
@@ -139,9 +86,11 @@ X1: Frontend → Backend → Payments API
 
 ## Граф зависимостей
 ```
+
 Frontend → Backend (REST) → DB (SQL)
 Backend → Redis
 Worker → Email API
+
 ```
 
 ## {Компонент}
