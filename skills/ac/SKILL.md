@@ -44,14 +44,12 @@ git diff --cached
 
 Проверить весь diff по паттернам:
 
-| Паттерн | Что это |
-|---|---|
-| `AKIA[0-9A-Z]{16}` | AWS access key |
-| `ghp_[a-zA-Z0-9]{36}` | GitHub PAT |
-| `sk-[a-zA-Z0-9]{20,}` | OpenAI / Anthropic key |
-| `BEGIN (RSA )?PRIVATE KEY` | Приватный ключ |
-| `password\s*=\s*[^\s'"]{6,}` | Пароль в коде (не placeholder) |
-| `secret\s*=\s*[^\s'"]{6,}` | Секрет в коде (не placeholder) |
+- AWS access key
+- GitHub PAT
+- OpenAI / Anthropic key / ...
+- Приватный ключ
+- Пароль в коде (не placeholder)
+- Секрет в коде (не placeholder)
 
 **Нашёл → СТОП.** Показать строку с проблемой. Коммитить нельзя.
 
