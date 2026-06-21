@@ -9,19 +9,38 @@ description: >
 
 Применим к коду с параллельными операциями, shared state, кэшированием, транзакциями БД, очередями, WebSocket. Для однопоточных скриптов без параллелизма — верни пустой ответ.
 
-## Runtime Detection
+## Runtime Detection & Stack Profile
 
-До анализа определи runtime проекта:
-```bash
-cat package.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print('Node.js:', list(d.get('dependencies',{}).keys())[:8])" 2>/dev/null || \
-ls go.mod requirements.txt pyproject.toml Cargo.toml 2>/dev/null | head -3
-```
+Этот аудит стек-агностичен: проверки сформулированы нейтрально, а конкретика
+(инструменты, идиомы, анти-паттерны, примеры) берётся из профиля стека.
 
-⚠️ Этот чеклист оптимизирован для **Node.js/TypeScript**. При обнаружении другого runtime:
-- Go → `context.Context` вместо `AbortSignal`, `SIGTERM handler` вместо `process.on`
-- Python → `asyncio cancellation`, `signal.SIGTERM`
-- Java/Spring → `@Transactional`, `ApplicationContext lifecycle`
-- Для неизвестного runtime — JS-специфичные проверки помечай `🔍 UNVERIFIED`
+1. **Профиль передан контекстом?** Если оркестратор `/audit` передал
+   `runtime=<id>` и/или содержимое профиля — используй его, шаги 2–3 пропусти.
+
+2. **Иначе определи РОВНО ОДИН рантайм** этого каталога:
+   ```bash
+   if   [ -f package.json ]; then echo "runtime=node"
+   elif [ -f go.mod ]; then echo "runtime=go"
+   elif [ -f pyproject.toml ] || [ -f requirements.txt ] || [ -f setup.py ]; then echo "runtime=python"
+   elif [ -f Cargo.toml ]; then echo "runtime=rust"
+   elif [ -f pom.xml ] || ls build.gradle* settings.gradle* >/dev/null 2>&1; then echo "runtime=java"
+   else echo "runtime=generic"; fi
+   ```
+   Один запуск = один рантайм; не миксуй backend и frontend. Если найдено
+   несколько маркеров (монорепо) — выбери соответствующий текущему scope/анализируемым
+   файлам и зафиксируй выбор в разделе Audit Coverage.
+
+3. **Загрузи профиль** через Read: `./skills/audit/stacks/<runtime>.md`
+   (fallback `./skills/audit/stacks/_generic.md`, если файл не найден).
+
+Дальше используй профиль:
+- **Инструменты** — из секции «Tooling by category» профиля (раздел
+  «Инструментальная поддержка» ниже ссылается на категории, а не на команды).
+- **Ожидания PASS** — из «Idioms»; **формулировки FAIL** — из «Anti-patterns».
+- **Точечные подсказки** — из «Check-ID hints» по префиксу `CON-`.
+- Если профиль `tier: general` или `runtime=generic` → стек-специфичные находки
+  без однозначного evidence помечай `🔍 UNVERIFIED`, а не `❌ FAIL`. Проверки,
+  чей механизм в рантайме отсутствует, помечай `N/A`.
 
 ## Severity Guide
 
@@ -38,12 +57,12 @@ ls go.mod requirements.txt pyproject.toml Cargo.toml 2>/dev/null | head -3
 
 | Check ID | Проверка |
 |----------|----------|
-| CON-01 | async/await не используется в неасинхронных итераторах (forEach, map) |
+| CON-01 | Параллельные операции запускаются и синхронизируются корректно; результаты дожидаются, фоновые задачи не утекают |
 | CON-02 | Read-modify-write операции выполняются в транзакциях [⚡ dynamic] |
-| CON-03 | Нет shared mutable state на уровне модуля (синглтоны, кэши без locks) |
+| CON-03 | Разделяемое изменяемое состояние защищено синхронизацией (синглтоны, кэши, переменные уровня модуля) |
 | CON-04 | Module-level кэш имеет механизм инвалидации |
 | CON-05 | Обработчики событий и webhook-handlers идемпотентны [⚡ dynamic] |
-| CON-06 | Background async операции имеют механизм отмены (AbortController/signal) и не блокируют graceful shutdown |
+| CON-06 | Фоновые операции имеют механизм отмены и не блокируют graceful shutdown |
 
 ## Правила верификации
 
@@ -85,10 +104,15 @@ cat ./docs/audit-baseline.yml
 
 ## Контекст анализа
 
-**CON-01 — Корректное использование async в итераторах:**
-- `await` внутри `forEach` — forEach не ждёт промисов, итерация выполняется некорректно
-- `async` функция в `Array.map` без `Promise.all` — промисы создаются но не ожидаются
-- Shared state между параллельными async операциями без синхронизации
+> Примеры ниже — иллюстративные (Node/TS). Конкретику текущего рантайма бери из
+> загруженного профиля (`stacks/<runtime>.md`, секции Idioms/Anti-patterns/Check-ID hints).
+
+**CON-01 — Параллельные операции запускаются и синхронизируются корректно:**
+- Параллельная операция запущена, но её результат не дожидается (теряется)
+- Фоновая задача утекает — нет пути её завершения
+- Shared state между параллельными операциями без синхронизации
+- В Node: `await` внутри `forEach` (итерация не ждёт промисов); `async` в `Array.map` без `Promise.all` (промисы не ожидаются)
+- В Go: goroutine без `WaitGroup`/`errgroup`/`ctx` → потеря результата или goroutine leak; захват loop-переменной в `for { go f(loopVar) }` (до Go 1.22); незакрытый канал блокирует получателей
 
 **CON-02 — Read-modify-write в транзакциях:**
 - SELECT + UPDATE без транзакции (TOCTOU — time-of-check to time-of-use)
@@ -97,11 +121,12 @@ cat ./docs/audit-baseline.yml
 - Optimistic locking без retry при конфликте версий
 - Кэш-инвалидация между чтением и записью
 
-**CON-03 — Нет shared mutable state на уровне модуля:**
-- Глобальные переменные, изменяемые из нескольких мест
+**CON-03 — Разделяемое изменяемое состояние защищено синхронизацией:**
+- Глобальные переменные, изменяемые из нескольких мест без синхронизации
 - Синглтоны с mutable state без синхронизации
 - Closure над изменяемой переменной в async callback
 - Конкурентная запись в один файл/ресурс без координации
+- В Go: map/переменная уровня пакета без `sync.Mutex`/atomic при конкурентном доступе → data race; ловится `go test -race`
 
 **CON-04 — Module-level кэш инвалидируется:**
 - Module-level кэш без механизма инвалидации при обновлении данных
@@ -113,12 +138,12 @@ cat ./docs/audit-baseline.yml
 - Нет защиты от дублирующихся webhook-вызовов (нет проверки event_id)
 - Финансовые или критические операции без идемпотентного ключа
 
-**CON-06 — Background операции с механизмом отмены:**
-- Promise-цепочка запущена в фоне без `AbortController` / `signal` — при SIGTERM процесс не завершается чисто
-- `setInterval` / `setImmediate` внутри request handler без очистки — утечка при завершении запроса
+**CON-06 — Фоновые операции с механизмом отмены:**
+- Фоновая операция запущена без механизма отмены — при shutdown процесс не завершается чисто
 - Background job без timeout и без механизма принудительной остановки
-- Graceful shutdown не ожидает завершения фоновых задач (нет `await backgroundJob`)
-- `Promise.all` с неотменяемыми задачами — при ошибке одной остальные продолжают выполняться
+- Graceful shutdown не ожидает завершения фоновых задач
+- В Node: Promise-цепочка в фоне без `AbortController`/`signal`; `setInterval`/`setImmediate` в request handler без очистки; `Promise.all` с неотменяемыми задачами
+- В Go: фоновая goroutine не слушает `ctx.Done()` → не завершается при shutdown; нужен `context.Context` с проверкой отмены
 
 ## Граница с другими аудитами
 
@@ -129,7 +154,7 @@ cat ./docs/audit-baseline.yml
 
 | Check ID | Проверка | Статус | Уверенность | Доказательство | Решение | Исправлено |
 |----------|----------|--------|-------------|----------------|---------|------------|
-| CON-01 | async/await не используется в неасинхронных итераторах (forEach, map) | ✅ PASS | High | `src/` — async forEach не найден | — | — |
+| CON-01 | Параллельные операции запускаются и синхронизируются корректно; результаты дожидаются, фоновые задачи не утекают | ✅ PASS | High | `src/` — async forEach не найден | — | — |
 | CON-02 | Read-modify-write операции выполняются в транзакциях | ❌ FAIL 🔴 | High | `services/wallet.ts:67` | **1. Обернуть в db.transaction() с SELECT FOR UPDATE** \\ 2. Использовать optimistic locking с retry \\ 3. Добавить уникальное ограничение на уровне БД [⚡ dynamic] | Нет |
 | CON-05 | Обработчики событий и webhook-handlers идемпотентны | ⏸ ACCEPTED | Medium | `handlers/stripe.ts:12` | В baseline: идемпотентность обеспечена через event_id [⚡ dynamic] | — |
 

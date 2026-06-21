@@ -9,19 +9,38 @@ description: >
 
 Применим к серверному коду с HTTP-роутингом, аутентификацией, работой с БД или файловой системой. Для чисто фронтендовых компонентов без fetch/API calls — применяй только XSS/CSRF секции. Для CLI-инструментов без сетевого взаимодействия — верни пустой ответ.
 
-## Runtime Detection
+## Runtime Detection & Stack Profile
 
-До анализа определи runtime проекта:
-```bash
-cat package.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print('Node.js:', list(d.get('dependencies',{}).keys())[:8])" 2>/dev/null || \
-ls go.mod requirements.txt pyproject.toml Cargo.toml 2>/dev/null | head -3
-```
+Этот аудит стек-агностичен: проверки сформулированы нейтрально, а конкретика
+(инструменты, идиомы, анти-паттерны, примеры) берётся из профиля стека.
 
-⚠️ Этот чеклист оптимизирован для **Node.js/TypeScript**. При обнаружении другого runtime:
-- Go → `context.Context` вместо `AbortSignal`, `SIGTERM handler` вместо `process.on`
-- Python → `asyncio cancellation`, `signal.SIGTERM`
-- Java/Spring → `@Transactional`, `ApplicationContext lifecycle`
-- Для неизвестного runtime — JS-специфичные проверки помечай `🔍 UNVERIFIED`
+1. **Профиль передан контекстом?** Если оркестратор `/audit` передал
+   `runtime=<id>` и/или содержимое профиля — используй его, шаги 2–3 пропусти.
+
+2. **Иначе определи РОВНО ОДИН рантайм** этого каталога:
+   ```bash
+   if   [ -f package.json ]; then echo "runtime=node"
+   elif [ -f go.mod ]; then echo "runtime=go"
+   elif [ -f pyproject.toml ] || [ -f requirements.txt ] || [ -f setup.py ]; then echo "runtime=python"
+   elif [ -f Cargo.toml ]; then echo "runtime=rust"
+   elif [ -f pom.xml ] || ls build.gradle* settings.gradle* >/dev/null 2>&1; then echo "runtime=java"
+   else echo "runtime=generic"; fi
+   ```
+   Один запуск = один рантайм; не миксуй backend и frontend. Если найдено
+   несколько маркеров (монорепо) — выбери соответствующий текущему scope/анализируемым
+   файлам и зафиксируй выбор в разделе Audit Coverage.
+
+3. **Загрузи профиль** через Read: `./skills/audit/stacks/<runtime>.md`
+   (fallback `./skills/audit/stacks/_generic.md`, если файл не найден).
+
+Дальше используй профиль:
+- **Инструменты** — из секции «Tooling by category» профиля (раздел
+  «Инструментальная поддержка» ниже ссылается на категории, а не на команды).
+- **Ожидания PASS** — из «Idioms»; **формулировки FAIL** — из «Anti-patterns».
+- **Точечные подсказки** — из «Check-ID hints» по префиксу `OWA-`.
+- Если профиль `tier: general` или `runtime=generic` → стек-специфичные находки
+  без однозначного evidence помечай `🔍 UNVERIFIED`, а не `❌ FAIL`. Проверки,
+  чей механизм в рантайме отсутствует, помечай `N/A`.
 
 ## Severity Guide
 
@@ -112,17 +131,18 @@ cat ./docs/audit-baseline.yml
 - HTTP вместо HTTPS для передачи credentials
 
 **OWA-05 — Безопасная конфигурация сервера:**
-- CORS wildcard (`*`) в production или открытый origins без whitelist
-- Отсутствие security headers (Helmet или аналог: X-Frame-Options, CSP, HSTS)
-- express.json / bodyParser без limit (DoS через огромное тело запроса)
+- CORS не должен быть wildcard (`*`) в production; origins только по whitelist
+- Не выставлены security-заголовки (X-Frame-Options, CSP, HSTS и т.п.)
+- Не ограничен размер тела запроса (DoS через огромное тело запроса)
 - Открытые error pages с технической информацией
+- Конкретика из профиля (Go: `http.MaxBytesReader`, chi `cors`/`secure`; Node: `express.json({ limit })`, Helmet)
 
 **OWA-06 — Защита от перебора:**
 - Отсутствие rate limiting на login/register/reset-password эндпоинтах
 - Нет rate limiting на чувствительных операциях (смена пароля, OTP-проверка)
-- Слабые JWT алгоритмы (alg:none, HS256 с коротким ключом)
 - Session tokens не инвалидируются при logout
-- `jwt.verify(token, secret)` без явного параметра `{ algorithms: ['HS256'] }` — атакующий может передать alg:none или RS256 с публичным ключом как HS256-секрет
+- Проверка JWT без явного whitelist алгоритмов: нужно отклонять `alg:none` и подмену RS256↔HS256 (атакующий передаёт `alg:none` либо RS256 с публичным ключом, выданным за HS256-секрет); слабые алгоритмы / короткий ключ
+- Конкретика из профиля (Go: go-oidc `Verifier` / golang-jwt `WithValidMethods`; Node: `jwt.verify(token, secret, { algorithms: [...] })`)
 
 **OWA-07 — Техническая информация не утекает:**
 - Stack trace в ответах production API
@@ -131,14 +151,14 @@ cat ./docs/audit-baseline.yml
 - SQL-ошибки или DB-специфичные сообщения в API responses
 
 **OWA-08 — SSRF: URL из user input без whitelist:**
-- URL из user input передаётся в HTTP-клиент (axios, fetch, got) без whitelist
+- URL из user input передаётся в HTTP-клиент без whitelist
 - Fetch к внутренним адресам (169.254.x.x, 10.x.x.x, localhost, metadata endpoints)
 - Редиректы на внутренние ресурсы без валидации destination
 
 **OWA-09 — CSRF-защита:**
 - State-changing запросы (POST/PUT/PATCH/DELETE) принимаются без CSRF-токена и без проверки `Origin`/`Referer`
-- Cookies без атрибута `SameSite=Strict` или `SameSite=Lax` — браузер отправит cookie в cross-site запросе
-- GraphQL mutations доступны через GET-запрос — обходит CSRF-защиту
+- Cookies без корректных атрибутов (`SameSite`, `Secure`, `HttpOnly`) — браузер отправит cookie в cross-site запросе либо она доступна скрипту/по HTTP
+- Мутации (включая GraphQL) доступны через GET вместо POST — обходит CSRF-защиту
 - `SameSite=None` без явного обоснования (нужно только для cross-site iframe/embed сценариев)
 
 ## Граница с другими аудитами
@@ -150,11 +170,11 @@ cat ./docs/audit-baseline.yml
 
 ## Инструментальная поддержка
 
-Перед анализом:
-```bash
-npm audit --json 2>/dev/null | head -100 || pnpm audit --json 2>/dev/null | head -100 || true
-```
-`npm audit` выявляет уязвимые зависимости — это самостоятельная зона, не входит в текущий чеклист, но критические CVE стоит вынести в раздел замечаний отчёта.
+Перед анализом используй инструмент категории **dep-audit** из профиля стека
+(секция «Tooling by category»): он выявляет уязвимые зависимости (известные CVE).
+Это самостоятельная зона, не входит в текущий чеклист, но критические CVE стоит
+вынести в раздел замечаний отчёта. Если ячейка категории пустая
+(`tier: general`/`generic`) — пропусти этот шаг.
 
 ## Формат вывода
 

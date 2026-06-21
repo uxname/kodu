@@ -9,19 +9,38 @@ description: >
 
 Применим к коду с HTTP-роутингом, REST/GraphQL API, контроллерами, схемами запросов/ответов, OpenAPI/Swagger спецификациями. Для CLI-инструментов и internal-only функций без HTTP-интерфейса — верни пустой ответ.
 
-## Runtime Detection
+## Runtime Detection & Stack Profile
 
-До анализа определи runtime проекта:
-```bash
-cat package.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print('Node.js:', list(d.get('dependencies',{}).keys())[:8])" 2>/dev/null || \
-ls go.mod requirements.txt pyproject.toml Cargo.toml 2>/dev/null | head -3
-```
+Этот аудит стек-агностичен: проверки сформулированы нейтрально, а конкретика
+(инструменты, идиомы, анти-паттерны, примеры) берётся из профиля стека.
 
-⚠️ Этот чеклист оптимизирован для **Node.js/TypeScript**. При обнаружении другого runtime:
-- Go → `context.Context` вместо `AbortSignal`, `SIGTERM handler` вместо `process.on`
-- Python → `asyncio cancellation`, `signal.SIGTERM`
-- Java/Spring → `@Transactional`, `ApplicationContext lifecycle`
-- Для неизвестного runtime — JS-специфичные проверки помечай `🔍 UNVERIFIED`
+1. **Профиль передан контекстом?** Если оркестратор `/audit` передал
+   `runtime=<id>` и/или содержимое профиля — используй его, шаги 2–3 пропусти.
+
+2. **Иначе определи РОВНО ОДИН рантайм** этого каталога:
+   ```bash
+   if   [ -f package.json ]; then echo "runtime=node"
+   elif [ -f go.mod ]; then echo "runtime=go"
+   elif [ -f pyproject.toml ] || [ -f requirements.txt ] || [ -f setup.py ]; then echo "runtime=python"
+   elif [ -f Cargo.toml ]; then echo "runtime=rust"
+   elif [ -f pom.xml ] || ls build.gradle* settings.gradle* >/dev/null 2>&1; then echo "runtime=java"
+   else echo "runtime=generic"; fi
+   ```
+   Один запуск = один рантайм; не миксуй backend и frontend. Если найдено
+   несколько маркеров (монорепо) — выбери соответствующий текущему scope/анализируемым
+   файлам и зафиксируй выбор в разделе Audit Coverage.
+
+3. **Загрузи профиль** через Read: `./skills/audit/stacks/<runtime>.md`
+   (fallback `./skills/audit/stacks/_generic.md`, если файл не найден).
+
+Дальше используй профиль:
+- **Инструменты** — из секции «Tooling by category» профиля (раздел
+  «Инструментальная поддержка» ниже ссылается на категории, а не на команды).
+- **Ожидания PASS** — из «Idioms»; **формулировки FAIL** — из «Anti-patterns».
+- **Точечные подсказки** — из «Check-ID hints» по префиксу `API-`.
+- Если профиль `tier: general` или `runtime=generic` → стек-специфичные находки
+  без однозначного evidence помечай `🔍 UNVERIFIED`, а не `❌ FAIL`. Проверки,
+  чей механизм в рантайме отсутствует, помечай `N/A`.
 
 ## Severity Guide
 
@@ -84,6 +103,11 @@ cat ./docs/audit-baseline.yml
 ```
 
 ## Контекст анализа
+
+> Примеры в этом разделе и в таблице вывода (Express-style middleware, `HttpException`)
+> иллюстративны. Контракт может быть REST (Node: Express/Fastify; Go: chi-роуты)
+> или GraphQL (Node: Apollo/Yoga; Go: gqlgen-резолверы). Check ID и их смысл
+> одинаковы для любого транспорта — конкретику бери из загруженного профиля.
 
 **API-01 — Консистентная форма ответов:**
 - Одна сущность возвращается с разными наборами полей в разных endpoint'ах

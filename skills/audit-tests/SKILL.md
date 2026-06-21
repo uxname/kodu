@@ -9,19 +9,38 @@ description: >
 
 Применим при наличии файлов тестов (`*.test.*`, `*.spec.*`), конфигов (`jest.config.*`, `eslint*`, `tsconfig*`, `.eslintrc`, `vitest.config.*`). Для кода без тестов и конфигов — верни пустой ответ.
 
-## Runtime Detection
+## Runtime Detection & Stack Profile
 
-До анализа определи runtime проекта:
-```bash
-cat package.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print('Node.js:', list(d.get('dependencies',{}).keys())[:8])" 2>/dev/null || \
-ls go.mod requirements.txt pyproject.toml Cargo.toml 2>/dev/null | head -3
-```
+Этот аудит стек-агностичен: проверки сформулированы нейтрально, а конкретика
+(инструменты, идиомы, анти-паттерны, примеры) берётся из профиля стека.
 
-⚠️ Этот чеклист оптимизирован для **Node.js/TypeScript**. При обнаружении другого runtime:
-- Go → `context.Context` вместо `AbortSignal`, `SIGTERM handler` вместо `process.on`
-- Python → `asyncio cancellation`, `signal.SIGTERM`
-- Java/Spring → `@Transactional`, `ApplicationContext lifecycle`
-- Для неизвестного runtime — JS-специфичные проверки помечай `🔍 UNVERIFIED`
+1. **Профиль передан контекстом?** Если оркестратор `/audit` передал
+   `runtime=<id>` и/или содержимое профиля — используй его, шаги 2–3 пропусти.
+
+2. **Иначе определи РОВНО ОДИН рантайм** этого каталога:
+   ```bash
+   if   [ -f package.json ]; then echo "runtime=node"
+   elif [ -f go.mod ]; then echo "runtime=go"
+   elif [ -f pyproject.toml ] || [ -f requirements.txt ] || [ -f setup.py ]; then echo "runtime=python"
+   elif [ -f Cargo.toml ]; then echo "runtime=rust"
+   elif [ -f pom.xml ] || ls build.gradle* settings.gradle* >/dev/null 2>&1; then echo "runtime=java"
+   else echo "runtime=generic"; fi
+   ```
+   Один запуск = один рантайм; не миксуй backend и frontend. Если найдено
+   несколько маркеров (монорепо) — выбери соответствующий текущему scope/анализируемым
+   файлам и зафиксируй выбор в разделе Audit Coverage.
+
+3. **Загрузи профиль** через Read: `./skills/audit/stacks/<runtime>.md`
+   (fallback `./skills/audit/stacks/_generic.md`, если файл не найден).
+
+Дальше используй профиль:
+- **Инструменты** — из секции «Tooling by category» профиля (раздел
+  «Инструментальная поддержка» ниже ссылается на категории, а не на команды).
+- **Ожидания PASS** — из «Idioms»; **формулировки FAIL** — из «Anti-patterns».
+- **Точечные подсказки** — из «Check-ID hints» по префиксу `TST-`.
+- Если профиль `tier: general` или `runtime=generic` → стек-специфичные находки
+  без однозначного evidence помечай `🔍 UNVERIFIED`, а не `❌ FAIL`. Проверки,
+  чей механизм в рантайме отсутствует, помечай `N/A`.
 
 ## Severity Guide
 
@@ -38,15 +57,15 @@ ls go.mod requirements.txt pyproject.toml Cargo.toml 2>/dev/null | head -3
 
 | Check ID | Проверка |
 |----------|----------|
-| TST-01 | TypeScript strict mode включён |
-| TST-02 | Coverage thresholds настроены и применяются в CI |
-| TST-03 | Pre-commit/pre-push хуки запускают проверки (tests, lint, typecheck) |
+| TST-01 | Строгий статический анализ включён и обязателен (компилятор/линтер не пропускает небезопасные конструкции) |
+| TST-02 | Пороги покрытия настроены и применяются |
+| TST-03 | Хуки/CI запускают проверки (тесты, линт, типы) |
 | TST-04 | Критические пути покрыты тестами (auth, validation, error handling) |
 | TST-05 | Тесты изолированы — нет shared mutable state между тестами |
-| TST-06 | Нет пропущенных или зафиксированных тестов (.only/.skip без обоснования) |
+| TST-06 | Нет отключённых/сфокусированных тестов без обоснования |
 | TST-07 | Тесты проверяют поведение, а не детали реализации |
-| TST-08 | Нет нестабильных тестов (Math.random, Date.now(), sleep без mock) [⚡ dynamic] |
-| TST-09 | Snapshot-тесты охватывают значимые изменения, не весь DOM/объект целиком |
+| TST-08 | Источники недетерминизма мокаются/инъектируются [⚡ dynamic] |
+| TST-09 | Golden/snapshot-тесты охватывают значимое, не весь объект целиком |
 
 ## Правила верификации
 
@@ -88,21 +107,26 @@ cat ./docs/audit-baseline.yml
 
 ## Контекст анализа
 
-**TST-01 — TypeScript strict mode:**
-- `strict: false` или отключенные важные флаги (`noImplicitAny`, `strictNullChecks`)
-- `ts-ignore` / `@ts-expect-error` без объяснений
-- `any` типы в публичных API
-- Отключённые важные lint-правила без обоснования
+> Примеры ниже — иллюстративные. Конкретные инструменты строгого анализа, идиомы
+> и анти-паттерны для текущего рантайма бери из загруженного профиля
+> (`stacks/<runtime>.md`, секции Idioms/Anti-patterns/Tooling by category/Check-ID
+> hints по префиксу `TST-`). Node: tsconfig `strict`, jest/vitest, husky/lefthook.
+> Go: `go vet`/`staticcheck`/`golangci-lint`, `go test -cover`, Taskfile/lefthook.
 
-**TST-02 — Coverage thresholds в CI:**
-- `jest.config` / `vitest.config` без coverage thresholds
-- Thresholds настроены но не применяются в CI pipeline
-- Пороги установлены слишком низко (0% или не заданы)
+**TST-01 — Строгий статический анализ включён и обязателен:**
+- Node: `tsconfig.json` с `strict: false` или отключёнными важными флагами (`noImplicitAny`, `strictNullChecks`); `ts-ignore`/`@ts-expect-error` без объяснений; `any` в публичных API
+- Go: `go vet` + `staticcheck` + `golangci-lint` (включая `errcheck`/`nilness`/`gosec`) не настроены или не обязательны в CI
+- Отключённые важные правила линтера/анализатора без обоснования
 
-**TST-03 — Pre-commit/pre-push хуки:**
-- Отсутствие git hooks (lefthook, husky или аналог)
-- Хуки не запускают typecheck / lint / тесты
-- Хуки настроены но отключены или пропускаются через `--no-verify`
+**TST-02 — Пороги покрытия настроены и применяются:**
+- Node: `jest.config`/`vitest.config` без `coverageThreshold`
+- Go: нет `go test -cover -coverprofile`; порог не задан и не проверяется в CI/Taskfile (встроенного флага порога нет — проверка должна быть явной)
+- Пороги настроены, но не применяются в pipeline; либо заданы слишком низко (0% / не заданы)
+
+**TST-03 — Хуки/CI запускают проверки (тесты, линт, типы):**
+- Отсутствие git hooks (lefthook — кросс-стек, husky — Node) или эквивалентных CI-шагов
+- Хуки/цели не запускают статический анализ / линт / тесты (npm-scripts ↔ цели Taskfile)
+- Хуки настроены, но отключены или обходятся через `--no-verify`
 
 **TST-04 — Критические пути покрыты:**
 - Auth пути (login, logout, token refresh) без тестов
@@ -115,36 +139,37 @@ cat ./docs/audit-baseline.yml
 - Shared mutable state между тест-кейсами в одном suite
 - Тесты, зависящие от порядка выполнения
 - Отсутствие setup/teardown для интеграционных тестов
+- Go: `t.Parallel()` при общем мутируемом состоянии без синхронизации
 
-**TST-06 — Нет пропущенных/зафиксированных тестов:**
-- `.only` в тестах — остальные тесты не запускаются
-- `.skip` без обоснования — тест пропускается в CI
+**TST-06 — Нет отключённых/сфокусированных тестов без обоснования:**
+- Сфокусированный тест глушит остальные (Node: `.only`)
+- Тест отключён без причины (Node: `.skip`; Go: `t.Skip()` без объяснения, скрытие за build-тегами)
 - Закомментированные тесты без объяснения
 
 **TST-07 — Тесты проверяют поведение:**
-- `expect(true).toBe(true)` и другие tautology-тесты
-- Тесты без assertions (пустые expect, всегда зелёные)
-- Тесты, проверяющие implementation details (внутренние переменные, private методы) вместо behavior
+- Tautology-тесты (Node: `expect(true).toBe(true)`)
+- Тесты без assertions (всегда зелёные)
+- Тесты, проверяющие implementation details (внутренние переменные, приватные методы/неэкспортируемые функции) вместо behavior
 - Один огромный тест вместо нескольких изолированных по сценарию
 
-**Flaky tests:**
-- `Math.random()` без mock — непредсказуемый результат
-- `new Date()` / `Date.now()` без фиксации через jest.useFakeTimers
-- `setTimeout` / `sleep(N)` вместо ожидания события
+**TST-08 — Источники недетерминизма мокаются/инъектируются:**
+- Случайность без контроля (Node: `Math.random()` без mock; Go: `math/rand` без фиксированного seed)
+- Реальное время вместо инъекции (Node: `new Date()`/`Date.now()` без `useFakeTimers`; Go: прямой `time.Now()` вместо инъекции `Clock`)
+- Синхронизация через задержку вместо ожидания события (Node: `setTimeout`/`sleep(N)`; Go: `time.Sleep` для синхронизации горутин вместо канала/`WaitGroup`)
 - Тесты, зависящие от порядка выполнения (shared state)
 
-**Snapshot policy:**
-- Snapshot на весь HTML-компонент с 500+ строками — изменение одной строки ломает всё
-- Snapshot на объекты с динамическими полями (id, createdAt) без маскировки
-- Обновление снапшотов без ревью изменений
+**TST-09 — Golden/snapshot-тесты охватывают значимое:**
+- Снимок всего объекта/компонента (500+ строк) — изменение одной строки ломает всё (Node: snapshot, Go: `testdata/*.golden`)
+- Снимок объектов с динамическими полями (id, createdAt) без маскировки
+- Обновление golden/snapshot без ревью изменений
 
 ## Формат вывода
 
 | Check ID | Проверка | Статус | Уверенность | Доказательство | Решение | Исправлено |
 |----------|----------|--------|-------------|----------------|---------|------------|
-| TST-01 | TypeScript strict mode включён | ✅ PASS | High | `tsconfig.json:5` — strict: true | — | — |
-| TST-02 | Coverage thresholds настроены и применяются в CI | ❌ FAIL 🟠 | High | `jest.config.ts:1` | **1. Добавить `coverageThreshold: { global: { lines: 80 } }`** \\ 2. Настроить thresholds только для критических модулей \\ 3. Добавить coverage check в CI без блокировки | Нет |
-| TST-06 | Нет пропущенных или зафиксированных тестов (.only/.skip без обоснования) | ⏸ ACCEPTED | Medium | `tests/auth.test.ts:45` | В baseline: временно для дебага, будет убрано | — |
+| TST-01 | Строгий статический анализ включён и обязателен (компилятор/линтер не пропускает небезопасные конструкции) | ✅ PASS | High | `tsconfig.json:5` — strict: true | — | — |
+| TST-02 | Пороги покрытия настроены и применяются | ❌ FAIL 🟠 | High | `jest.config.ts:1` | **1. Добавить `coverageThreshold: { global: { lines: 80 } }`** \\ 2. Настроить thresholds только для критических модулей \\ 3. Добавить coverage check в CI без блокировки | Нет |
+| TST-06 | Нет отключённых/сфокусированных тестов без обоснования | ⏸ ACCEPTED | Medium | `tests/auth.test.ts:45` | В baseline: временно для дебага, будет убрано | — |
 
 Статусы: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED` / `🔍 UNVERIFIED`
 

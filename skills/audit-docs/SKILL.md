@@ -18,16 +18,38 @@ description: >
 - `audit-naming` — владеет самодокументирующимися именами. Здесь не оцениваем «понятность имён».
 - `audit-deployment` (DEP-08) — владеет полнотой `.env.example`. DOC-02 фокусируется на **рассинхроне** «код ↔ документация», а не на наличии файла.
 
-## Runtime Detection
+## Runtime Detection & Stack Profile
 
-До анализа определи стек и состав документации:
-```bash
-ls README* CHANGELOG* CONTRIBUTING* docs/ 2>/dev/null | head -20
-cat package.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print('scripts:', list(d.get('scripts',{}).keys())); print('private:', d.get('private', False)); print('main/exports:', d.get('main') or d.get('exports'))" 2>/dev/null || \
-ls go.mod requirements.txt pyproject.toml Cargo.toml 2>/dev/null | head -3
-```
+Этот аудит стек-агностичен: проверки сформулированы нейтрально, а конкретика
+(инструменты, идиомы, анти-паттерны, примеры) берётся из профиля стека.
 
-⚠️ Markdown-документация и проверки ссылок стек-агностичны. Привязаны к рантайму только DOC-02 (синтаксис env: `process.env`/`import.meta.env` для JS, `os.environ` для Python, `os.Getenv` для Go) и DOC-04/05 (синтаксис doc-комментариев: JSDoc/TSDoc, docstring, godoc). Для неизвестного рантайма JS-специфичные проверки помечай `🔍 UNVERIFIED`.
+1. **Профиль передан контекстом?** Если оркестратор `/audit` передал
+   `runtime=<id>` и/или содержимое профиля — используй его, шаги 2–3 пропусти.
+
+2. **Иначе определи РОВНО ОДИН рантайм** этого каталога:
+   ```bash
+   if   [ -f package.json ]; then echo "runtime=node"
+   elif [ -f go.mod ]; then echo "runtime=go"
+   elif [ -f pyproject.toml ] || [ -f requirements.txt ] || [ -f setup.py ]; then echo "runtime=python"
+   elif [ -f Cargo.toml ]; then echo "runtime=rust"
+   elif [ -f pom.xml ] || ls build.gradle* settings.gradle* >/dev/null 2>&1; then echo "runtime=java"
+   else echo "runtime=generic"; fi
+   ```
+   Один запуск = один рантайм; не миксуй backend и frontend. Если найдено
+   несколько маркеров (монорепо) — выбери соответствующий текущему scope/анализируемым
+   файлам и зафиксируй выбор в разделе Audit Coverage.
+
+3. **Загрузи профиль** через Read: `./skills/audit/stacks/<runtime>.md`
+   (fallback `./skills/audit/stacks/_generic.md`, если файл не найден).
+
+Дальше используй профиль:
+- **Инструменты** — из секции «Tooling by category» профиля (раздел
+  «Инструментальная поддержка» ниже ссылается на категории, а не на команды).
+- **Ожидания PASS** — из «Idioms»; **формулировки FAIL** — из «Anti-patterns».
+- **Точечные подсказки** — из «Check-ID hints» по префиксу `DOC-`.
+- Если профиль `tier: general` или `runtime=generic` → стек-специфичные находки
+  без однозначного evidence помечай `🔍 UNVERIFIED`, а не `❌ FAIL`. Проверки,
+  чей механизм в рантайме отсутствует, помечай `N/A`.
 
 ## Severity Guide
 
@@ -44,7 +66,7 @@ ls go.mod requirements.txt pyproject.toml Cargo.toml 2>/dev/null | head -3
 
 | Check ID | Проверка |
 |----------|----------|
-| DOC-01 | README/онбординг документирует установку, запуск, тесты, сборку; команды совпадают с `package.json` scripts (или эквивалентом) |
+| DOC-01 | README/онбординг документирует установку, запуск, тесты, сборку; команды совпадают с манифестом задач проекта (package.json scripts / Makefile / Taskfile) |
 | DOC-02 | Env-переменные синхронизированы: каждая используемая в коде переменная задокументирована, нет задокументированных, но неиспользуемых |
 | DOC-03 | Внутренние ссылки и пути в Markdown-документации ведут на существующие файлы и секции |
 | DOC-04 | Комментарии и JSDoc/docstring не противоречат коду (сигнатура, имена параметров, типы, описанное поведение) |
@@ -93,14 +115,15 @@ cat ./docs/audit-baseline.yml
 ## Контекст анализа
 
 **DOC-01 — Инструкции совпадают с реальностью:**
-- README ссылается на скрипт/команду (`npm run dev`, `make build`), которой нет в `package.json`/`Makefile`
+- README ссылается на скрипт/команду, которой нет в манифесте задач проекта (package.json scripts / Makefile / Taskfile)
 - Документированы шаги установки с неверным менеджером пакетов или версией рантайма (несовпадение с `engines`/lock-файлом)
 - Отсутствует базовый онбординг (как установить / запустить / прогнать тесты) при наличии этих скриптов в проекте
 
 **DOC-02 — Синхронизация env-переменных:**
-- Переменная используется в коде (`process.env.X`), но отсутствует в `.env.example`/README — оператор не узнает о ней
+- Переменная используется в коде, но отсутствует в `.env.example`/README — оператор не узнает о ней
 - Переменная задокументирована, но больше нигде не читается (устаревшая инструкция)
 - Описание переменной противоречит коду (дефолт, формат, обязательность)
+- Синтаксис извлечения env-переменных из кода бери из профиля стека (`process.env` / `import.meta.env` / `os.Getenv`)
 
 **DOC-03 — Валидные ссылки и пути:**
 - Относительная ссылка в Markdown ведёт на несуществующий файл
@@ -113,9 +136,9 @@ cat ./docs/audit-baseline.yml
 - Docstring/комментарий ссылается на параметр/шаг, которого в функции уже нет
 
 **DOC-05 — Документация публичной поверхности:**
-- Применять ТОЛЬКО к библиотекам/публикуемым пакетам (`"private": false` или наличие `exports`/`main`)
+- Применять ТОЛЬКО если проект является публикуемой библиотекой/пакетом (по манифесту проекта)
 - Экспортируемая публичная функция/класс/тип без doc-комментария назначения
-- Для приватных приложений (`"private": true`) — DOC-05 = `N/A`, не FAIL
+- Для приложений (не публикуемая библиотека) — DOC-05 = `N/A`, не FAIL
 
 **DOC-06 — Актуальность проектной документации:**
 - Архитектурный документ описывает модуль/сервис/эндпоинт, удалённый или переименованный в коде
@@ -124,19 +147,17 @@ cat ./docs/audit-baseline.yml
 
 ## Инструментальная поддержка
 
-Env-переменные — код vs документация (DOC-02):
-```bash
-echo "=== в коде ===" && grep -rEoh "process\.env\.[A-Z0-9_]+|import\.meta\.env\.[A-Z0-9_]+" ./src 2>/dev/null | sed -E 's/.*env\.//' | sort -u
-echo "=== в .env.example ===" && grep -Eo "^[A-Z0-9_]+" .env.example 2>/dev/null | sort -u
-```
-Разница между списками — кандидаты в DOC-02. Верифицируй каждую вручную (бывают переменные из CI/инфраструктуры, не из `.env`).
+Env-переменные — код vs документация (DOC-02): извлеки имена env-переменных из кода
+инструментом категории **env-extraction** из профиля стека (секция «Tooling by
+category»; синтаксис зависит от рантайма — Node: `process.env`/`import.meta.env`;
+Go: `os.Getenv`). Сравни полученный список с задокументированными переменными
+(`.env.example`/README); разница между списками — кандидаты в DOC-02. Верифицируй
+каждую вручную (бывают переменные из CI/инфраструктуры, не из `.env`).
 
-Команды README vs scripts (DOC-01):
-```bash
-echo "=== scripts ===" && cat package.json 2>/dev/null | python3 -c "import sys,json; print('\n'.join(json.load(sys.stdin).get('scripts',{}).keys()))" 2>/dev/null
-echo "=== команды в README ===" && grep -Eoh "npm run [a-z:-]+|pnpm [a-z:-]+|yarn [a-z:-]+" README* 2>/dev/null | sort -u
-```
-Команда из README, которой нет в scripts → кандидат в DOC-01.
+Команды README vs манифест задач (DOC-01): возьми список задач/скриптов из
+**манифеста задач проекта** (по профилю стека: `package.json` scripts / `Makefile` /
+`Taskfile`). Команды, упомянутые в README, сверь с этим манифестом — команда из
+README, которой нет в манифесте, → кандидат в DOC-01.
 
 Внутренние ссылки в Markdown (DOC-03): извлеки относительные ссылки `[...](./path)` и проверь существование путей через `Read`/`ls`. Внешние `http(s)://`-ссылки НЕ проверяй на доступность.
 
@@ -147,7 +168,7 @@ echo "=== команды в README ===" && grep -Eoh "npm run [a-z:-]+|pnpm [a-z
 | DOC-01 | README документирует установку/запуск/тесты, команды совпадают со scripts | ❌ FAIL 🟠 | High | `README.md:24` — `npm run start:dev`; в `package.json` есть только `dev` | **1. Исправить README на `npm run dev`** \\ 2. Добавить алиас `start:dev` в scripts \\ 3. Сгенерировать раздел команд из scripts автоматически | Нет |
 | DOC-02 | Env-переменные синхронизированы | ❌ FAIL 🟠 | High | `src/config.ts:9` читает `REDIS_URL`; нет в `.env.example` | **1. Добавить `REDIS_URL` в `.env.example` с описанием** \\ 2. Валидировать env при старте (zod/envalid) \\ 3. Удалить чтение переменной, если она не нужна | Нет |
 | DOC-04 | Комментарии и JSDoc не противоречат коду | ❌ FAIL 🟡 | Medium | `src/user.ts:40` JSDoc `@returns User`; функция возвращает `User | null` | **1. Поправить `@returns` на `User \| null`** \\ 2. Удалить устаревший JSDoc \\ 3. Включить `eslint-plugin-jsdoc` для авто-проверки | Нет |
-| DOC-05 | Публичная поверхность задокументирована | ✅ PASS | Medium | `"private": true` — приложение, не библиотека → N/A | — | — |
+| DOC-05 | Публичная поверхность задокументирована | ✅ PASS | Medium | по манифесту — приложение, не публикуемая библиотека → N/A | — | — |
 
 Статусы: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED` / `🔍 UNVERIFIED` / `N/A`
 

@@ -9,19 +9,38 @@ description: >
 
 Применим к коду, принимающему внешние данные: HTTP handlers, WebSocket, CLI args, file parsers, event consumers, gRPC endpoints. Для чисто внутреннего кода без внешних входов — верни пустой ответ.
 
-## Runtime Detection
+## Runtime Detection & Stack Profile
 
-До анализа определи runtime проекта:
-```bash
-cat package.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print('Node.js:', list(d.get('dependencies',{}).keys())[:8])" 2>/dev/null || \
-ls go.mod requirements.txt pyproject.toml Cargo.toml 2>/dev/null | head -3
-```
+Этот аудит стек-агностичен: проверки сформулированы нейтрально, а конкретика
+(инструменты, идиомы, анти-паттерны, примеры) берётся из профиля стека.
 
-⚠️ Этот чеклист оптимизирован для **Node.js/TypeScript**. При обнаружении другого runtime:
-- Go → `context.Context` вместо `AbortSignal`, `SIGTERM handler` вместо `process.on`
-- Python → `asyncio cancellation`, `signal.SIGTERM`
-- Java/Spring → `@Transactional`, `ApplicationContext lifecycle`
-- Для неизвестного runtime — JS-специфичные проверки помечай `🔍 UNVERIFIED`
+1. **Профиль передан контекстом?** Если оркестратор `/audit` передал
+   `runtime=<id>` и/или содержимое профиля — используй его, шаги 2–3 пропусти.
+
+2. **Иначе определи РОВНО ОДИН рантайм** этого каталога:
+   ```bash
+   if   [ -f package.json ]; then echo "runtime=node"
+   elif [ -f go.mod ]; then echo "runtime=go"
+   elif [ -f pyproject.toml ] || [ -f requirements.txt ] || [ -f setup.py ]; then echo "runtime=python"
+   elif [ -f Cargo.toml ]; then echo "runtime=rust"
+   elif [ -f pom.xml ] || ls build.gradle* settings.gradle* >/dev/null 2>&1; then echo "runtime=java"
+   else echo "runtime=generic"; fi
+   ```
+   Один запуск = один рантайм; не миксуй backend и frontend. Если найдено
+   несколько маркеров (монорепо) — выбери соответствующий текущему scope/анализируемым
+   файлам и зафиксируй выбор в разделе Audit Coverage.
+
+3. **Загрузи профиль** через Read: `./skills/audit/stacks/<runtime>.md`
+   (fallback `./skills/audit/stacks/_generic.md`, если файл не найден).
+
+Дальше используй профиль:
+- **Инструменты** — из секции «Tooling by category» профиля (раздел
+  «Инструментальная поддержка» ниже ссылается на категории, а не на команды).
+- **Ожидания PASS** — из «Idioms»; **формулировки FAIL** — из «Anti-patterns».
+- **Точечные подсказки** — из «Check-ID hints» по префиксу `VAL-`.
+- Если профиль `tier: general` или `runtime=generic` → стек-специфичные находки
+  без однозначного evidence помечай `🔍 UNVERIFIED`, а не `❌ FAIL`. Проверки,
+  чей механизм в рантайме отсутствует, помечай `N/A`.
 
 ## Severity Guide
 
@@ -40,7 +59,7 @@ ls go.mod requirements.txt pyproject.toml Cargo.toml 2>/dev/null | head -3
 |----------|----------|
 | VAL-01 | Все входящие данные (body, params, query) проходят schema-валидацию |
 | VAL-02 | Строки имеют maxLength, числа — диапазон, enum-значения — whitelist |
-| VAL-03 | JSON.parse обёрнут в try/catch с последующей валидацией структуры |
+| VAL-03 | Парсинг недоверенного ввода обрабатывает ошибки и валидирует структуру результата |
 | VAL-04 | Identity данные берутся из аутентифицированного контекста (не из user input) |
 | VAL-05 | Вложенные структуры и массивы ограничены (глубина, minItems/maxItems) |
 | VAL-06 | Валидатор не выполняет неявный coercion (строка "false" → boolean true) [⚡ dynamic] |
@@ -88,7 +107,7 @@ cat ./docs/audit-baseline.yml
 ## Контекст анализа
 
 **VAL-01 — Все входящие данные проходят schema-валидацию:**
-- HTTP request body используется напрямую без schema validation (zod/joi/yup/etc)
+- HTTP request body используется напрямую без schema-валидации (Node: zod/joi/yup/etc; Go: проверка в resolver/handler — go-playground/validator или ручная проверка; gqlgen типизирует вход на уровне схемы, но прикладные инварианты всё равно проверяй)
 - Query params / path params используются без типизации и проверки
 - Отсутствие проверки обязательных полей
 - Нет валидации типов (строка может прийти вместо числа)
@@ -100,10 +119,11 @@ cat ./docs/audit-baseline.yml
 - Отсутствие whitelist для enum-полей (принимается любое строковое значение)
 - Нет проверки формата (email, UUID, дата) там где она применима
 
-**VAL-03 — JSON.parse с защитой:**
-- JSON.parse без try/catch — выбросит SyntaxError при невалидном input
-- JSON.parse без последующей валидации структуры (тип полей не проверен)
-- Доверие структуре распарсенного JSON без schema-проверки
+**VAL-03 — Парсинг недоверенного ввода с защитой:**
+- Node: `JSON.parse` без try/catch — выбросит SyntaxError при невалидном input
+- Go: `json.Unmarshal` / парсинг без проверки возвращаемой ошибки (err проигнорирован)
+- Парсинг без последующей валидации структуры (тип полей не проверен)
+- Доверие структуре распарсенного результата без schema-проверки
 
 **VAL-04 — Identity из аутентифицированного контекста:**
 - JWT claims используются без верификации подписи
@@ -122,6 +142,7 @@ cat ./docs/audit-baseline.yml
 - express-validator: без explicit type checks принимает "1" как число 1
 
 **VAL-07 — Prototype pollution:**
+- Преимущественно JS-специфично (`__proto__`/`constructor`/`prototype`). В Go prototype pollution неприменим (нет прототипной модели объектов) → для Go-рантайма помечай VAL-07 как `N/A`. Концепт ниже актуален для Node:
 - `Object.assign(target, userInput)` без проверки — ключ `__proto__` загрязняет Object.prototype
 - `_.merge(obj, userInput)` в lodash < 4.17.21 — уязвим к prototype pollution
 - Deep merge из user input без sanitize ключей (`constructor`, `prototype`, `__proto__`)

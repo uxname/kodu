@@ -9,19 +9,38 @@ description: >
 
 Применим к коду с внешними вызовами (HTTP, БД, очереди, файловая система), асинхронному коду, обработчикам событий. Для синхронных утилит без I/O — верни пустой ответ.
 
-## Runtime Detection
+## Runtime Detection & Stack Profile
 
-До анализа определи runtime проекта:
-```bash
-cat package.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print('Node.js:', list(d.get('dependencies',{}).keys())[:8])" 2>/dev/null || \
-ls go.mod requirements.txt pyproject.toml Cargo.toml 2>/dev/null | head -3
-```
+Этот аудит стек-агностичен: проверки сформулированы нейтрально, а конкретика
+(инструменты, идиомы, анти-паттерны, примеры) берётся из профиля стека.
 
-⚠️ Этот чеклист оптимизирован для **Node.js/TypeScript**. При обнаружении другого runtime:
-- Go → `context.Context` вместо `AbortSignal`, `SIGTERM handler` вместо `process.on`
-- Python → `asyncio cancellation`, `signal.SIGTERM`
-- Java/Spring → `@Transactional`, `ApplicationContext lifecycle`
-- Для неизвестного runtime — JS-специфичные проверки помечай `🔍 UNVERIFIED`
+1. **Профиль передан контекстом?** Если оркестратор `/audit` передал
+   `runtime=<id>` и/или содержимое профиля — используй его, шаги 2–3 пропусти.
+
+2. **Иначе определи РОВНО ОДИН рантайм** этого каталога:
+   ```bash
+   if   [ -f package.json ]; then echo "runtime=node"
+   elif [ -f go.mod ]; then echo "runtime=go"
+   elif [ -f pyproject.toml ] || [ -f requirements.txt ] || [ -f setup.py ]; then echo "runtime=python"
+   elif [ -f Cargo.toml ]; then echo "runtime=rust"
+   elif [ -f pom.xml ] || ls build.gradle* settings.gradle* >/dev/null 2>&1; then echo "runtime=java"
+   else echo "runtime=generic"; fi
+   ```
+   Один запуск = один рантайм; не миксуй backend и frontend. Если найдено
+   несколько маркеров (монорепо) — выбери соответствующий текущему scope/анализируемым
+   файлам и зафиксируй выбор в разделе Audit Coverage.
+
+3. **Загрузи профиль** через Read: `./skills/audit/stacks/<runtime>.md`
+   (fallback `./skills/audit/stacks/_generic.md`, если файл не найден).
+
+Дальше используй профиль:
+- **Инструменты** — из секции «Tooling by category» профиля (раздел
+  «Инструментальная поддержка» ниже ссылается на категории, а не на команды).
+- **Ожидания PASS** — из «Idioms»; **формулировки FAIL** — из «Anti-patterns».
+- **Точечные подсказки** — из «Check-ID hints» по префиксу `ERR-`.
+- Если профиль `tier: general` или `runtime=generic` → стек-специфичные находки
+  без однозначного evidence помечай `🔍 UNVERIFIED`, а не `❌ FAIL`. Проверки,
+  чей механизм в рантайме отсутствует, помечай `N/A`.
 
 ## Severity Guide
 
@@ -38,15 +57,15 @@ ls go.mod requirements.txt pyproject.toml Cargo.toml 2>/dev/null | head -3
 
 | Check ID | Проверка |
 |----------|----------|
-| ERR-01 | Ошибки не проглатываются — catch-блоки обрабатывают или пробрасывают |
+| ERR-01 | Ошибки не проглатываются — возвращаемая ошибка не игнорируется (в т.ч. через `_`), catch-блоки обрабатывают или пробрасывают |
 | ERR-02 | Внутренние детали (stack trace, пути, версии) не попадают в ответы |
-| ERR-03 | Async handlers корректно пробрасывают исключения в error middleware |
-| ERR-04 | Unhandled rejections и uncaught exceptions имеют process-level обработчики |
-| ERR-05 | Внешние вызовы (HTTP-клиенты, DB) имеют явные таймауты |
+| ERR-03 | Падения внутри обработчиков (panic/исключения) перехватываются и не роняют процесс/соединение |
+| ERR-04 | Непойманные сбои верхнего уровня (паники в фоновых задачах) логируются и не приводят к тихому падению |
+| ERR-05 | Внешние вызовы (HTTP-клиент, DB) имеют явные таймауты |
 | ERR-06 | Graceful shutdown реализован — SIGTERM обрабатывается |
 | ERR-07 | Error responses консистентны по структуре во всём приложении |
 | ERR-08 | Retry-стратегии используют exponential backoff с jitter |
-| ERR-09 | AbortSignal/CancellationToken пробрасывается во внешние вызовы [⚡ dynamic] |
+| ERR-09 | Контекст отмены пробрасывается во внешние вызовы и прерывает их [⚡ dynamic] |
 
 ## Правила верификации
 
@@ -88,11 +107,16 @@ cat ./docs/audit-baseline.yml
 
 ## Контекст анализа
 
+> Примеры ниже — иллюстративные (Node/TS). Конкретику текущего рантайма бери из
+> загруженного профиля (`stacks/<runtime>.md`, секции Idioms/Anti-patterns/Check-ID hints).
+
 **ERR-01 — Ошибки не проглатываются:**
+- Возвращаемая ошибка игнорируется (в т.ч. через `_`) и не обрабатывается
 - Пустые catch-блоки (`catch(e) {}`)
 - `catch` только с логом без восстановления и re-throw
 - Promise без `.catch()` или `try/await` без `catch`
 - Unhandled promise rejections без обработки
+- В Go: `_ = f()` / `v, _ := f()` глотает ошибку; ловится `errcheck`/`golangci-lint`
 
 **ERR-02 — Внутренние детали не в ответах:**
 - Stack trace в production API responses
@@ -100,37 +124,44 @@ cat ./docs/audit-baseline.yml
 - Версии зависимостей/фреймворка в заголовках или ответах
 - DB-специфичные сообщения об ошибках (SQL syntax error) в API responses
 
-**ERR-03 — Async handlers пробрасывают исключения:**
+**ERR-03 — Падения внутри обработчиков перехватываются:**
+- Паника/исключение внутри обработчика роняет процесс или соединение вместо локального перехвата
 - Express async handlers без asyncHandler wrapper или Express 5
 - Promise rejection в middleware не пробрасывается в error middleware
 - Необработанные исключения в setTimeout/setInterval колбэках
+- В Go: нет recover-middleware (chi `middleware.Recoverer`), нет `RecoverFunc` в gqlgen, нет recover в обёртке задачи (asynq) — паника роняет соединение/процесс
 
-**ERR-04 — Process-level обработчики:**
-- Отсутствие `process.on('unhandledRejection')` 
+**ERR-04 — Непойманные сбои верхнего уровня:**
+- Непойманный сбой верхнего уровня не логируется и приводит к тихому падению
+- Отсутствие `process.on('unhandledRejection')`
 - Отсутствие `process.on('uncaughtException')`
 - Нет логирования и корректного выхода при критических ошибках процесса
+- В Go: паника в фоновой goroutine/задаче без `defer recover()` роняет весь процесс — нужен `defer recover()` в каждой goroutine
 
 **ERR-05 — Явные таймауты для внешних вызовов:**
-- HTTP-клиенты (axios, fetch, got) без явного timeout
+- HTTP-клиент / DB-вызов без явного timeout
 - БД-запросы без query timeout / statement timeout
 - Отсутствие timeout для очередей сообщений и внешних gRPC вызовов
 - Бесконечные retry без exponential backoff и max attempts
+- В Go: `http.Client{Timeout: ...}`, `context.WithTimeout` для запросов к БД/внешним сервисам
 
 **ERR-06 — Graceful shutdown:**
-- Отсутствие `process.on('SIGTERM')` обработчика
+- Отсутствие обработки сигнала завершения (SIGTERM)
 - Нет закрытия DB-пула и HTTP-сервера при shutdown
 - Незавершённые запросы не дожидаются окончания при shutdown
+- В Go: `signal.NotifyContext` + `server.Shutdown(ctx)` + закрытие пулов (pgx), воркеров (asynq), redis
 
 **ERR-07 — Консистентная структура error responses:**
 - Разный формат ошибок в разных endpoint'ах (нет единого error shape)
 - Отсутствие machine-readable error code (только human-readable message)
 - HTTP статус 200 при ошибке (должен быть 4xx/5xx)
 
-**Retry & Cancellation:**
+**Retry & Cancellation (ERR-08 / ERR-09):**
 - HTTP-retry без задержки или с фиксированной задержкой (нет exponential backoff)
 - Отсутствие jitter — все ретраи синхронизируются при массовом сбое
-- fetch/axios без AbortSignal — висящие запросы после disconnect клиента
-- Цепочка обработчиков не передаёт AbortController вглубь
+- Внешний вызов без контекста отмены — висящие запросы после disconnect клиента (Node: fetch/axios без AbortSignal)
+- Контекст отмены не пробрасывается вглубь цепочки вызовов и не прерывает их
+- В Go: `context.Context` — первоклассный механизм отмены, пробрасывается во все внешние вызовы (pgx/HTTP/asynq)
 
 ## Граница с другими аудитами
 
@@ -142,8 +173,8 @@ cat ./docs/audit-baseline.yml
 
 | Check ID | Проверка | Статус | Уверенность | Доказательство | Решение | Исправлено |
 |----------|----------|--------|-------------|----------------|---------|------------|
-| ERR-01 | Ошибки не проглатываются — catch-блоки обрабатывают или пробрасывают | ✅ PASS | High | `src/` — все catch-блоки логируют или пробрасывают | — | — |
-| ERR-05 | Внешние вызовы (HTTP-клиенты, DB) имеют явные таймауты | ❌ FAIL 🟠 | High | `services/api.ts:18` | **1. Добавить timeout в axios: `{ timeout: 5000 }`** \\ 2. Использовать AbortController с setTimeout \\ 3. Установить глобальный default timeout | Нет |
+| ERR-01 | Ошибки не проглатываются — возвращаемая ошибка не игнорируется (в т.ч. через `_`), catch-блоки обрабатывают или пробрасывают | ✅ PASS | High | `src/` — все catch-блоки логируют или пробрасывают | — | — |
+| ERR-05 | Внешние вызовы (HTTP-клиент, DB) имеют явные таймауты | ❌ FAIL 🟠 | High | `services/api.ts:18` | **1. Добавить timeout в axios: `{ timeout: 5000 }`** \\ 2. Использовать AbortController с setTimeout \\ 3. Установить глобальный default timeout | Нет |
 | ERR-06 | Graceful shutdown реализован — SIGTERM обрабатывается | ⏸ ACCEPTED | Medium | `server.ts:5` | В baseline: управляется оркестратором | — |
 
 Статусы: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED` / `🔍 UNVERIFIED`

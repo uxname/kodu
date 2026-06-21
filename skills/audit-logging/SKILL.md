@@ -9,19 +9,38 @@ description: >
 
 Перед анализом оцени: содержит ли код вызовы logger, console.log/error/warn, запись в файлы логов, middleware для логирования или аудит-треки? Если анализируемый файл не содержит никакого логирования — верни пустой ответ без таблицы.
 
-## Runtime Detection
+## Runtime Detection & Stack Profile
 
-До анализа определи runtime проекта:
-```bash
-cat package.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print('Node.js:', list(d.get('dependencies',{}).keys())[:8])" 2>/dev/null || \
-ls go.mod requirements.txt pyproject.toml Cargo.toml 2>/dev/null | head -3
-```
+Этот аудит стек-агностичен: проверки сформулированы нейтрально, а конкретика
+(инструменты, идиомы, анти-паттерны, примеры) берётся из профиля стека.
 
-⚠️ Этот чеклист оптимизирован для **Node.js/TypeScript**. При обнаружении другого runtime:
-- Go → `context.Context` вместо `AbortSignal`, `SIGTERM handler` вместо `process.on`
-- Python → `asyncio cancellation`, `signal.SIGTERM`
-- Java/Spring → `@Transactional`, `ApplicationContext lifecycle`
-- Для неизвестного runtime — JS-специфичные проверки помечай `🔍 UNVERIFIED`
+1. **Профиль передан контекстом?** Если оркестратор `/audit` передал
+   `runtime=<id>` и/или содержимое профиля — используй его, шаги 2–3 пропусти.
+
+2. **Иначе определи РОВНО ОДИН рантайм** этого каталога:
+   ```bash
+   if   [ -f package.json ]; then echo "runtime=node"
+   elif [ -f go.mod ]; then echo "runtime=go"
+   elif [ -f pyproject.toml ] || [ -f requirements.txt ] || [ -f setup.py ]; then echo "runtime=python"
+   elif [ -f Cargo.toml ]; then echo "runtime=rust"
+   elif [ -f pom.xml ] || ls build.gradle* settings.gradle* >/dev/null 2>&1; then echo "runtime=java"
+   else echo "runtime=generic"; fi
+   ```
+   Один запуск = один рантайм; не миксуй backend и frontend. Если найдено
+   несколько маркеров (монорепо) — выбери соответствующий текущему scope/анализируемым
+   файлам и зафиксируй выбор в разделе Audit Coverage.
+
+3. **Загрузи профиль** через Read: `./skills/audit/stacks/<runtime>.md`
+   (fallback `./skills/audit/stacks/_generic.md`, если файл не найден).
+
+Дальше используй профиль:
+- **Инструменты** — из секции «Tooling by category» профиля (раздел
+  «Инструментальная поддержка» ниже ссылается на категории, а не на команды).
+- **Ожидания PASS** — из «Idioms»; **формулировки FAIL** — из «Anti-patterns».
+- **Точечные подсказки** — из «Check-ID hints» по префиксу `LOG-`.
+- Если профиль `tier: general` или `runtime=generic` → стек-специфичные находки
+  без однозначного evidence помечай `🔍 UNVERIFIED`, а не `❌ FAIL`. Проверки,
+  чей механизм в рантайме отсутствует, помечай `N/A`.
 
 ## Severity Guide
 
@@ -38,7 +57,7 @@ ls go.mod requirements.txt pyproject.toml Cargo.toml 2>/dev/null | head -3
 
 | Check ID | Проверка |
 |----------|----------|
-| LOG-01 | Production-код не использует console.log/console.error напрямую |
+| LOG-01 | Production-код не пишет в stdout/stderr напрямую в обход структурированного логгера |
 | LOG-02 | PII не логируется (email, телефон, имена, адреса, финансовые данные) |
 | LOG-03 | Секреты и токены не попадают в логи |
 | LOG-04 | Запросы трассируются (Request ID или correlation ID сквозной) |
@@ -86,10 +105,11 @@ cat ./docs/audit-baseline.yml
 
 ## Контекст анализа
 
-**LOG-01 — Нет прямого console в production:**
-- `console.log`, `console.error`, `console.warn` в production-коде вместо структурированного логгера
+**LOG-01 — Нет прямой записи в stdout/stderr в обход логгера:**
+- Node: `console.log`, `console.error`, `console.warn` в production-коде вместо структурированного логгера
+- Go: `fmt.Print*` / `log.Print*` / `println` в production-путях вместо `slog`
 - Логирование каждой итерации цикла без level-контроля
-- Verbose-логи без флага условия (должны быть за `if (logger.isDebugEnabled())`)
+- Verbose-логи без флага условия (должны быть за уровнем debug, напр. `if (logger.isDebugEnabled())`)
 
 **LOG-02 — PII не логируется:**
 - Логирование email, телефонов, имён, адресов, дат рождения
@@ -105,11 +125,13 @@ cat ./docs/audit-baseline.yml
 - Логи без request ID / correlation ID — невозможно отследить цепочку
 - Request ID не пробрасывается в дочерние сервисы
 - Логи без user ID или session context для аутентифицированных операций
+- Go: нет middleware, генерирующего request ID (chi `middleware.RequestID`), и ID не кладётся в `context` для последующих `slog`-вызовов
 
 **LOG-05 — Структурированный формат в production:**
 - Plain text логи вместо JSON в production-среде
 - Разный формат логов в разных частях приложения
-- Вложенные объекты сериализуются как `[object Object]`
+- Node: вложенные объекты сериализуются как `[object Object]`
+- Go: текстовый хендлер вместо JSON в prod (нет `slog.NewJSONHandler` для production-конфигурации)
 
 **LOG-06 — Критические операции логируются:**
 - Операции аутентификации (login, logout, password change) без логов
@@ -132,7 +154,7 @@ cat ./docs/audit-baseline.yml
 
 | Check ID | Проверка | Статус | Уверенность | Доказательство | Решение | Исправлено |
 |----------|----------|--------|-------------|----------------|---------|------------|
-| LOG-01 | Production-код не использует console.log/console.error напрямую | ✅ PASS | High | `src/` grep — console.* не найдено | — | — |
+| LOG-01 | Production-код не пишет в stdout/stderr напрямую в обход структурированного логгера | ✅ PASS | High | `src/` grep — console.* не найдено | — | — |
 | LOG-02 | PII не логируется (email, телефон, имена, адреса, финансовые данные) | ❌ FAIL 🔴 | High | `auth/login.ts:34` | **1. Удалить email из лога, логировать только userId** \\ 2. Маскировать PII через log sanitizer \\ 3. Заменить на структурированный лог без PII | Нет |
 | LOG-04 | Запросы трассируются (Request ID или correlation ID сквозной) | ⏸ ACCEPTED | Medium | — | В baseline: трейсинг через внешний сервис | — |
 

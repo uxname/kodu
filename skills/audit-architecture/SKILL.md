@@ -9,19 +9,38 @@ description: >
 
 Применим к проектам с выраженной слоистой архитектурой (MVC, Clean Architecture, DDD, Hexagonal). Для single-file скриптов или утилит без архитектурного деления — верни пустой ответ.
 
-## Runtime Detection
+## Runtime Detection & Stack Profile
 
-До анализа определи runtime проекта:
-```bash
-cat package.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print('Node.js:', list(d.get('dependencies',{}).keys())[:8])" 2>/dev/null || \
-ls go.mod requirements.txt pyproject.toml Cargo.toml 2>/dev/null | head -3
-```
+Этот аудит стек-агностичен: проверки сформулированы нейтрально, а конкретика
+(инструменты, идиомы, анти-паттерны, примеры) берётся из профиля стека.
 
-⚠️ Этот чеклист оптимизирован для **Node.js/TypeScript**. При обнаружении другого runtime:
-- Go → `context.Context` вместо `AbortSignal`, `SIGTERM handler` вместо `process.on`
-- Python → `asyncio cancellation`, `signal.SIGTERM`
-- Java/Spring → `@Transactional`, `ApplicationContext lifecycle`
-- Для неизвестного runtime — JS-специфичные проверки помечай `🔍 UNVERIFIED`
+1. **Профиль передан контекстом?** Если оркестратор `/audit` передал
+   `runtime=<id>` и/или содержимое профиля — используй его, шаги 2–3 пропусти.
+
+2. **Иначе определи РОВНО ОДИН рантайм** этого каталога:
+   ```bash
+   if   [ -f package.json ]; then echo "runtime=node"
+   elif [ -f go.mod ]; then echo "runtime=go"
+   elif [ -f pyproject.toml ] || [ -f requirements.txt ] || [ -f setup.py ]; then echo "runtime=python"
+   elif [ -f Cargo.toml ]; then echo "runtime=rust"
+   elif [ -f pom.xml ] || ls build.gradle* settings.gradle* >/dev/null 2>&1; then echo "runtime=java"
+   else echo "runtime=generic"; fi
+   ```
+   Один запуск = один рантайм; не миксуй backend и frontend. Если найдено
+   несколько маркеров (монорепо) — выбери соответствующий текущему scope/анализируемым
+   файлам и зафиксируй выбор в разделе Audit Coverage.
+
+3. **Загрузи профиль** через Read: `./skills/audit/stacks/<runtime>.md`
+   (fallback `./skills/audit/stacks/_generic.md`, если файл не найден).
+
+Дальше используй профиль:
+- **Инструменты** — из секции «Tooling by category» профиля (раздел
+  «Инструментальная поддержка» ниже ссылается на категории, а не на команды).
+- **Ожидания PASS** — из «Idioms»; **формулировки FAIL** — из «Anti-patterns».
+- **Точечные подсказки** — из «Check-ID hints» по префиксу `ARC-`.
+- Если профиль `tier: general` или `runtime=generic` → стек-специфичные находки
+  без однозначного evidence помечай `🔍 UNVERIFIED`, а не `❌ FAIL`. Проверки,
+  чей механизм в рантайме отсутствует, помечай `N/A`.
 
 ## Severity Guide
 
@@ -93,7 +112,7 @@ cat ./docs/audit-baseline.yml
 **ARC-02 — Presentation layer без прямых DB-вызовов:**
 - Прямые обращения к ORM/query builder из роутеров/контроллеров
 - Импорт репозиториев или DB-клиента непосредственно в слой представления
-- SQL / Prisma / Mongoose вызовы в middleware
+- SQL / Prisma / Mongoose вызовы в middleware (примеры иллюстративны — Node; конкретные ORM/драйверы текущего рантайма см. в профиле, секции Idioms/Anti-patterns)
 
 **ARC-03 — Нет circular dependencies:**
 - Модуль A импортирует модуль B, который импортирует модуль A
@@ -106,7 +125,7 @@ cat ./docs/audit-baseline.yml
 - Модуль делает несвязанные вещи (low cohesion)
 
 **ARC-05 — Конфигурация изолирована:**
-- `process.env.XYZ` используется напрямую вне config-модуля
+- Доступ к конфигурации/env централизован в одном модуле; чтение env вразброс вне config-модуля — нарушение (профиль уточняет механизм: `process.env` в Node / `os.Getenv` в Go / `caarlos0/env`-теги и т.п.)
 - Магические строки с именами env-переменных разбросаны по коду
 - Нет единой точки валидации конфигурации при старте приложения
 
@@ -116,6 +135,7 @@ cat ./docs/audit-baseline.yml
 - Отсутствие dependency injection делает код нетестируемым (нельзя подменить в тестах)
 
 **Направление зависимостей (Dependency Rule):**
+> Примеры ниже иллюстративны (Node); конкретные ORM/типы инфраструктуры текущего рантайма см. в профиле (секции Idioms/Anti-patterns/Check-ID hints, ARC-07).
 - Domain/service слой импортирует типы Prisma напрямую (должен через repository interface)
 - Бизнес-логика зависит от Express Request/Response типов
 - Domain entity содержит ORM-декораторы (TypeORM @Entity в domain классе)
@@ -123,12 +143,15 @@ cat ./docs/audit-baseline.yml
 
 ## Инструментальная поддержка
 
-Перед анализом выполни (если инструменты установлены):
-```bash
-npx steiger ./src 2>/dev/null || true   # FSD layer violations
-npx dependency-cruiser --validate .dependency-cruiser.js src 2>/dev/null || true
-```
-Используй вывод как подсказку, верифицируй находки вручную.
+Для ARC-03 (circular dependencies) и нарушений слоёв используй инструмент
+категории **arch-lint** из профиля стека (секция «Tooling by category»). Используй
+вывод как подсказку и верифицируй каждую находку вручную (`file:line`) перед
+занесением в FAIL. Если ячейка пустая (tier general/generic) — проверяй вручную и
+помечай находки `🔍 UNVERIFIED`.
+
+Примечание: в Go циклы импортов запрещены компилятором, поэтому ARC-03 на уровне
+пакетов — авто-PASS / N/A; проверять нужно только логические слои (см. Check-ID
+hints профиля go).
 
 ## Формат вывода
 

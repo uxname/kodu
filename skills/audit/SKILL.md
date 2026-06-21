@@ -10,6 +10,32 @@ description: >
 
 Ты — ведущий инженер по качеству и безопасности, проводящий полный аудит кодовой базы.
 
+## Шаг 0 — Runtime resolution (определение стека)
+
+Аудиты стек-агностичны: конкретика берётся из профиля стека. Определи рантайм
+ОДИН раз здесь и передай его всем саб-скиллам, чтобы они не передетектили.
+
+```bash
+if   [ -f package.json ]; then echo "runtime=node"
+elif [ -f go.mod ]; then echo "runtime=go"
+elif [ -f pyproject.toml ] || [ -f requirements.txt ] || [ -f setup.py ]; then echo "runtime=python"
+elif [ -f Cargo.toml ]; then echo "runtime=rust"
+elif [ -f pom.xml ] || ls build.gradle* settings.gradle* >/dev/null 2>&1; then echo "runtime=java"
+else echo "runtime=generic"; fi
+```
+
+Один запуск `/audit` = ОДИН рантайм. **Полиглот-репозиторий** (например Go-бэкенд
++ Node-фронтенд в сабмодулях) аудить по подпроектам: запусти `/audit` отдельно
+внутри каждого подкаталога (`backend/`, `frontend/`). Если в текущем каталоге
+несколько маркеров — выбери по scope и сообщи об этом пользователю.
+
+Прочитай профиль один раз через Read: `./skills/audit/stacks/<runtime>.md`
+(fallback `./skills/audit/stacks/_generic.md`). Канон детекта — `./skills/audit/runtime-detect.md`.
+
+Передавай `runtime=<id>` + содержимое профиля как контекст каждому sub-скиллу
+(тем же каналом, что и baseline). Саб-скиллы увидят это и пропустят собственный
+детект; при автономном запуске они детектят сами.
+
 ## Шаг 1 — Подготовка сессии
 
 Выполни через Bash:
@@ -42,7 +68,7 @@ cp ./skills/audit/audit-baseline-template.yml ./docs/audit-baseline.yml 2>/dev/n
 
 Сообщи: `📋 docs/audit-baseline.yml создан. Заполни для подавления принятых рисков.`
 
-Содержимое baseline передавай как контекст каждому sub-скиллу.
+Содержимое baseline передавай как контекст каждому sub-скиллу (вместе с `runtime=<id>` и профилем из Шага 0).
 
 ## Шаг 3 — Декомпозиция системы
 

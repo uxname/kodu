@@ -9,19 +9,38 @@ description: >
 
 Применим к любому коду с бизнес-логикой. Пропускай только автогенерированные файлы (миграции, protobuf-generated, build output) и чисто декларативные конфиги (JSON, YAML без логики).
 
-## Runtime Detection
+## Runtime Detection & Stack Profile
 
-До анализа определи runtime проекта:
-```bash
-cat package.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print('Node.js:', list(d.get('dependencies',{}).keys())[:8])" 2>/dev/null || \
-ls go.mod requirements.txt pyproject.toml Cargo.toml 2>/dev/null | head -3
-```
+Этот аудит стек-агностичен: проверки сформулированы нейтрально, а конкретика
+(инструменты, идиомы, анти-паттерны, примеры) берётся из профиля стека.
 
-⚠️ Этот чеклист оптимизирован для **Node.js/TypeScript**. При обнаружении другого runtime:
-- Go → `context.Context` вместо `AbortSignal`, `SIGTERM handler` вместо `process.on`
-- Python → `asyncio cancellation`, `signal.SIGTERM`
-- Java/Spring → `@Transactional`, `ApplicationContext lifecycle`
-- Для неизвестного runtime — JS-специфичные проверки помечай `🔍 UNVERIFIED`
+1. **Профиль передан контекстом?** Если оркестратор `/audit` передал
+   `runtime=<id>` и/или содержимое профиля — используй его, шаги 2–3 пропусти.
+
+2. **Иначе определи РОВНО ОДИН рантайм** этого каталога:
+   ```bash
+   if   [ -f package.json ]; then echo "runtime=node"
+   elif [ -f go.mod ]; then echo "runtime=go"
+   elif [ -f pyproject.toml ] || [ -f requirements.txt ] || [ -f setup.py ]; then echo "runtime=python"
+   elif [ -f Cargo.toml ]; then echo "runtime=rust"
+   elif [ -f pom.xml ] || ls build.gradle* settings.gradle* >/dev/null 2>&1; then echo "runtime=java"
+   else echo "runtime=generic"; fi
+   ```
+   Один запуск = один рантайм; не миксуй backend и frontend. Если найдено
+   несколько маркеров (монорепо) — выбери соответствующий текущему scope/анализируемым
+   файлам и зафиксируй выбор в разделе Audit Coverage.
+
+3. **Загрузи профиль** через Read: `./skills/audit/stacks/<runtime>.md`
+   (fallback `./skills/audit/stacks/_generic.md`, если файл не найден).
+
+Дальше используй профиль:
+- **Инструменты** — из секции «Tooling by category» профиля (раздел
+  «Инструментальная поддержка» ниже ссылается на категории, а не на команды).
+- **Ожидания PASS** — из «Idioms»; **формулировки FAIL** — из «Anti-patterns».
+- **Точечные подсказки** — из «Check-ID hints» по префиксу `BUG-`.
+- Если профиль `tier: general` или `runtime=generic` → стек-специфичные находки
+  без однозначного evidence помечай `🔍 UNVERIFIED`, а не `❌ FAIL`. Проверки,
+  чей механизм в рантайме отсутствует, помечай `N/A`.
 
 ## Severity Guide
 
@@ -38,8 +57,8 @@ ls go.mod requirements.txt pyproject.toml Cargo.toml 2>/dev/null | head -3
 
 | Check ID | Проверка |
 |----------|----------|
-| BUG-01 | Преобразования типов безопасны (NaN, radix, coercion) |
-| BUG-02 | async/await используется корректно (нет await в forEach, нет if(asyncFn())) |
+| BUG-01 | Преобразования типов безопасны: ошибки парсинга обрабатываются, нет небезопасного приведения |
+| BUG-02 | Асинхронные/конкурентные вызовы ожидаются корректно, результат не теряется |
 | BUG-03 | Null-safety соблюдается — обращения к свойствам защищены от undefined/null |
 | BUG-04 | Функции не мутируют входные аргументы (sort, splice, object spread) |
 | BUG-05 | Exhaustive handling — все enum/union-ветки обработаны |
@@ -88,32 +107,39 @@ cat ./docs/audit-baseline.yml
 
 ## Контекст анализа
 
-**BUG-01 — Преобразования типов безопасны:**
-- `parseInt` без явного основания системы счисления (radix)
-- `Number()` / `parseInt()` без проверки результата на NaN
-- Неявное приведение типов: конкатенация числа со строкой вместо сложения
-- Сравнение с `==` вместо `===` приводит к неожиданному coercion
+> Примеры ниже — иллюстративные (Node/TS). Конкретику текущего рантайма бери из
+> загруженного профиля (`stacks/<runtime>.md`, секции Idioms/Anti-patterns/Check-ID hints).
 
-**BUG-02 — async/await используется корректно:**
-- `await` внутри `forEach` — forEach не ждёт промисов, итерация не последовательна
-- Условие `if (asyncFn())` вместо `if (await asyncFn())` — всегда truthy (Promise объект)
-- Async-функция вызвана без `await` — возвращается Promise вместо значения
-- `Promise` без `.catch()` или `try/await` без `catch`
+**BUG-01 — Преобразования типов безопасны:**
+- Парсинг строки в число без обработки ошибки/результата
+- Небезопасное приведение типа без проверки успешности
+- Неявное приведение типов с неожиданным результатом
+- Сравнение значений разных типов с неявным coercion
+- В Go это проигнорированная ошибка `strconv` (`v, _ := strconv.Atoi(...)`) или type assertion `x.(T)` без comma-ok; radix/`==`-coercion — **N/A** при отсутствии парсинга строк (см. Check-ID hints профиля).
+
+**BUG-02 — Асинхронные/конкурентные вызовы ожидаются корректно:**
+- Асинхронный вызов запущен, но его результат/ошибка не дожидается
+- Условие на необёрнутом отложенном результате (всегда truthy)
+- Параллельный вызов теряется, потому что не синхронизирован
+- В Node: `await` внутри `forEach` (итерация не ждёт промисов), `if (asyncFn())` вместо `if (await asyncFn())`, async-вызов без `await`, `Promise` без обработки ошибки. В Go синтаксис forEach отсутствует (**N/A**), аналогичный риск — в CON-01.
 
 **BUG-03 — Null-safety соблюдается:**
 - Обращение к свойству без проверки на null/undefined
 - Опциональная цепочка пропущена (`obj.a.b` там где `obj.a` может быть undefined)
 - Деструктуризация без дефолтного значения при возможном undefined
+- В Go: разыменование nil-указателя/интерфейса; обращение к nil-map; запись в nil-map = паника; map-доступ без `v, ok := m[k]`
 
 **BUG-04 — Функции не мутируют входные аргументы:**
 - `Array.sort()` на переданном массиве без предварительного `.slice()`
 - `Array.splice()` изменяет оригинальный массив-аргумент
 - Прямое присваивание свойств объекта-аргумента вместо создания копии через spread
+- В Go: `sort.Slice` мутирует переданный слайс на месте; запись в slice/map-аргумент видна вызывающему
 
 **BUG-05 — Exhaustive handling:**
 - `switch` без `default` на enum-значении — новое значение enum пройдёт незамеченным
 - Union type без обработки всех вариантов в if/else цепочке
 - Отсутствие never-проверки для исчерпывающего TypeScript switch
+- В Go: `switch` по значению без ветки `default`
 
 **BUG-06 — Математические guard-условия:**
 - Деление на ноль без guard-проверки знаменателя
@@ -130,18 +156,21 @@ cat ./docs/audit-baseline.yml
 - `a === b` где a и b — результаты float-арифметики (0.1 + 0.2 !== 0.3)
 - Сравнение денежных сумм через float вместо integer cents / BigDecimal
 - Условие `if (parseFloat(x) === 1.0)` вместо `Math.abs(x - 1.0) < epsilon`
+- В Go: сравнение `float64` через `==`; деньги — в `int64` (центы) или `shopspring/decimal`
 
 **BUG-09 — Дата/время в UTC:**
 - `new Date()` без явной UTC-обработки — результат зависит от timezone сервера
 - Сравнение дат через `toLocaleDateString()` — зависит от локали
 - Хранение timestamp как local datetime строки вместо ISO 8601 с `Z`
 - `new Date('2024-01-01')` парсится как UTC, `new Date('2024-01-01 00:00')` — как local
+- В Go: `time.Now()` вместо `time.Now().UTC()` — результат зависит от часового пояса сервера
 
 **BUG-10 — ReDoS:**
 - `new RegExp(userInput)` — пользователь контролирует регулярное выражение
 - Вложенные quantifiers на перекрывающихся классах: `(a+)+`, `(a*)*`, `([a-zA-Z]+\s?)+`
 - Проверка: `'a'.repeat(50000) + 'x'` на подозрительном regex вешает event loop
 - Особо опасно в middleware (auth, routing), где regex применяется к каждому запросу
+- В Go движок `regexp` (RE2) не имеет backtracking → ReDoS практически невозможен; помечай `N/A` или `Low` (см. профиль)
 
 ## Граница с другими аудитами
 
@@ -154,7 +183,7 @@ cat ./docs/audit-baseline.yml
 
 | Check ID | Проверка | Статус | Уверенность | Доказательство | Решение | Исправлено |
 |----------|----------|--------|-------------|----------------|---------|------------|
-| BUG-01 | Преобразования типов безопасны (NaN, radix, coercion) | ✅ PASS | High | `src/` — parseInt всегда с radix | — | — |
+| BUG-01 | Преобразования типов безопасны: ошибки парсинга обрабатываются, нет небезопасного приведения | ✅ PASS | High | `src/` — parseInt всегда с radix | — | — |
 | BUG-03 | Null-safety соблюдается — обращения к свойствам защищены от undefined/null | ❌ FAIL 🟠 | High | `services/order.ts:55` | **1. Добавить опциональную цепочку: `user?.address?.city`** \\ 2. Добавить guard-проверку перед обращением \\ 3. Использовать nullish coalescing с дефолтом | Нет |
 | BUG-05 | Exhaustive handling — все enum/union-ветки обработаны | ⏸ ACCEPTED | Medium | `handlers/event.ts:23` | В baseline: exhaustive check через TypeScript never | — |
 

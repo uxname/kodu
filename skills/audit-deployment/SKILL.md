@@ -9,19 +9,38 @@ description: >
 
 Применим при наличии Dockerfile, docker-compose.yml, CI/CD конфигов (`.github/workflows`, `gitlab-ci.yml`, `Jenkinsfile`), `.env` файлов, Kubernetes манифестов. Для проектов без deployment конфигурации — верни пустой ответ.
 
-## Runtime Detection
+## Runtime Detection & Stack Profile
 
-До анализа определи runtime проекта:
-```bash
-cat package.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print('Node.js:', list(d.get('dependencies',{}).keys())[:8])" 2>/dev/null || \
-ls go.mod requirements.txt pyproject.toml Cargo.toml 2>/dev/null | head -3
-```
+Этот аудит стек-агностичен: проверки сформулированы нейтрально, а конкретика
+(инструменты, идиомы, анти-паттерны, примеры) берётся из профиля стека.
 
-⚠️ Этот чеклист оптимизирован для **Node.js/TypeScript**. При обнаружении другого runtime:
-- Go → `context.Context` вместо `AbortSignal`, `SIGTERM handler` вместо `process.on`
-- Python → `asyncio cancellation`, `signal.SIGTERM`
-- Java/Spring → `@Transactional`, `ApplicationContext lifecycle`
-- Для неизвестного runtime — JS-специфичные проверки помечай `🔍 UNVERIFIED`
+1. **Профиль передан контекстом?** Если оркестратор `/audit` передал
+   `runtime=<id>` и/или содержимое профиля — используй его, шаги 2–3 пропусти.
+
+2. **Иначе определи РОВНО ОДИН рантайм** этого каталога:
+   ```bash
+   if   [ -f package.json ]; then echo "runtime=node"
+   elif [ -f go.mod ]; then echo "runtime=go"
+   elif [ -f pyproject.toml ] || [ -f requirements.txt ] || [ -f setup.py ]; then echo "runtime=python"
+   elif [ -f Cargo.toml ]; then echo "runtime=rust"
+   elif [ -f pom.xml ] || ls build.gradle* settings.gradle* >/dev/null 2>&1; then echo "runtime=java"
+   else echo "runtime=generic"; fi
+   ```
+   Один запуск = один рантайм; не миксуй backend и frontend. Если найдено
+   несколько маркеров (монорепо) — выбери соответствующий текущему scope/анализируемым
+   файлам и зафиксируй выбор в разделе Audit Coverage.
+
+3. **Загрузи профиль** через Read: `./skills/audit/stacks/<runtime>.md`
+   (fallback `./skills/audit/stacks/_generic.md`, если файл не найден).
+
+Дальше используй профиль:
+- **Инструменты** — из секции «Tooling by category» профиля (раздел
+  «Инструментальная поддержка» ниже ссылается на категории, а не на команды).
+- **Ожидания PASS** — из «Idioms»; **формулировки FAIL** — из «Anti-patterns».
+- **Точечные подсказки** — из «Check-ID hints» по префиксу `DEP-`.
+- Если профиль `tier: general` или `runtime=generic` → стек-специфичные находки
+  без однозначного evidence помечай `🔍 UNVERIFIED`, а не `❌ FAIL`. Проверки,
+  чей механизм в рантайме отсутствует, помечай `N/A`.
 
 ## Severity Guide
 
@@ -40,14 +59,14 @@ ls go.mod requirements.txt pyproject.toml Cargo.toml 2>/dev/null | head -3
 |----------|----------|
 | DEP-01 | Docker images используют pinned versions (нет :latest) |
 | DEP-02 | Контейнеры запускаются от непривилегированного пользователя (USER nonroot) |
-| DEP-03 | Multi-stage build разделяет dev и prod зависимости |
-| DEP-04 | .dockerignore исключает node_modules, .git, .env |
+| DEP-03 | Multi-stage build: финальный образ без инструментов сборки и dev-артефактов |
+| DEP-04 | .dockerignore исключает артефакты сборки/зависимости, VCS-каталог и секреты |
 | DEP-05 | HEALTHCHECK определён в Dockerfile |
 | DEP-06 | Секреты не hardcoded в Dockerfile (нет в ENV) |
 | DEP-07 | .env исключён из VCS |
 | DEP-08 | .env.example документирует все переменные окружения |
-| DEP-09 | NODE_ENV корректно устанавливается для production |
-| DEP-10 | npm ci используется вместо npm install в Docker |
+| DEP-09 | Окружение переключено в production-режим: dev-артефакты выключены в проде |
+| DEP-10 | Детерминированная установка по локфайлу с проверкой целостности |
 | DEP-11 | Ограничения ресурсов контейнера определены (CPU limits, Memory limits) |
 | DEP-12 | Возможность запуска с read-only root filesystem проверена |
 
@@ -90,23 +109,30 @@ cat ./docs/audit-baseline.yml
 
 ## Контекст анализа
 
+> Примеры ниже — иллюстративные. Конкретные инструменты, идиомы и анти-паттерны
+> сборки/деплоя для текущего рантайма бери из загруженного профиля
+> (`stacks/<runtime>.md`, секции Idioms/Anti-patterns/Check-ID hints по префиксу
+> `DEP-`). Node: `npm ci`/`package-lock.json`, `NODE_ENV`, `node_modules`.
+> Go: builder→distroless, `go.mod`+`go.sum`, `CGO_ENABLED=0`, нет `net/http/pprof`.
+
 **DEP-01 — Pinned versions:**
 - Базовый образ `:latest` без pinning версии (непредсказуемые обновления)
 - Тег `:alpine` без конкретной версии
 - Digest-based pinning отсутствует для критичных образов
 
 **DEP-02 — Непривилегированный пользователь:**
-- Запуск контейнера как root без `USER nonroot` / `USER node`
-- Отсутствие создания non-root пользователя перед переключением
+- Запуск контейнера как root без переключения на non-root (Node: `USER node`; Go: distroless `nonroot`)
+- Отсутствие создания non-root пользователя перед переключением (или образа со встроенным nonroot)
 
-**DEP-03 — Multi-stage build:**
-- Отсутствие multi-stage build (dev dependencies в prod образе)
-- devDependencies устанавливаются в production stage
+**DEP-03 — Multi-stage build: финальный образ без инструментов сборки и dev-артефактов:**
+- Отсутствие multi-stage build (инструменты сборки/dev-зависимости в финальном образе)
+- Node: `devDependencies` устанавливаются в production stage
+- Go: компилятор/тесты в финальном образе вместо `builder → distroless`
 - Build artifacts не копируются из builder stage
 
 **DEP-04 — .dockerignore:**
-- Нет `.dockerignore` или `.dockerignore` не включает node_modules, .git
-- `.env` файлы не исключены из Docker build context
+- Нет `.dockerignore` или он не исключает зависимости/артефакты сборки (Node: `node_modules`; Go: локальный `vendor/`, build-кэш) и VCS-каталог `.git`
+- `.env` и прочие секреты не исключены из Docker build context
 - Тесты и документация попадают в production образ
 
 **DEP-05 — HEALTHCHECK:**
@@ -126,18 +152,20 @@ cat ./docs/audit-baseline.yml
 - `.env.example` содержит реальные credentials
 - Не все обязательные переменные задокументированы
 
-**DEP-09 — NODE_ENV для production:**
-- `NODE_ENV` не устанавливается или устанавливается как `development` в prod образе
-- Отсутствие `NODE_ENV=production` ведёт к загрузке devDependencies в runtime
+**DEP-09 — Окружение переключено в production-режим:**
+- Dev-артефакты не выключены в проде: debug-эндпоинты, verbose-логи, dev-зависимости
+- Node: `NODE_ENV` не выставлен или `development` в prod образе (ведёт к загрузке devDependencies в runtime)
+- Go: нет признаков prod-режима (нет `APP_ENV`/собственного флага), `net/http/pprof` и debug-роуты доступны в проде, нет `-ldflags "-s -w"`, нет `CGO_ENABLED=0`
 
-**DEP-10 — npm ci в Docker:**
-- `npm install` вместо `npm ci` (не детерминированная, более медленная сборка)
-- Отсутствие `package-lock.json` при использовании npm
+**DEP-10 — Детерминированная установка по локфайлу с проверкой целостности:**
+- Node: `npm install` вместо `npm ci` (не детерминированная, медленнее); отсутствие `package-lock.json`
+- Go: `go.mod`/`go.sum` не закоммичены; в Dockerfile `go get` вместо `go mod download` по локфайлу; нет `GOFLAGS=-mod=readonly` / `go mod verify`
 
 **Ограничения ресурсов:**
 - `docker-compose.yml` без `deploy.resources.limits.memory` и `cpus`
 - Kubernetes Deployment без `resources.limits` в контейнере
 - Нет ограничений → один контейнер с memory leak роняет весь хост
+- Go-доп.: при memory-лимите контейнера выставить `GOMEMLIMIT`/`GOMAXPROCS` под cgroup-квоты (иначе GC видит память/CPU хоста)
 
 **Read-only filesystem:**
 - Контейнер без `read_only: true` (docker-compose) или `readOnlyRootFilesystem: true` (K8s)
@@ -148,7 +176,7 @@ cat ./docs/audit-baseline.yml
 | Check ID | Проверка | Статус | Уверенность | Доказательство | Решение | Исправлено |
 |----------|----------|--------|-------------|----------------|---------|------------|
 | DEP-01 | Docker images используют pinned versions (нет :latest) | ✅ PASS | High | `Dockerfile:1` — pinned version указана | — | — |
-| DEP-02 | Контейнеры запускаются от непривилегированного пользователя (USER nonroot) | ❌ FAIL 🟠 | High | `Dockerfile:12` | **1. Добавить `RUN addgroup -S app && adduser -S app -G app` и `USER app`** \\ 2. Использовать образ с встроенным nonroot пользователем (node:alpine) \\ 3. Добавить `USER node` если базовый образ node | Нет |
+| DEP-02 | Контейнеры запускаются от непривилегированного пользователя (USER nonroot) | ❌ FAIL 🟠 | High | `Dockerfile:12` | **1. Добавить `RUN addgroup -S app && adduser -S app -G app` и `USER app`** \\ 2. Использовать образ со встроенным nonroot (Node: node:alpine; Go: distroless nonroot) \\ 3. Добавить `USER node` если базовый образ node | Нет |
 | DEP-05 | HEALTHCHECK определён в Dockerfile | ⏸ ACCEPTED | Medium | — | В baseline: health check управляется Kubernetes liveness probe | — |
 
 Статусы: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED` / `🔍 UNVERIFIED`

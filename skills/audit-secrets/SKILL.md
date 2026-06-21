@@ -10,19 +10,38 @@ description: >
 
 Перед анализом оцени: содержит ли код конфигурации, строки подключения, токены, ключи шифрования, credentials или работу с внешними API? Если анализируемый файл/модуль не содержит ни одного из перечисленных паттернов — верни пустой ответ без таблицы.
 
-## Runtime Detection
+## Runtime Detection & Stack Profile
 
-До анализа определи runtime проекта:
-```bash
-cat package.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print('Node.js:', list(d.get('dependencies',{}).keys())[:8])" 2>/dev/null || \
-ls go.mod requirements.txt pyproject.toml Cargo.toml 2>/dev/null | head -3
-```
+Этот аудит стек-агностичен: проверки сформулированы нейтрально, а конкретика
+(инструменты, идиомы, анти-паттерны, примеры) берётся из профиля стека.
 
-⚠️ Этот чеклист оптимизирован для **Node.js/TypeScript**. При обнаружении другого runtime:
-- Go → заменяй `process.on` на `context.Context`, `AbortSignal` на `context.WithCancel`
-- Python → `asyncio cancellation`, `signal.SIGTERM handler`
-- Java/Spring → `@Transactional boundaries`, `ApplicationContext lifecycle`
-- Для неизвестного runtime — помечай JS-специфичные проверки как `🔍 UNVERIFIED`
+1. **Профиль передан контекстом?** Если оркестратор `/audit` передал
+   `runtime=<id>` и/или содержимое профиля — используй его, шаги 2–3 пропусти.
+
+2. **Иначе определи РОВНО ОДИН рантайм** этого каталога:
+   ```bash
+   if   [ -f package.json ]; then echo "runtime=node"
+   elif [ -f go.mod ]; then echo "runtime=go"
+   elif [ -f pyproject.toml ] || [ -f requirements.txt ] || [ -f setup.py ]; then echo "runtime=python"
+   elif [ -f Cargo.toml ]; then echo "runtime=rust"
+   elif [ -f pom.xml ] || ls build.gradle* settings.gradle* >/dev/null 2>&1; then echo "runtime=java"
+   else echo "runtime=generic"; fi
+   ```
+   Один запуск = один рантайм; не миксуй backend и frontend. Если найдено
+   несколько маркеров (монорепо) — выбери соответствующий текущему scope/анализируемым
+   файлам и зафиксируй выбор в разделе Audit Coverage.
+
+3. **Загрузи профиль** через Read: `./skills/audit/stacks/<runtime>.md`
+   (fallback `./skills/audit/stacks/_generic.md`, если файл не найден).
+
+Дальше используй профиль:
+- **Инструменты** — из секции «Tooling by category» профиля (раздел
+  «Инструментальная поддержка» ниже ссылается на категории, а не на команды).
+- **Ожидания PASS** — из «Idioms»; **формулировки FAIL** — из «Anti-patterns».
+- **Точечные подсказки** — из «Check-ID hints» по префиксу `SEC-`.
+- Если профиль `tier: general` или `runtime=generic` → стек-специфичные находки
+  без однозначного evidence помечай `🔍 UNVERIFIED`, а не `❌ FAIL`. Проверки,
+  чей механизм в рантайме отсутствует, помечай `N/A`.
 
 ## Severity Guide
 
@@ -118,11 +137,12 @@ cat ./docs/audit-baseline.yml
 - TODO-комментарии с примерами реальных credentials
 - Инструкции по настройке с реальными значениями
 
-**Автоматическое сканирование:**
-- Отсутствие gitleaks / trufflehog / detect-secrets в pre-commit хуках
-- Отсутствие secret scanning в CI pipeline (GitHub Actions secret scanning, GitLab SAST)
+**Автоматическое сканирование (SEC-07):**
+- Инструмент бери из категории **secret-scan** профиля стека (кросс-стек: `gitleaks` / `trufflehog`; также detect-secrets) — он стек-нейтрален.
+- Отсутствие такого сканера в git-хуках (lefthook / pre-commit / husky) — нет автопроверки при коммите
+- Отсутствие secret scanning в CI/таск-раннере (Taskfile/Makefile-цель, GitHub Actions secret scanning, GitLab SAST)
 - `.gitleaks.toml` / `.secrets.baseline` не настроен
-- При наличии любого из инструментов → `✅ PASS`
+- При наличии любого из инструментов в хуках или CI → `✅ PASS`
 
 ## Граница с другими аудитами
 

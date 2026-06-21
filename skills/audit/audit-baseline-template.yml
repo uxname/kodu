@@ -1,6 +1,10 @@
 # audit-baseline.yml
 # Принятые/отложенные риски. Совпадение по check_id → статус ⏸ ACCEPTED в отчёте.
 # Скопируй в корень проекта: docs/audit-baseline.yml
+#
+# check_id стек-нейтральны: один и тот же идентификатор применяется к любому
+# рантайму (Node/TS, Go, Python, Rust, Java). Конкретика стека берётся из
+# профилей skills/audit/stacks/<runtime>.md и не влияет на матчинг по check_id.
 
 accepted:
   # Пример:

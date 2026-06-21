@@ -9,19 +9,38 @@ description: >
 
 Применим к любому production-коду с классами, паттернами проектирования или абстракциями. Для простых скриптов-утилит без архитектуры — применяй только к явным over-engineering паттернам.
 
-## Runtime Detection
+## Runtime Detection & Stack Profile
 
-До анализа определи runtime проекта:
-```bash
-cat package.json 2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin); print('Node.js:', list(d.get('dependencies',{}).keys())[:8])" 2>/dev/null || \
-ls go.mod requirements.txt pyproject.toml Cargo.toml 2>/dev/null | head -3
-```
+Этот аудит стек-агностичен: проверки сформулированы нейтрально, а конкретика
+(инструменты, идиомы, анти-паттерны, примеры) берётся из профиля стека.
 
-⚠️ Этот чеклист оптимизирован для **Node.js/TypeScript**. При обнаружении другого runtime:
-- Go → `context.Context` вместо `AbortSignal`, `SIGTERM handler` вместо `process.on`
-- Python → `asyncio cancellation`, `signal.SIGTERM`
-- Java/Spring → `@Transactional`, `ApplicationContext lifecycle`
-- Для неизвестного runtime — JS-специфичные проверки помечай `🔍 UNVERIFIED`
+1. **Профиль передан контекстом?** Если оркестратор `/audit` передал
+   `runtime=<id>` и/или содержимое профиля — используй его, шаги 2–3 пропусти.
+
+2. **Иначе определи РОВНО ОДИН рантайм** этого каталога:
+   ```bash
+   if   [ -f package.json ]; then echo "runtime=node"
+   elif [ -f go.mod ]; then echo "runtime=go"
+   elif [ -f pyproject.toml ] || [ -f requirements.txt ] || [ -f setup.py ]; then echo "runtime=python"
+   elif [ -f Cargo.toml ]; then echo "runtime=rust"
+   elif [ -f pom.xml ] || ls build.gradle* settings.gradle* >/dev/null 2>&1; then echo "runtime=java"
+   else echo "runtime=generic"; fi
+   ```
+   Один запуск = один рантайм; не миксуй backend и frontend. Если найдено
+   несколько маркеров (монорепо) — выбери соответствующий текущему scope/анализируемым
+   файлам и зафиксируй выбор в разделе Audit Coverage.
+
+3. **Загрузи профиль** через Read: `./skills/audit/stacks/<runtime>.md`
+   (fallback `./skills/audit/stacks/_generic.md`, если файл не найден).
+
+Дальше используй профиль:
+- **Инструменты** — из секции «Tooling by category» профиля (раздел
+  «Инструментальная поддержка» ниже ссылается на категории, а не на команды).
+- **Ожидания PASS** — из «Idioms»; **формулировки FAIL** — из «Anti-patterns».
+- **Точечные подсказки** — из «Check-ID hints» по префиксу `YAGNI-`.
+- Если профиль `tier: general` или `runtime=generic` → стек-специфичные находки
+  без однозначного evidence помечай `🔍 UNVERIFIED`, а не `❌ FAIL`. Проверки,
+  чей механизм в рантайме отсутствует, помечай `N/A`.
 
 ## Severity Guide
 
@@ -83,6 +102,8 @@ cat ./docs/audit-baseline.yml
 
 ## Контекст анализа
 
+> Примеры иллюстративны (Node); анти-паттерны рантайма — в профиле (Anti-patterns).
+
 **YAGNI-01 — Нет закомментированного кода:**
 - Блоки кода закомментированы вместо удаления (git history сохраняет историю)
 - Закомментированные альтернативные реализации без объяснения
@@ -114,11 +135,11 @@ cat ./docs/audit-baseline.yml
 
 ## Инструментальная поддержка
 
-Перед анализом:
-```bash
-npx knip --reporter json 2>/dev/null | head -200 || true
-```
-Knip находит неиспользуемые экспорты, зависимости, файлы. Используй вывод как доказательство для YAGNI-02. Верифицируй найденные экспорты перед занесением в FAIL.
+Для YAGNI-02 используй инструмент категории **unused-code** из профиля стека
+(секция «Tooling by category»): он находит неиспользуемые экспорты, функции,
+зависимости и файлы. Используй вывод как подсказку для YAGNI-02 и верифицируй
+каждую находку вручную (`file:line`) перед занесением в FAIL. Если ячейка пустая
+(tier general/generic) — проверяй вручную и помечай находки `🔍 UNVERIFIED`.
 
 ## Формат вывода
 
