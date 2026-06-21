@@ -1,7 +1,7 @@
 ---
 name: audit
 description: >
-  Мастер-оркестратор комплексного аудита кодовой базы. Запускает все 17 специализированных
+  Мастер-оркестратор комплексного аудита кодовой базы. Запускает все 18 специализированных
   проверок и группирует результаты по компонентам системы. Вызывай при /audit или
   запросе "полный аудит", "комплексный аудит кодовой базы".
 ---
@@ -67,7 +67,7 @@ Low priority (naming/style): src/utils/**
 
 Передавай список critical paths каждому sub-скиллу — они должны начинать с этих файлов.
 
-## Шаг 4 — Анализ по 17 направлениям
+## Шаг 4 — Анализ по 18 направлениям
 
 **ОБЯЗАТЕЛЬНО:** Для каждого направления вызови специализированный скилл через `Skill`. Прямой анализ без скилла недопустим.
 
@@ -96,21 +96,22 @@ Low priority (naming/style): src/utils/**
 | 8 | Naming | `audit-naming` |
 | 9 | YAGNI | `audit-yagni` |
 | 10 | Reinventing the Wheel | `audit-reinvention` |
+| 11 | Documentation | `audit-docs` |
 
 **Группа Г — Операции:**
 | # | Направление | Скилл |
 |---|-------------|-------|
-| 11 | Tests & Linters | `audit-tests` |
-| 12 | Logging | `audit-logging` |
-| 13 | Performance | `audit-performance` |
-| 14 | Deployment | `audit-deployment` |
-| 15 | API Contracts | `audit-api-contracts` |
-| 16 | Meta-контроль | `audit-meta` |
+| 12 | Tests & Linters | `audit-tests` |
+| 13 | Logging | `audit-logging` |
+| 14 | Performance | `audit-performance` |
+| 15 | Deployment | `audit-deployment` |
+| 16 | API Contracts | `audit-api-contracts` |
+| 17 | Meta-контроль | `audit-meta` |
 
 **Группа Д — Системный уровень:**
 | # | Направление | Скилл |
 |---|-------------|-------|
-| 17 | Матрица взаимодействий | `audit-matrix` |
+| 18 | Матрица взаимодействий | `audit-matrix` |
 
 **Каждый скилл ОБЯЗАН сохранить файл в папку сессии: `./docs/audits/<SESSION>/audit-<name>.md`**
 
