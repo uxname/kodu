@@ -8,6 +8,7 @@ require (
 	github.com/mattn/go-isatty v0.0.22
 	github.com/pkoukk/tiktoken-go v0.1.8
 	github.com/pkoukk/tiktoken-go-loader v0.0.2
+	github.com/smacker/go-tree-sitter v0.0.0-20240827094217-dd81d9e9be82
 	github.com/spf13/cobra v1.10.2
 	github.com/theckman/yacspin v0.13.12
 )
