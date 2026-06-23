@@ -30,6 +30,30 @@ func newOpsCommand(app *App) *cobra.Command {
 	return ops
 }
 
+// completeProjectNames предлагает имена проектов из реестра для автодополнения.
+func completeProjectNames(toComplete string) ([]string, cobra.ShellCompDirective) {
+	projects, err := registry.New().List()
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	var names []string
+	for n := range projects {
+		if strings.HasPrefix(n, toComplete) {
+			names = append(names, n)
+		}
+	}
+	sortx.LocaleStrings(names)
+	return names, cobra.ShellCompDirectiveNoFileComp
+}
+
+// completeFirstArgProjects дополняет имя проекта только для первого аргумента.
+func completeFirstArgProjects(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if len(args) != 0 {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
+	return completeProjectNames(toComplete)
+}
+
 // resolveProjectRoot возвращает путь репозитория проекта по имени.
 func resolveProjectRoot(reg *registry.Service, name string) (string, error) {
 	entry, ok, err := reg.Get(name)
@@ -223,8 +247,9 @@ func newOpsAddCommand(app *App) *cobra.Command {
 
 func newOpsStatusCommand(app *App) *cobra.Command {
 	return &cobra.Command{
-		Use:   "status [name]",
-		Short: "Показать активный стенд и стенды проекта (по имени или в текущей папке)",
+		Use:               "status [name]",
+		Short:             "Показать активный стенд и стенды проекта (по имени или в текущей папке)",
+		ValidArgsFunction: completeFirstArgProjects,
 		RunE: func(_ *cobra.Command, args []string) error {
 			reg, rb := registry.New(), runbook.New()
 			root, _ := os.Getwd()
@@ -256,9 +281,10 @@ func newOpsStatusCommand(app *App) *cobra.Command {
 
 func newOpsUseCommand(app *App) *cobra.Command {
 	return &cobra.Command{
-		Use:     "use <args...>",
-		Aliases: []string{"switch"},
-		Short:   "Переключить активный стенд: kodu ops use <stand> или kodu ops use <name> <stand>",
+		Use:               "use <args...>",
+		Aliases:           []string{"switch"},
+		Short:             "Переключить активный стенд: kodu ops use <stand> или kodu ops use <name> <stand>",
+		ValidArgsFunction: completeFirstArgProjects,
 		RunE: func(_ *cobra.Command, args []string) error {
 			reg, rb := registry.New(), runbook.New()
 			root, _ := os.Getwd()
@@ -302,8 +328,9 @@ func newOpsUseCommand(app *App) *cobra.Command {
 
 func newOpsPathCommand(app *App) *cobra.Command {
 	return &cobra.Command{
-		Use:   "path <name>",
-		Short: "Напечатать путь к репозиторию проекта (удобно для cd $(kodu ops path <name>))",
+		Use:               "path <name>",
+		Short:             "Напечатать путь к репозиторию проекта (удобно для cd $(kodu ops path <name>))",
+		ValidArgsFunction: completeFirstArgProjects,
 		RunE: func(_ *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				fail(app, "Укажи имя проекта: kodu ops path <name>")
@@ -323,8 +350,9 @@ func newOpsPathCommand(app *App) *cobra.Command {
 
 func newOpsRunbookCommand(app *App) *cobra.Command {
 	return &cobra.Command{
-		Use:   "runbook <name> [stand]",
-		Short: "Напечатать runbook проекта (или секцию конкретного стенда)",
+		Use:               "runbook <name> [stand]",
+		Short:             "Напечатать runbook проекта (или секцию конкретного стенда)",
+		ValidArgsFunction: completeFirstArgProjects,
 		RunE: func(_ *cobra.Command, args []string) error {
 			if len(args) == 0 {
 				fail(app, "Укажи имя проекта: kodu ops runbook <name> [stand]")
