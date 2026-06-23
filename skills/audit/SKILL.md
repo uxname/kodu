@@ -1,19 +1,19 @@
 ---
 name: audit
 description: >
-  Мастер-оркестратор комплексного аудита кодовой базы. Запускает все 18 специализированных
-  проверок и группирует результаты по компонентам системы. Вызывай при /audit или
-  запросе "полный аудит", "комплексный аудит кодовой базы".
+  Master orchestrator for a comprehensive codebase audit. Runs all 18 specialized
+  checks and groups the results by system component. Invoke on /audit or on a
+  request for a "full audit" or "comprehensive codebase audit".
 ---
 
-## Задача
+## Task
 
-Ты — ведущий инженер по качеству и безопасности, проводящий полный аудит кодовой базы.
+You are the lead quality and security engineer running a full audit of the codebase.
 
-## Шаг 0 — Runtime resolution (определение стека)
+## Step 0 — Runtime resolution (stack detection)
 
-Аудиты стек-агностичны: конкретика берётся из профиля стека. Определи рантайм
-ОДИН раз здесь и передай его всем саб-скиллам, чтобы они не передетектили.
+The audits are stack-agnostic: the specifics come from the stack profile. Detect the runtime
+ONCE here and pass it to all sub-skills so they don't re-detect.
 
 ```bash
 if   [ -f package.json ]; then echo "runtime=node"
@@ -24,63 +24,63 @@ elif [ -f pom.xml ] || ls build.gradle* settings.gradle* >/dev/null 2>&1; then e
 else echo "runtime=generic"; fi
 ```
 
-Один запуск `/audit` = ОДИН рантайм. **Полиглот-репозиторий** (например Go-бэкенд
-+ Node-фронтенд в сабмодулях) аудить по подпроектам: запусти `/audit` отдельно
-внутри каждого подкаталога (`backend/`, `frontend/`). Если в текущем каталоге
-несколько маркеров — выбери по scope и сообщи об этом пользователю.
+One `/audit` run = ONE runtime. **Polyglot repositories** (e.g. a Go backend
++ a Node frontend in submodules) should be audited per subproject: run `/audit` separately
+inside each subdirectory (`backend/`, `frontend/`). If the current directory has
+multiple markers, pick one based on scope and tell the user about it.
 
-Прочитай профиль один раз через Read: `./skills/audit/stacks/<runtime>.md`
-(fallback `./skills/audit/stacks/_generic.md`). Канон детекта — `./skills/audit/runtime-detect.md`.
+Read the profile once via Read: `./skills/audit/stacks/<runtime>.md`
+(fallback `./skills/audit/stacks/_generic.md`). The canonical detection logic is in `./skills/audit/runtime-detect.md`.
 
-Передавай `runtime=<id>` + содержимое профиля как контекст каждому sub-скиллу
-(тем же каналом, что и baseline). Саб-скиллы увидят это и пропустят собственный
-детект; при автономном запуске они детектят сами.
+Pass `runtime=<id>` + the profile contents as context to every sub-skill
+(through the same channel as the baseline). The sub-skills will see this and skip their own
+detection; when run standalone they detect it themselves.
 
-## Шаг 1 — Подготовка сессии
+## Step 1 — Session setup
 
-Выполни через Bash:
+Run via Bash:
 
 ```bash
-# Удалить старые сессии, оставить 2 последних
+# Remove old sessions, keep the 2 most recent
 ls -dt ./docs/audits/[0-9]*/ 2>/dev/null | tail -n +3 | xargs rm -rf 2>/dev/null
-# Создать папку новой сессии
+# Create a folder for the new session
 mkdir -p ./docs/audits/$(date +"%Y-%m-%d_%H-%M")
 ```
 
-Для incremental-аудита (только изменённые файлы) — определи scope:
+For an incremental audit (changed files only) — determine the scope:
 ```bash
 git diff --name-only HEAD~1 2>/dev/null | grep -E '\.(ts|js|py|go|rs)$' | head -30
 ```
-Если список < 20 файлов — начинай аудит с них, затем критические пути.
+If the list has < 20 files, start the audit with them, then move on to the critical paths.
 
-## Шаг 2 — Baseline
+## Step 2 — Baseline
 
 ```bash
 cat ./docs/audit-baseline.yml 2>/dev/null
 ```
 
-Если файл не существует — создай:
+If the file does not exist, create it:
 
 ```bash
 cp ./skills/audit/audit-baseline-template.yml ./docs/audit-baseline.yml 2>/dev/null || \
   printf "accepted: []\n" > ./docs/audit-baseline.yml
 ```
 
-Сообщи: `📋 docs/audit-baseline.yml создан. Заполни для подавления принятых рисков.`
+Report: `📋 docs/audit-baseline.yml created. Fill it in to suppress accepted risks.`
 
-Содержимое baseline передавай как контекст каждому sub-скиллу (вместе с `runtime=<id>` и профилем из Шага 0).
+Pass the baseline contents as context to every sub-skill (along with `runtime=<id>` and the profile from Step 0).
 
-## Шаг 3 — Декомпозиция системы
+## Step 3 — System decomposition
 
-Перечисли логические компоненты (Аутентификация, API, Фоновые задачи и т.д.) перед запуском аудитов. Используй структуру папок как ориентир.
+List the logical components (Authentication, API, Background jobs, etc.) before running the audits. Use the folder structure as a guide.
 
-## Шаг 3.5 — Критические пути (Risk-Based Prioritization)
+## Step 3.5 — Critical paths (Risk-Based Prioritization)
 
 ```bash
 grep -rl "auth\|login\|payment\|billing\|webhook\|cron\|migration" ./src 2>/dev/null | head -20
 ```
 
-Перечисли critical paths — файлы/модули с наибольшим blast radius:
+List the critical paths — the files/modules with the largest blast radius:
 ```
 Critical paths (exhaustive depth):
 - Authentication: src/auth/**
@@ -91,32 +91,32 @@ Standard paths: src/api/**, src/services/**
 Low priority (naming/style): src/utils/**
 ```
 
-Передавай список critical paths каждому sub-скиллу — они должны начинать с этих файлов.
+Pass the critical-paths list to every sub-skill — they must start with these files.
 
-## Шаг 4 — Анализ по 18 направлениям
+## Step 4 — Analysis across 18 dimensions
 
-**ОБЯЗАТЕЛЬНО:** Для каждого направления вызови специализированный скилл через `Skill`. Прямой анализ без скилла недопустим.
+**REQUIRED:** For each dimension, invoke the specialized skill via `Skill`. Direct analysis without the skill is not allowed.
 
-**Правило пропуска:** направление нерелевантно → пропусти без упоминания.
+**Skip rule:** dimension is irrelevant → skip it without mention.
 
-Скиллы сгруппированы для параллельного запуска. Группы выполняются последовательно — скиллы внутри группы можно запускать параллельно через Agent-вызовы.
+The skills are grouped for parallel execution. Groups run sequentially — skills within a group can be run in parallel via Agent calls.
 
-**Группа А — Безопасность:**
-| # | Направление | Скилл |
+**Group A — Security:**
+| # | Dimension | Skill |
 |---|-------------|-------|
 | 1 | Secrets Leak | `audit-secrets` |
 | 2 | OWASP Security | `audit-owasp` |
 | 3 | Boundary Validation | `audit-validation` |
 
-**Группа Б — Логика:**
-| # | Направление | Скилл |
+**Group B — Logic:**
+| # | Dimension | Skill |
 |---|-------------|-------|
 | 4 | Bugs & Logic | `audit-bugs` |
 | 5 | Error Handling | `audit-errors` |
 | 6 | Concurrency | `audit-concurrency` |
 
-**Группа В — Качество:**
-| # | Направление | Скилл |
+**Group C — Quality:**
+| # | Dimension | Skill |
 |---|-------------|-------|
 | 7 | Architecture | `audit-architecture` |
 | 8 | Naming | `audit-naming` |
@@ -124,82 +124,81 @@ Low priority (naming/style): src/utils/**
 | 10 | Reinventing the Wheel | `audit-reinvention` |
 | 11 | Documentation | `audit-docs` |
 
-**Группа Г — Операции:**
-| # | Направление | Скилл |
+**Group D — Operations:**
+| # | Dimension | Skill |
 |---|-------------|-------|
 | 12 | Tests & Linters | `audit-tests` |
 | 13 | Logging | `audit-logging` |
 | 14 | Performance | `audit-performance` |
 | 15 | Deployment | `audit-deployment` |
 | 16 | API Contracts | `audit-api-contracts` |
-| 17 | Meta-контроль | `audit-meta` |
+| 17 | Meta-control | `audit-meta` |
 
-**Группа Д — Системный уровень:**
-| # | Направление | Скилл |
+**Group E — System level:**
+| # | Dimension | Skill |
 |---|-------------|-------|
-| 18 | Матрица взаимодействий | `audit-matrix` |
+| 18 | Interaction matrix | `audit-matrix` |
 
-**Каждый скилл ОБЯЗАН сохранить файл в папку сессии: `./docs/audits/<SESSION>/audit-<name>.md`**
+**Each skill MUST save a file to the session folder: `./docs/audits/<SESSION>/audit-<name>.md`**
 
-## Шаг 5 — Сводный отчёт по компонентам
+## Step 5 — Summary report by component
 
-После всех скиллов собери только строки `❌ FAIL` и `⏸ ACCEPTED`:
+After all skills finish, collect only the `❌ FAIL` and `⏸ ACCEPTED` rows:
 
 ```
-## Компонент: [Название]
+## Component: [Name]
 
-| Check ID | Проверка | Статус | Доказательство | Решение | Исправлено |
+| Check ID | Check | Status | Evidence | Resolution | Fixed |
 |----------|----------|--------|----------------|---------|------------|
-| OWA-02 | Auth на protected routes | ❌ FAIL 🔴 | `routes/admin.ts:14` | **1. Добавить authMiddleware** \\ 2. ... \\ 3. ... | Нет |
-| OWA-06 | Rate limiting | ⏸ ACCEPTED | `src/app.ts` | В baseline: nginx rate limit | — |
+| OWA-02 | Auth on protected routes | ❌ FAIL 🔴 | `routes/admin.ts:14` | **1. Add authMiddleware** \\ 2. ... \\ 3. ... | No |
+| OWA-06 | Rate limiting | ⏸ ACCEPTED | `src/app.ts` | In baseline: nginx rate limit | — |
 ```
 
-Если все PASS — выведи: `✅ Проблем не обнаружено.`
+If everything is PASS, output: `✅ No issues found.`
 
-## Шаг 6 — Итоговая таблица
+## Step 6 — Summary table
 
 ```
-## Сводка
+## Summary
 
-| Компонент | ❌ FAIL 🔴 | ❌ FAIL 🟠 | ❌ FAIL 🟡🟢 | ⏸ ACCEPTED | Итого FAIL |
+| Component | ❌ FAIL 🔴 | ❌ FAIL 🟠 | ❌ FAIL 🟡🟢 | ⏸ ACCEPTED | Total FAIL |
 |-----------|-----------|-----------|------------|-----------|------------|
-| [Компонент] | N | N | N | N | N |
-| **ИТОГО** | **N** | **N** | **N** | **N** | **N** |
+| [Component] | N | N | N | N | N |
+| **TOTAL** | **N** | **N** | **N** | **N** | **N** |
 ```
 
-## Шаг 7 — Разбор FAIL 🔴
+## Step 7 — FAIL 🔴 breakdown
 
-Для каждого `❌ FAIL 🔴`:
+For each `❌ FAIL 🔴`:
 
 ```
-### 🔴 [Check ID] — [Компонент]
-**Файл:** `path/file.ts:line`
-**Проверка:** [название]
-**Доказательство:** [конкретный код]
-**Решение:** [первый вариант из таблицы]
+### 🔴 [Check ID] — [Component]
+**File:** `path/file.ts:line`
+**Check:** [name]
+**Evidence:** [specific code]
+**Resolution:** [first option from the table]
 ```
 
-## Шаг 8 — Финальная верификация
+## Step 8 — Final verification
 
-Вызови: `Skill("audit-verify")`
+Invoke: `Skill("audit-verify")`
 
-Затем вызови: `Skill("audit-meta")`
+Then invoke: `Skill("audit-meta")`
 
-## Шаг 9 — Сохранение
+## Step 9 — Save
 
-Сохрани полный отчёт через Write: `./docs/audits/<SESSION>/audit-report.md`
+Save the full report via Write: `./docs/audits/<SESSION>/audit-report.md`
 
 ```
 # Full Audit Report — <YYYY-MM-DD HH:MM>
-## Компоненты системы
-## Компонент: [Название]
-## Сводка
-## Критические риски
+## System components
+## Component: [Name]
+## Summary
+## Critical risks
 ```
 
-Сообщи путь к папке сессии и число FAIL по severity.
+Report the path to the session folder and the FAIL count by severity.
 
 ## Language Rule
 
-Результаты аудита должны быть написаны простым и понятным языком. Избегай сложных терминов, жаргона и абстрактных понятий без необходимости. Общепринятые технические термины (Docker, HTTP, API, JSON, URL) допустимы. Описывай проблемы так, чтобы они были понятны разработчику любого уровня, а не только узкому специалисту в данной области.
-
+Audit results must be written in plain, easy-to-understand language. Avoid complex terms, jargon, and abstract concepts unless necessary. Common technical terms (Docker, HTTP, API, JSON, URL) are acceptable. Describe issues so they are clear to a developer of any level, not just a narrow specialist in the given area.

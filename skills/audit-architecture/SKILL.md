@@ -1,23 +1,23 @@
 ---
 name: audit-architecture
 description: >
-  Аудит архитектуры и файловой структуры: корректность связей между слоями, нарушения
-  dependency rules, структура папок, circular dependencies. Запускай при /audit-architecture.
+  Architecture and file structure audit: correctness of inter-layer relationships, dependency
+  rule violations, folder structure, circular dependencies. Run on /audit-architecture.
 ---
 
-## Правило применимости (Relevance Rule)
+## Relevance Rule
 
-Применим к проектам с выраженной слоистой архитектурой (MVC, Clean Architecture, DDD, Hexagonal). Для single-file скриптов или утилит без архитектурного деления — верни пустой ответ.
+Applies to projects with a pronounced layered architecture (MVC, Clean Architecture, DDD, Hexagonal). For single-file scripts or utilities without architectural separation, return an empty response.
 
 ## Runtime Detection & Stack Profile
 
-Этот аудит стек-агностичен: проверки сформулированы нейтрально, а конкретика
-(инструменты, идиомы, анти-паттерны, примеры) берётся из профиля стека.
+This audit is stack-agnostic: the checks are framed neutrally, and the specifics
+(tools, idioms, anti-patterns, examples) come from the stack profile.
 
-1. **Профиль передан контекстом?** Если оркестратор `/audit` передал
-   `runtime=<id>` и/или содержимое профиля — используй его, шаги 2–3 пропусти.
+1. **Profile passed in context?** If the `/audit` orchestrator passed
+   `runtime=<id>` and/or the profile contents, use it and skip steps 2–3.
 
-2. **Иначе определи РОВНО ОДИН рантайм** этого каталога:
+2. **Otherwise, detect EXACTLY ONE runtime** for this directory:
    ```bash
    if   [ -f package.json ]; then echo "runtime=node"
    elif [ -f go.mod ]; then echo "runtime=go"
@@ -26,73 +26,73 @@ description: >
    elif [ -f pom.xml ] || ls build.gradle* settings.gradle* >/dev/null 2>&1; then echo "runtime=java"
    else echo "runtime=generic"; fi
    ```
-   Один запуск = один рантайм; не миксуй backend и frontend. Если найдено
-   несколько маркеров (монорепо) — выбери соответствующий текущему scope/анализируемым
-   файлам и зафиксируй выбор в разделе Audit Coverage.
+   One run = one runtime; do not mix backend and frontend. If several markers
+   are found (monorepo), pick the one matching the current scope / files under
+   analysis and record the choice in the Audit Coverage section.
 
-3. **Загрузи профиль** через Read: `./skills/audit/stacks/<runtime>.md`
-   (fallback `./skills/audit/stacks/_generic.md`, если файл не найден).
+3. **Load the profile** via Read: `./skills/audit/stacks/<runtime>.md`
+   (fallback `./skills/audit/stacks/_generic.md` if the file is not found).
 
-Дальше используй профиль:
-- **Инструменты** — из секции «Tooling by category» профиля (раздел
-  «Инструментальная поддержка» ниже ссылается на категории, а не на команды).
-- **Ожидания PASS** — из «Idioms»; **формулировки FAIL** — из «Anti-patterns».
-- **Точечные подсказки** — из «Check-ID hints» по префиксу `ARC-`.
-- Если профиль `tier: general` или `runtime=generic` → стек-специфичные находки
-  без однозначного evidence помечай `🔍 UNVERIFIED`, а не `❌ FAIL`. Проверки,
-  чей механизм в рантайме отсутствует, помечай `N/A`.
+Then use the profile:
+- **Tools** — from the profile's "Tooling by category" section (the
+  "Tooling Support" section below references categories, not commands).
+- **PASS expectations** — from "Idioms"; **FAIL wording** — from "Anti-patterns".
+- **Targeted hints** — from "Check-ID hints" by the prefix `ARC-`.
+- If the profile is `tier: general` or `runtime=generic`, mark stack-specific
+  findings without unambiguous evidence as `🔍 UNVERIFIED` rather than `❌ FAIL`.
+  Mark checks whose mechanism is absent in the runtime as `N/A`.
 
 ## Severity Guide
 
-| Severity | Критерий назначения |
+| Severity | Assignment criterion |
 |----------|---------------------|
-| 🔴 Critical | RCE, auth bypass, data corruption, необратимый финансовый риск |
-| 🟠 High | Падение production, privilege escalation, утечка данных |
-| 🟡 Medium | Деградация производительности или поддерживаемости без immediate outage |
-| 🟢 Low | Стиль, читаемость, слабое нарушение конвенции |
+| 🔴 Critical | RCE, auth bypass, data corruption, irreversible financial risk |
+| 🟠 High | production outage, privilege escalation, data leak |
+| 🟡 Medium | performance or maintainability degradation without an immediate outage |
+| 🟢 Low | style, readability, minor convention violation |
 
-Правило: severity = impact × exploitability × blast radius. Одинаковый паттерн → одинаковый severity между аудитами.
+Rule: severity = impact × exploitability × blast radius. The same pattern → the same severity across audits.
 
-## Чеклист
+## Checklist
 
-| Check ID | Проверка |
+| Check ID | Check |
 |----------|----------|
-| ARC-01 | Бизнес-логика вынесена из route handlers в service/domain слой |
-| ARC-02 | Presentation layer не взаимодействует с БД напрямую |
-| ARC-03 | Нет circular dependencies между модулями |
-| ARC-04 | Нет god-объектов: файлы и классы имеют единственную ответственность |
-| ARC-05 | Конфигурация и env-переменные изолированы в config-модуле |
-| ARC-06 | Внешние зависимости инжектируются (DI), не импортируются напрямую |
-| ARC-07 | Доменный слой не импортирует инфраструктурные модули |
+| ARC-01 | Business logic is moved out of route handlers into the service/domain layer |
+| ARC-02 | The presentation layer does not interact with the database directly |
+| ARC-03 | No circular dependencies between modules |
+| ARC-04 | No god objects: files and classes have a single responsibility |
+| ARC-05 | Configuration and env variables are isolated in a config module |
+| ARC-06 | External dependencies are injected (DI), not imported directly |
+| ARC-07 | The domain layer does not import infrastructure modules |
 
-## Правила верификации
+## Verification Rules
 
-1. **Только чеклист**: оценивай ТОЛЬКО проверки выше. Не добавляй новые.
-2. **Явная верификация = PASS**: ставь `✅ PASS` только если явно проверил механизм (нашёл схему, конфиг, guard) и подтвердил отсутствие нарушения — укажи что именно проверено.
-3. **Нет доказательства = UNVERIFIED**: не можешь указать `файл:строка` ни для нарушения, ни для подтверждения — ставь `🔍 UNVERIFIED`.
-4. **Baseline приоритетен**: check_id есть в `docs/audit-baseline.yml` → `⏸ ACCEPTED`.
-5. **Только 🔴/🟠 FAIL требуют решения**: 🟡/🟢 — решение необязательно.
+1. **Checklist only**: evaluate ONLY the checks above. Do not add new ones.
+2. **Explicit verification = PASS**: assign `✅ PASS` only if you explicitly verified the mechanism (found the schema, config, guard) and confirmed there is no violation — state exactly what was checked.
+3. **No evidence = UNVERIFIED**: if you cannot point to a `file:line` for either a violation or a confirmation, assign `🔍 UNVERIFIED`.
+4. **Baseline takes priority**: if the check_id is in `docs/audit-baseline.yml` → `⏸ ACCEPTED`.
+5. **Only 🔴/🟠 FAILs require a solution**: 🟡/🟢 — a solution is optional.
 
 ## Evidence Quality Rules
 
-Любой `❌ FAIL` обязан содержать:
-- Точный `file:line`
-- Минимальный код-фрагмент (1–3 строки)
-- Causal chain: почему именно это нарушение → какой риск возникает
+Every `❌ FAIL` must include:
+- An exact `file:line`
+- A minimal code snippet (1–3 lines)
+- Causal chain: why this specific violation → what risk it creates
 
-Запрещено:
-- Предполагать runtime behavior без evidence в коде
-- Предполагать prod-конфигурацию по dev-конфигу
-- Предполагать отсутствие middleware без проверки всей router chain
-- Если вывод основан на предположении — только `🔍 UNVERIFIED`
+Not allowed:
+- Assuming runtime behavior without evidence in the code
+- Inferring the prod configuration from the dev configuration
+- Assuming middleware is absent without checking the entire router chain
+- If a conclusion rests on an assumption — only `🔍 UNVERIFIED`
 
 ## Language Rule
 
-Результаты аудита должны быть написаны простым и понятным языком. Избегай сложных терминов, жаргона и абстрактных понятий без необходимости. Общепринятые технические термины (Docker, HTTP, API, JSON, URL) допустимы. Описывай проблемы так, чтобы они были понятны разработчику любого уровня, а не только узкому специалисту в данной области.
+Audit results must be written in plain, clear language. Avoid complex terms, jargon, and abstract concepts unless necessary. Common technical terms (Docker, HTTP, API, JSON, URL) are fine. Describe problems so they are understandable to a developer of any level, not only a narrow specialist in the area.
 
 ## Baseline
 
-До анализа:
+Before analysis:
 ```bash
 if [ ! -f ./docs/audit-baseline.yml ]; then
   mkdir -p ./docs
@@ -102,99 +102,99 @@ fi
 cat ./docs/audit-baseline.yml
 ```
 
-## Контекст анализа
+## Analysis Context
 
-**ARC-01 — Бизнес-логика в service/domain слое:**
-- Бизнес-правила и вычисления прямо в route handler / controller
-- Сложные условия и трансформации данных в middleware вместо сервиса
-- Операции с несколькими сущностями выполняются в handler без сервиса
+**ARC-01 — Business logic in the service/domain layer:**
+- Business rules and calculations directly in a route handler / controller
+- Complex conditions and data transformations in middleware instead of a service
+- Multi-entity operations performed in the handler without a service
 
-**ARC-02 — Presentation layer без прямых DB-вызовов:**
-- Прямые обращения к ORM/query builder из роутеров/контроллеров
-- Импорт репозиториев или DB-клиента непосредственно в слой представления
-- SQL / Prisma / Mongoose вызовы в middleware (примеры иллюстративны — Node; конкретные ORM/драйверы текущего рантайма см. в профиле, секции Idioms/Anti-patterns)
+**ARC-02 — Presentation layer without direct DB calls:**
+- Direct access to the ORM/query builder from routers/controllers
+- Importing repositories or the DB client directly into the presentation layer
+- SQL / Prisma / Mongoose calls in middleware (the examples are illustrative — Node; for the specific ORM/drivers of the current runtime see the profile, Idioms/Anti-patterns sections)
 
-**ARC-03 — Нет circular dependencies:**
-- Модуль A импортирует модуль B, который импортирует модуль A
-- Circular deps через несколько уровней (A→B→C→A)
-- Прямые импорты между feature-модулями (должны идти через shared)
+**ARC-03 — No circular dependencies:**
+- Module A imports module B, which imports module A
+- Circular deps across several levels (A→B→C→A)
+- Direct imports between feature modules (they should go through shared)
 
-**ARC-04 — Нет god-объектов:**
-- Файлы >500 строк с несвязанной логикой (несколько разных ответственностей)
-- Классы с методами из разных доменных областей
-- Модуль делает несвязанные вещи (low cohesion)
+**ARC-04 — No god objects:**
+- Files >500 lines with unrelated logic (several different responsibilities)
+- Classes with methods from different domain areas
+- A module doing unrelated things (low cohesion)
 
-**ARC-05 — Конфигурация изолирована:**
-- Доступ к конфигурации/env централизован в одном модуле; чтение env вразброс вне config-модуля — нарушение (профиль уточняет механизм: `process.env` в Node / `os.Getenv` в Go / `caarlos0/env`-теги и т.п.)
-- Магические строки с именами env-переменных разбросаны по коду
-- Нет единой точки валидации конфигурации при старте приложения
+**ARC-05 — Configuration is isolated:**
+- Access to configuration/env is centralized in one module; reading env scattered outside the config module is a violation (the profile specifies the mechanism: `process.env` in Node / `os.Getenv` in Go / `caarlos0/env` tags, etc.)
+- Magic strings with env variable names scattered across the code
+- No single point of configuration validation at application startup
 
-**ARC-06 — Внешние зависимости инжектируются:**
-- HTTP-клиенты, email-сервисы, БД-клиенты создаются внутри функций (не инжектируются)
-- Зависимость от конкретных реализаций вместо интерфейсов/абстракций
-- Отсутствие dependency injection делает код нетестируемым (нельзя подменить в тестах)
+**ARC-06 — External dependencies are injected:**
+- HTTP clients, email services, DB clients are created inside functions (not injected)
+- Dependence on concrete implementations instead of interfaces/abstractions
+- The absence of dependency injection makes the code untestable (it cannot be substituted in tests)
 
-**Направление зависимостей (Dependency Rule):**
-> Примеры ниже иллюстративны (Node); конкретные ORM/типы инфраструктуры текущего рантайма см. в профиле (секции Idioms/Anti-patterns/Check-ID hints, ARC-07).
-- Domain/service слой импортирует типы Prisma напрямую (должен через repository interface)
-- Бизнес-логика зависит от Express Request/Response типов
-- Domain entity содержит ORM-декораторы (TypeORM @Entity в domain классе)
-- Нарушение: `domain/ → infrastructure/` (правильно: `infrastructure/ → domain/`)
+**Dependency Rule:**
+> The examples below are illustrative (Node); for the specific ORM/infrastructure types of the current runtime see the profile (Idioms/Anti-patterns/Check-ID hints sections, ARC-07).
+- The domain/service layer imports Prisma types directly (it should go through a repository interface)
+- Business logic depends on Express Request/Response types
+- A domain entity contains ORM decorators (TypeORM @Entity in a domain class)
+- Violation: `domain/ → infrastructure/` (correct: `infrastructure/ → domain/`)
 
-## Инструментальная поддержка
+## Tooling Support
 
-Для ARC-03 (circular dependencies) и нарушений слоёв используй инструмент
-категории **arch-lint** из профиля стека (секция «Tooling by category»). Используй
-вывод как подсказку и верифицируй каждую находку вручную (`file:line`) перед
-занесением в FAIL. Если ячейка пустая (tier general/generic) — проверяй вручную и
-помечай находки `🔍 UNVERIFIED`.
+For ARC-03 (circular dependencies) and layer violations, use a tool in the
+**arch-lint** category from the stack profile (the "Tooling by category" section). Use
+the output as a hint and verify each finding manually (`file:line`) before
+recording it as a FAIL. If the cell is empty (tier general/generic), check manually and
+mark findings `🔍 UNVERIFIED`.
 
-Примечание: в Go циклы импортов запрещены компилятором, поэтому ARC-03 на уровне
-пакетов — авто-PASS / N/A; проверять нужно только логические слои (см. Check-ID
-hints профиля go).
+Note: in Go, import cycles are forbidden by the compiler, so ARC-03 at the
+package level is an auto-PASS / N/A; you only need to check logical layers (see the Check-ID
+hints in the go profile).
 
-## Формат вывода
+## Output Format
 
-| Check ID | Проверка | Статус | Уверенность | Доказательство | Решение | Исправлено |
+| Check ID | Check | Status | Confidence | Evidence | Solution | Fixed |
 |----------|----------|--------|-------------|----------------|---------|------------|
-| ARC-01 | Бизнес-логика вынесена из route handlers в service/domain слой | ✅ PASS | High | `routes/` — handlers делегируют в services | — | — |
-| ARC-03 | Нет circular dependencies между модулями | ❌ FAIL 🟠 | High | `modules/order/index.ts:3` | **1. Вынести общий код в shared модуль** \\ 2. Применить dependency inversion \\ 3. Разбить модуль на независимые части | Нет |
-| ARC-06 | Внешние зависимости инжектируются (DI), не импортируются напрямую | ⏸ ACCEPTED | Medium | `services/payment.ts:1` | В baseline: refactor запланирован в Q3 | — |
+| ARC-01 | Business logic is moved out of route handlers into the service/domain layer | ✅ PASS | High | `routes/` — handlers delegate to services | — | — |
+| ARC-03 | No circular dependencies between modules | ❌ FAIL 🟠 | High | `modules/order/index.ts:3` | **1. Move shared code into a shared module** \\ 2. Apply dependency inversion \\ 3. Split the module into independent parts | No |
+| ARC-06 | External dependencies are injected (DI), not imported directly | ⏸ ACCEPTED | Medium | `services/payment.ts:1` | In baseline: refactor planned for Q3 | — |
 
-Статусы: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED` / `🔍 UNVERIFIED`
+Statuses: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED` / `🔍 UNVERIFIED`
 
-Уверенность: `High` — проверил несколько ключевых файлов, паттерн очевиден / `Medium` — проверил выборочно, паттерн вероятен / `Low` — ограниченный контекст, полная уверенность невозможна
+Confidence: `High` — checked several key files, the pattern is obvious / `Medium` — checked selectively, the pattern is likely / `Low` — limited context, full certainty is impossible
 
-Для `❌ FAIL`: ровно 3 варианта решения, разделитель `\\`, вариант 1 жирным.
+For `❌ FAIL`: exactly 3 solution options, separated by `\\`, with option 1 in bold.
 
-`Исправлено`: FAIL → `Нет` (разработчик меняет на `✅ Да` вручную после фикса). PASS / ACCEPTED / UNVERIFIED → `—`.
+`Fixed`: FAIL → `No` (the developer changes it to `✅ Yes` manually after the fix). PASS / ACCEPTED / UNVERIFIED → `—`.
 
-Требования к решениям:
-- Взаимно исключающие (не перефразировки одного и того же)
-- Соответствуют текущему стеку проекта (не предлагать смену фреймворка)
-- Не требуют переписать всю систему — realistic migration cost
-- Вариант 3 может быть «оставить, задокументировать причину» при наличии обоснования
+Solution requirements:
+- Mutually exclusive (not rephrasings of the same thing)
+- Match the project's current stack (do not propose switching frameworks)
+- Do not require rewriting the whole system — realistic migration cost
+- Option 3 may be "keep it, document the reason" if there is justification
 
-В конце отчёта добавь раздел покрытия:
+At the end of the report, add a coverage section:
 ```
 ## Audit Coverage
-Проверено: src/module1/**, src/module2/**
-Пропущено: scripts/**, migrations/**, tests/**
-Файлов проверено: N | Пропущено: N
+Checked: src/module1/**, src/module2/**
+Skipped: scripts/**, migrations/**, tests/**
+Files checked: N | Skipped: N
 ```
 
-Если все PASS — выведи: `✅ Архитектурные принципы соблюдены.`
+If everything is PASS, output: `✅ Architectural principles are upheld.`
 
-## Сохранение результатов
+## Saving Results
 
-1. Найди папку сессии:
+1. Find the session folder:
    ```bash
    ls -dt ./docs/audits/[0-9]*/ 2>/dev/null | head -1 | sed 's|/$||'
    ```
-   Если пусто — создай: `mkdir -p ./docs/audits/$(date +"%Y-%m-%d_%H-%M")`
-2. Сохрани через Write: `<AUDIT_DIR>/audit-architecture.md`
+   If empty, create it: `mkdir -p ./docs/audits/$(date +"%Y-%m-%d_%H-%M")`
+2. Save via Write: `<AUDIT_DIR>/audit-architecture.md`
 
 ```
 # Audit Report: Architecture & File Structure — <YYYY-MM-DD HH:MM>
-<таблица>
+<table>
 ```

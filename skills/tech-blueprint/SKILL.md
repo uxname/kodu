@@ -1,66 +1,66 @@
 ---
 name: tech-blueprint
-description: Генерирует технические контракты (Prisma-схема, GraphQL API, архитектура, план тестирования) на основе SPEC.md и UI-прототипа. Также проверяет уже созданный blueprint по запросу. Запускай когда SPEC.md утверждён и нужно перейти к техническому проектированию, или когда пользователь говорит «проверь ТЗ», «валидируй blueprint». НЕ запускай если SPEC.md ещё черновик или задача — рефакторинг существующего кода.
+description: Generates technical contracts (Prisma schema, GraphQL API, architecture, testing plan) based on SPEC.md and a UI prototype. Also reviews an already-created blueprint on request. Run when SPEC.md is approved and it's time to move to technical design, or when the user says "check the spec", "validate the blueprint". Do NOT run if SPEC.md is still a draft or the task is refactoring existing code.
 license: MIT
 compatibility: opencode
 metadata:
   level: multi
-  output: папка 3_TECH_BLUEPRINT/
+  output: folder 3_TECH_BLUEPRINT/
 ---
 
-## Назначение
+## Purpose
 
-Скилл создаёт пять документов, полностью описывающих техническую реализацию продукта:
-- **IMPLEMENTATION_GUIDE.md** — онбординг разработчика: стек, что уже готово, как запустить
-- **DATABASE_MODEL.md** — Prisma-схема, отношения, индексы
-- **API_CONTRACTS.md** — GraphQL-схема с типами, операциями и правилами доступа
-- **ARCHITECTURE.md** — NestJS-модули, FSD-слайсы, управление состоянием
-- **TESTING_PLAN.md** — Unit-тесты и E2E-сценарии Playwright
+The skill creates five documents that fully describe the product's technical implementation:
+- **IMPLEMENTATION_GUIDE.md** — developer onboarding: stack, what's already done, how to run it
+- **DATABASE_MODEL.md** — Prisma schema, relations, indexes
+- **API_CONTRACTS.md** — GraphQL schema with types, operations, and access rules
+- **ARCHITECTURE.md** — NestJS modules, FSD slices, state management
+- **TESTING_PLAN.md** — unit tests and Playwright E2E scenarios
 
-**Когда запускать:**
-- SPEC.md имеет статус «на ревью» или «утверждён»
-- UI-прототип существует в папке `prototype/`
-- Команда готова начинать разработку
+**When to run:**
+- SPEC.md has the status "in review" or "approved"
+- A UI prototype exists in the `prototype/` folder
+- The team is ready to start development
 
-**Когда НЕ запускать:**
-- SPEC.md ещё черновик
-- Нет понимания бизнес-сущностей
-- Задача — рефакторинг или фикс бага в существующем проекте
-
----
-
-## Входные данные
-
-Перед генерацией **обязательно прочитать и проанализировать**:
-
-1. **`1_PRODUCT_VISION/VISION.md`** — цель, границы, метрики успеха
-2. **`2_PRODUCT_SPEC/SPEC.md`** — сущности, операции, страницы, тестирование (**главный источник истины**)
-3. **`prototype/`** — только для понимания скопа: какие страницы существуют, какие потоки между ними, какие формы. **Не копировать из прототипа технические решения.** Прототип сделан быстро и без учёта best practices — он показывает «что», но не «как». Всё архитектурное — по лучшим практикам стека, независимо от того, как это реализовано в прототипе.
-4. **Существующие схемы** — если в проекте уже есть `schema.prisma` или `schema.graphql`: прочитать перед генерацией, это означает режим обновления
-
-Если входных данных недостаточно — задать **не более 2 уточняющих вопросов**.
-
-Перед генерацией составить внутренний список:
-- бизнес-сущности (из SPEC.md §Сущности)
-- ключевые операции (из SPEC.md §Ключевые операции)
-- страницы (из SPEC.md §Страницы, прототип — для сверки скопа)
-- роли пользователей (из SPEC.md §Глоссарий или §Сущности)
+**When NOT to run:**
+- SPEC.md is still a draft
+- There's no understanding of the business entities
+- The task is refactoring or fixing a bug in an existing project
 
 ---
 
-## Стартовые шаблоны: что уже реализовано
+## Inputs
 
-Проекты строятся на основе двух предготовленных стартовых шаблонов (boilerplate — готовая кодовая база с решёнными базовыми задачами): шаблон для бэкенда (NestJS) и шаблон для фронтенда (React). В них уже реализованы авторизация, работа с пользователями и тестовая инфраструктура. **Не проектировать заново** — только расширять.
+Before generation, you **must read and analyze**:
+
+1. **`1_PRODUCT_VISION/VISION.md`** — goal, scope, success metrics
+2. **`2_PRODUCT_SPEC/SPEC.md`** — entities, operations, pages, testing (**the main source of truth**)
+3. **`prototype/`** — only to understand the scope: which pages exist, the flows between them, the forms. **Do not copy technical decisions from the prototype.** The prototype was built quickly and without regard for best practices — it shows "what", not "how". Everything architectural follows the stack's best practices, regardless of how it's implemented in the prototype.
+4. **Existing schemas** — if the project already has a `schema.prisma` or `schema.graphql`: read it before generation, this means update mode
+
+If there isn't enough input — ask **no more than 2 clarifying questions**.
+
+Before generation, build an internal list:
+- business entities (from SPEC.md §Entities)
+- key operations (from SPEC.md §Key operations)
+- pages (from SPEC.md §Pages, the prototype — to cross-check the scope)
+- user roles (from SPEC.md §Glossary or §Entities)
+
+---
+
+## Starter templates: what's already implemented
+
+Projects are built on top of two pre-built starter templates (boilerplate — a ready codebase with the basic tasks already solved): a backend template (NestJS) and a frontend template (React). They already implement authentication, user handling, and the test infrastructure. **Don't design them again** — only extend them.
 
 ### Backend
 
-**Prisma-модель `Profile` (уже существует, не дублировать):**
+**The Prisma model `Profile` (already exists, do not duplicate):**
 ```prisma
 model Profile {
   id        Int           @id @default(autoincrement())
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
-  oidcSub   String        @unique   // связь с OIDC-провайдером
+  oidcSub   String        @unique   // link to the OIDC provider
   roles     ProfileRole[] @default([USER])
   avatarUrl String?
 }
@@ -68,106 +68,106 @@ model Profile {
 enum ProfileRole { ADMIN  USER }
 ```
 
-**GraphQL-операции (уже реализованы, не включать в Blueprint):**
-| Операция | Тип | Доступ |
+**GraphQL operations (already implemented, do not include in the Blueprint):**
+| Operation | Type | Access |
 |---------|-----|--------|
 | `me` | Query | JwtAuthGuard |
 | `updateProfile(input)` | Mutation | JwtAuthGuard |
-| `profileUpdated` | Subscription | по userId |
+| `profileUpdated` | Subscription | by userId |
 | `debug` | Query | JwtOptionalAuthGuard |
-| `echo` | Query + Mutation | публичный |
+| `echo` | Query + Mutation | public |
 
-**Инфраструктура (настроена, просто использовать):**
+**Infrastructure (configured, just use it):**
 - Auth guards: `JwtAuthGuard`, `JwtOptionalAuthGuard`, `RolesGuard`, `@CurrentUser()`, `@Roles()`
-- GraphQL: **MercuriusDriver** (Fastify) — не Apollo Server
+- GraphQL: **MercuriusDriver** (Fastify) — not Apollo Server
 - Subscriptions: WebSocket + Redis pub/sub (mqemitter-redis)
-- Error handling: `gqlErrorFormatter` — маппит `ZodValidationException` и `HttpException` в GraphQL-ошибки
+- Error handling: `gqlErrorFormatter` — maps `ZodValidationException` and `HttpException` to GraphQL errors
 - 404 backend: `@All()` → `NotFoundException`
 - Health check: `GET /health`
 - Queue: BullMQ + Redis
 - i18n: nestjs-i18n (en/ru)
 
-**Backend тестовая инфраструктура:**
-- `E2EClient.loginAs(profile)` — auth через `x-mock-sub` header
-- `clearDatabase()` + `clearRedis()` — обязательно в `beforeEach()`
-- `OIDC_MOCK_ENABLED=true` — режим мок-авторизации в `.env.test`
+**Backend test infrastructure:**
+- `E2EClient.loginAs(profile)` — auth via the `x-mock-sub` header
+- `clearDatabase()` + `clearRedis()` — mandatory in `beforeEach()`
+- `OIDC_MOCK_ENABLED=true` — mock-auth mode in `.env.test`
 
 ### Frontend
 
-**FSD-слайсы** (FSD — Feature-Sliced Design, методология структуры фронтенд-кода по бизнес-слоям) **уже реализованы, не включать в Blueprint:**
-| Слой | Слайс | Что содержит |
+**FSD slices** (FSD — Feature-Sliced Design, a methodology for structuring frontend code by business layers) **already implemented, do not include in the Blueprint:**
+| Layer | Slice | What it contains |
 |------|-------|-------------|
-| `features` | `auth` | OIDC PKCE конфигурация, `AuthGuard`, `MockAuthProvider` |
-| `widgets` | `Header` | Навигация + кнопки авторизации (состояние auth) |
-| `pages` | `404` | Полностью реализована с кнопками «Назад» и «На главную» |
-| `shared/api` | `graphql-client` | URQL client factory с Bearer-token |
+| `features` | `auth` | OIDC PKCE configuration, `AuthGuard`, `MockAuthProvider` |
+| `widgets` | `Header` | Navigation + auth buttons (auth state) |
+| `pages` | `404` | Fully implemented with "Back" and "Home" buttons |
+| `shared/api` | `graphql-client` | URQL client factory with a Bearer token |
 
-**Роуты (уже реализованы):**
-| Роут | Назначение |
+**Routes (already implemented):**
+| Route | Purpose |
 |------|-----------|
-| `/callback` | OIDC redirect handler (после логина) |
-| `*` (любой несуществующий) | 404 page через `defaultNotFoundComponent` |
+| `/callback` | OIDC redirect handler (after login) |
+| `*` (any non-existent) | 404 page via `defaultNotFoundComponent` |
 
-**Frontend тестовая инфраструктура:**
-- `VITE_MOCK_AUTH=true` — `MockAuthProvider` для Playwright e2e
-- `tests/setup.ts` — глобальный мок `react-oidc-context` для Vitest unit/component-тестов
+**Frontend test infrastructure:**
+- `VITE_MOCK_AUTH=true` — `MockAuthProvider` for Playwright e2e
+- `tests/setup.ts` — a global mock of `react-oidc-context` for Vitest unit/component tests
 - Coverage: lines / functions / statements ≥ 80%, branches ≥ 70%
 
 ---
 
-## Структура вывода
+## Output structure
 
-Технические контракты хранятся **отдельно** от продуктовой документации (doc-gen), чтобы не смешивать бизнес-артефакты с техническими:
+The technical contracts are stored **separately** from the product documentation (doc-gen), so as not to mix business artifacts with technical ones:
 
 ```
-docs/<имя_проекта>/          ← продуктовая документация (doc-gen)
+docs/<project_name>/          ← product documentation (doc-gen)
 ├── INDEX.md
 ├── 1_PRODUCT_VISION/
 └── 2_PRODUCT_SPEC/
 
-blueprint/<имя_проекта>/     ← технические контракты (этот скилл)
+blueprint/<project_name>/     ← technical contracts (this skill)
 └── 3_TECH_BLUEPRINT/
-    ├── IMPLEMENTATION_GUIDE.md   ← онбординг разработчика (генерировать первым)
+    ├── IMPLEMENTATION_GUIDE.md   ← developer onboarding (generate first)
     ├── DATABASE_MODEL.md
     ├── API_CONTRACTS.md
     ├── ARCHITECTURE.md
     └── TESTING_PLAN.md
 ```
 
-Создать папку перед генерацией:
+Create the folder before generation:
 ```bash
-mkdir -p blueprint/<ИмяПроекта>/3_TECH_BLUEPRINT
+mkdir -p blueprint/<ProjectName>/3_TECH_BLUEPRINT
 ```
 
 ---
 
-## Правила генерации: DATABASE_MODEL.md
+## Generation rules: DATABASE_MODEL.md
 
-### Структура файла
+### File structure
 
 ```markdown
-# Модель данных: <Название продукта>
+# Data model: <Product name>
 
-**Статус:** черновик | **Дата:** YYYY-MM-DD
+**Status:** draft | **Date:** YYYY-MM-DD
 
-## Ссылки
-- Спецификация: [SPEC.md](../2_PRODUCT_SPEC/SPEC.md)
+## Links
+- Specification: [SPEC.md](../2_PRODUCT_SPEC/SPEC.md)
 
-## Контекст реализации
-- **ORM:** Prisma (TypeScript ORM) — схема в `prisma/schema.prisma`, миграции через `prisma migrate dev`
-- **БД:** PostgreSQL
-- **`Profile` — модель текущего пользователя** (уже существует в стартовом шаблоне, не дублировать): содержит `id`, `oidcSub @unique` (идентификатор из OIDC-провайдера), `roles`, `avatarUrl`. Для связи бизнес-сущности с пользователем: `profileId Int` + `@relation(fields: [profileId], references: [id])`.
-- **Авторизация через OIDC** (OpenID Connect — протокол входа через внешний сервис, например Logto или Keycloak): таблицы `User`, `Session`, `AuthToken` — **не создавать**. Авторизация целиком вынесена на сторону внешнего провайдера.
-- **Soft delete:** `deletedAt DateTime?` — сущность не удаляется физически. Запросы к таким моделям всегда фильтруют: `WHERE deletedAt IS NULL`.
+## Implementation context
+- **ORM:** Prisma (TypeScript ORM) — the schema is in `prisma/schema.prisma`, migrations via `prisma migrate dev`
+- **DB:** PostgreSQL
+- **`Profile` — the current user's model** (already exists in the starter template, do not duplicate): contains `id`, `oidcSub @unique` (the identifier from the OIDC provider), `roles`, `avatarUrl`. To link a business entity to the user: `profileId Int` + `@relation(fields: [profileId], references: [id])`.
+- **Authentication via OIDC** (OpenID Connect — a sign-in protocol via an external service, for example Logto or Keycloak): the `User`, `Session`, `AuthToken` tables — **do not create**. Authentication is entirely delegated to the external provider.
+- **Soft delete:** `deletedAt DateTime?` — the entity is not deleted physically. Queries to such models always filter: `WHERE deletedAt IS NULL`.
 
-## Сущности и отношения
-<для каждой модели: что хранит, ключевые поля, связи — язык бизнеса, не базы данных>
+## Entities and relations
+<for each model: what it stores, key fields, relations — business language, not database language>
 
-## Схема базы данных
+## Database schema
 
 ```prisma
-// schema.prisma — <Название продукта>
-// Сгенерировано на основе SPEC.md
+// schema.prisma — <Product name>
+// Generated based on SPEC.md
 
 generator client {
   provider = "prisma-client-js"
@@ -178,128 +178,128 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// <модели и энумы>
+// <models and enums>
 ```
 
-## Энумы
-<для каждого enum: название, значения, когда и почему используется>
+## Enums
+<for each enum: name, values, when and why it's used>
 
-## Индексы и ограничения
-| Модель | Поле(я) | Тип | Причина |
+## Indexes and constraints
+| Model | Field(s) | Type | Reason |
 |--------|---------|-----|---------|
 
-## Каскадные операции
-| Модель | Поле связи | onDelete | onUpdate | Обоснование |
+## Cascade operations
+| Model | Relation field | onDelete | onUpdate | Rationale |
 |--------|-----------|----------|----------|-------------|
 ```
 
-### Обязательные правила
+### Mandatory rules
 
-**Трассируемость.** В комментарии к каждой модели добавлять ссылку:
+**Traceability.** Add a reference comment to each model:
 ```prisma
-// Сущность «Заказ» — SPEC.md §Сущности
+// The "Order" entity — SPEC.md §Entities
 model Order {
 ```
 
-**Технические поля.** Каждая модель (кроме join-таблиц, см. ниже) обязана содержать:
+**Technical fields.** Each model (except join tables, see below) must contain:
 ```prisma
 createdAt DateTime @default(now())
 updatedAt DateTime @updatedAt
 ```
 
-**Мягкое удаление.** Для критичных бизнес-сущностей (Пользователи, Заказы, Проекты и аналоги по SPEC.md) добавлять `deletedAt DateTime?` если SPEC.md не запрещает. Все запросы к таким моделям учитывают `WHERE deletedAt IS NULL`.
+**Soft delete.** For critical business entities (Users, Orders, Projects, and the like per SPEC.md), add `deletedAt DateTime?` unless SPEC.md forbids it. All queries to such models account for `WHERE deletedAt IS NULL`.
 
-**Энумы вместо строк.** Для перечислимых значений — только `enum`, никаких `String`:
+**Enums instead of strings.** For enumerable values — only `enum`, no `String`:
 ```prisma
-// Правильно:
+// Correct:
 enum OrderStatus { DRAFT CONFIRMED COMPLETED CANCELLED }
 
-// Запрещено:
-status String // вместо enum
+// Forbidden:
+status String // instead of an enum
 ```
 
-**Связи.** Каждая связь — с явным `@relation`, `onDelete`, `onUpdate`.
+**Relations.** Each relation — with an explicit `@relation`, `onDelete`, `onUpdate`.
 
-**Уникальные индексы.** `@@unique` для бизнес-уникальных комбинаций полей.
+**Unique indexes.** `@@unique` for business-unique combinations of fields.
 
-**Join-таблицы.** Именовать со знаком `_` в названии (например, `_UserToRole`, `Post_Tag`). Технические поля для них опциональны.
+**Join tables.** Name them with a `_` in the name (for example, `_UserToRole`, `Post_Tag`). Technical fields are optional for them.
 
-**Profile уже существует.** Не добавлять модель `User`, `Account`, `Session`, `AuthToken` — авторизация полностью на стороне внешнего OIDC-провайдера. Для связи бизнес-сущностей с пользователем использовать `profileId`:
+**Profile already exists.** Don't add a `User`, `Account`, `Session`, or `AuthToken` model — authentication is entirely on the side of the external OIDC provider. To link business entities to the user, use `profileId`:
 ```prisma
-// Правильно:
+// Correct:
 model Order {
   // ...
   profileId Int
   profile   Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
 }
 
-// Запрещено:
-model User { /* дублирует Profile */ }
-model Session { /* OIDC — внешний провайдер */ }
+// Forbidden:
+model User { /* duplicates Profile */ }
+model Session { /* OIDC — external provider */ }
 ```
 
-**Запрещено:**
-- `String` для перечислимых значений (статусы, роли, типы)
-- Внешние ключи без явного `onDelete`
-- Модели без поля `id`
-- Модели `User`, `Account`, `Session`, `AuthToken` (дублируют boilerplate)
+**Forbidden:**
+- `String` for enumerable values (statuses, roles, types)
+- Foreign keys without an explicit `onDelete`
+- Models without an `id` field
+- The `User`, `Account`, `Session`, `AuthToken` models (duplicate the boilerplate)
 
 ---
 
-## Правила генерации: API_CONTRACTS.md
+## Generation rules: API_CONTRACTS.md
 
-### Структура файла
+### File structure
 
 ```markdown
-# API-контракты: <Название продукта>
+# API contracts: <Product name>
 
-**Статус:** черновик | **Дата:** YYYY-MM-DD
+**Status:** draft | **Date:** YYYY-MM-DD
 
-## Ссылки
-- Спецификация: [SPEC.md](../2_PRODUCT_SPEC/SPEC.md)
-- Модель данных: [DATABASE_MODEL.md](./DATABASE_MODEL.md)
+## Links
+- Specification: [SPEC.md](../2_PRODUCT_SPEC/SPEC.md)
+- Data model: [DATABASE_MODEL.md](./DATABASE_MODEL.md)
 
-## Контекст реализации
-- **GraphQL-движок:** MercuriusDriver — реализация GraphQL для веб-фреймворка Fastify (используется вместо Apollo Server; поведение идентично, отличается только конфигурацией).
-- **Гарды авторизации** (NestJS guard — декоратор, проверяющий права доступа перед выполнением резолвера):
-  - `@UseGuards(JwtAuthGuard)` — требует действующий JWT-токен
-  - `@UseGuards(JwtOptionalAuthGuard)` — авторизация необязательна (работает и с токеном, и без)
-  - `@UseGuards(JwtAuthGuard) @Roles(ProfileRole.ADMIN)` — только для роли ADMIN
-  - `@CurrentUser()` — декоратор параметра резолвера, возвращает текущий `Profile`
-- **Операции стартового шаблона (уже готовы, не включать в Blueprint):** `me`, `updateProfile`, `profileUpdated`, `debug`, `echo`
-- **Обработка ошибок:** `gqlErrorFormatter` автоматически преобразует `ZodValidationException` и `HttpException` в корректные GraphQL-ошибки — не нужно обрабатывать вручную.
-- **Subscriptions:** работают через WebSocket + Redis pub/sub — инфраструктура уже настроена, просто использовать.
-- **OIDC-операции** (вход/выход/регистрация): `login`, `register`, `logout`, `refreshToken` — **не описывать**, они находятся в OIDC-провайдере (внешний сервис).
+## Implementation context
+- **GraphQL engine:** MercuriusDriver — a GraphQL implementation for the Fastify web framework (used instead of Apollo Server; behavior is identical, only the configuration differs).
+- **Auth guards** (a NestJS guard — a decorator that checks access rights before a resolver runs):
+  - `@UseGuards(JwtAuthGuard)` — requires a valid JWT token
+  - `@UseGuards(JwtOptionalAuthGuard)` — auth is optional (works both with and without a token)
+  - `@UseGuards(JwtAuthGuard) @Roles(ProfileRole.ADMIN)` — only for the ADMIN role
+  - `@CurrentUser()` — a resolver parameter decorator, returns the current `Profile`
+- **Starter-template operations (already done, do not include in the Blueprint):** `me`, `updateProfile`, `profileUpdated`, `debug`, `echo`
+- **Error handling:** `gqlErrorFormatter` automatically converts `ZodValidationException` and `HttpException` into correct GraphQL errors — no manual handling needed.
+- **Subscriptions:** work via WebSocket + Redis pub/sub — the infrastructure is already configured, just use it.
+- **OIDC operations** (login/logout/registration): `login`, `register`, `logout`, `refreshToken` — **do not describe**, they live in the OIDC provider (an external service).
 
-## Обзор API
-<количество операций, основные домены, принципиальные решения>
+## API overview
+<number of operations, main domains, key decisions>
 
-## Кастомные ошибки
-| Код | Описание | Когда возникает |
+## Custom errors
+| Code | Description | When it occurs |
 |-----|----------|----------------|
 
-## Схема GraphQL
+## GraphQL schema
 
 ```graphql
-# schema.graphql — <Название продукта>
-# Сгенерировано на основе SPEC.md
+# schema.graphql — <Product name>
+# Generated based on SPEC.md
 
-# <директивы, scalars, типы, inputs, queries, mutations>
+# <directives, scalars, types, inputs, queries, mutations>
 ```
 
-## Описание операций
-<для нетривиальных операций: входные данные, результат, правило доступа, возможные ошибки>
+## Operation descriptions
+<for non-trivial operations: inputs, result, access rule, possible errors>
 ```
 
-### Обязательные правила
+### Mandatory rules
 
-**Трассируемость.** В комментарии к каждой Query и Mutation:
+**Traceability.** In the comment to each Query and Mutation:
 ```graphql
-# Описано в SPEC.md §Ключевые операции — создание заказа
+# Described in SPEC.md §Key operations — creating an order
 createOrder(input: CreateOrderInput!): CreateOrderResult!
 ```
 
-**Директивы доступа.** Каждая Query и Mutation помечается комментарием:
+**Access directives.** Each Query and Mutation is marked with a comment:
 ```graphql
 # @public
 products(limit: Int! = 20, offset: Int! = 0): ProductsPage!
@@ -310,11 +310,11 @@ myOrders(limit: Int! = 20, offset: Int! = 0): OrdersPage!
 # @auth @hasRole(ADMIN)
 deleteUser(id: ID!): DeleteUserResult!
 ```
-Если операция публичная — писать `# @public`. Без этого комментария операция считается непомеченной — ошибка.
+If an operation is public — write `# @public`. Without this comment the operation is considered unmarked — an error.
 
-**Строгая пагинация.** Любое поле, возвращающее список, обязано иметь пагинацию. Использовать wrapper-тип:
+**Strict pagination.** Any field returning a list must have pagination. Use a wrapper type:
 ```graphql
-# Правильно:
+# Correct:
 type Query {
   orders(limit: Int! = 20, offset: Int! = 0, filter: OrderFilterInput): OrdersPage!
 }
@@ -325,314 +325,314 @@ type OrdersPage {
   hasMore: Boolean!
 }
 
-# Запрещено:
+# Forbidden:
 type Query {
-  orders: [Order!]!  # голый массив без пагинации — ошибка
+  orders: [Order!]!  # a bare array without pagination — an error
 }
 ```
 
-**Input-типы.** Каждая мутация принимает отдельный Input-тип, не набор скалярных аргументов:
+**Input types.** Each mutation takes a separate Input type, not a set of scalar arguments:
 ```graphql
-# Правильно:
+# Correct:
 createOrder(input: CreateOrderInput!): CreateOrderResult!
 
-# Запрещено:
+# Forbidden:
 createOrder(userId: ID!, productId: ID!, quantity: Int!): Order!
 ```
 
-**Кастомные ошибки.** Для операций с бизнес-ошибками — union-тип результата:
+**Custom errors.** For operations with business errors — a union result type:
 ```graphql
 union CreateOrderResult = Order | OrderError | InsufficientStockError
 ```
 
-**GraphQL-движок: MercuriusDriver (Fastify).** Не описывать директивы и механизмы Apollo Server. Subscriptions — через WebSocket + Redis pub/sub (уже настроено в boilerplate).
+**GraphQL engine: MercuriusDriver (Fastify).** Don't describe Apollo Server directives and mechanisms. Subscriptions — via WebSocket + Redis pub/sub (already configured in the boilerplate).
 
-**Синтаксис guards в комментариях.** Использовать NestJS-style для точности:
+**Guard syntax in comments.** Use NestJS-style for precision:
 ```graphql
-# @UseGuards(JwtAuthGuard)                      — требует авторизации
-# @UseGuards(JwtOptionalAuthGuard)              — авторизация опциональна
-# @UseGuards(JwtAuthGuard) @Roles(ADMIN)        — только для роли ADMIN
-# @public                                        — без авторизации
+# @UseGuards(JwtAuthGuard)                      — requires auth
+# @UseGuards(JwtOptionalAuthGuard)              — auth is optional
+# @UseGuards(JwtAuthGuard) @Roles(ADMIN)        — only for the ADMIN role
+# @public                                        — no auth
 ```
 
-**Операции boilerplate уже реализованы.** Не включать в Blueprint:
+**Boilerplate operations are already implemented.** Don't include in the Blueprint:
 `me`, `updateProfile(input)`, `profileUpdated`, `debug`, `echo`
 
-**Запрещено описывать:** операции авторизации (login, register, logout, refreshToken) — это OIDC-провайдер. Загрузку файлов и управление сессиями — если не несут уникальной бизнес-логики.
+**Forbidden to describe:** auth operations (login, register, logout, refreshToken) — that's the OIDC provider. File uploads and session management — if they don't carry unique business logic.
 
-**Запрещено:**
-- Голые массивы `[Entity!]!` в Query/Mutation
-- Query/Mutation без директивы доступа
-- Мутации с набором скалярных аргументов вместо Input-типа
-- Операции `me`, `updateProfile`, `profileUpdated` (уже в boilerplate)
-- GraphQL-типы `LoginInput`, `RegisterInput`, `SessionType` (OIDC — внешний провайдер)
+**Forbidden:**
+- Bare arrays `[Entity!]!` in Query/Mutation
+- Query/Mutation without an access directive
+- Mutations with a set of scalar arguments instead of an Input type
+- The `me`, `updateProfile`, `profileUpdated` operations (already in the boilerplate)
+- The GraphQL types `LoginInput`, `RegisterInput`, `SessionType` (OIDC — external provider)
 
 ---
 
-## Правила генерации: ARCHITECTURE.md
+## Generation rules: ARCHITECTURE.md
 
-### Структура файла
+### File structure
 
 ```markdown
-# Архитектура: <Название продукта>
+# Architecture: <Product name>
 
-**Статус:** черновик | **Дата:** YYYY-MM-DD
+**Status:** draft | **Date:** YYYY-MM-DD
 
-## Ссылки
-- Спецификация: [SPEC.md](../2_PRODUCT_SPEC/SPEC.md)
+## Links
+- Specification: [SPEC.md](../2_PRODUCT_SPEC/SPEC.md)
 
-## Контекст реализации
+## Implementation context
 
-**Стек:**
-- Бэкенд: NestJS + Fastify, Prisma ORM, PostgreSQL, GraphQL (MercuriusDriver), Redis (BullMQ — очереди задач; pub/sub — GraphQL Subscriptions)
-- Фронтенд: React + Vite, TanStack Router (файловый роутинг), FSD (Feature-Sliced Design — методология структуры кода по бизнес-слоям), URQL (GraphQL-клиент с кэшированием), Zustand (хранилище UI-состояния), ParaglideJS (i18n-библиотека для Vite)
+**Stack:**
+- Backend: NestJS + Fastify, Prisma ORM, PostgreSQL, GraphQL (MercuriusDriver), Redis (BullMQ — task queues; pub/sub — GraphQL Subscriptions)
+- Frontend: React + Vite, TanStack Router (file-based routing), FSD (Feature-Sliced Design — a methodology for structuring code by business layers), URQL (a GraphQL client with caching), Zustand (a UI-state store), ParaglideJS (an i18n library for Vite)
 
-**Уже реализовано в стартовых шаблонах (не включать в Blueprint):**
+**Already implemented in the starter templates (do not include in the Blueprint):**
 
-| Слой | Что готово |
+| Layer | What's done |
 |----------|------------|
-| Бэкенд | Auth: гарды `JwtAuthGuard`, `JwtOptionalAuthGuard`, `RolesGuard`; OIDC JWT через внешний провайдер |
-| Бэкенд | Profile GraphQL: операции `me`, `updateProfile`, `profileUpdated`; модель `Profile` в БД |
-| Бэкенд | Инфраструктура: Health check `GET /health`, BullMQ, Redis pub/sub, i18n (en/ru), gqlErrorFormatter |
-| Фронтенд | `features/auth` — OIDC PKCE-авторизация, `AuthGuard` (блокирует неавторизованных), `MockAuthProvider` (для тестов) |
-| Фронтенд | `widgets/Header` (навигация + кнопки входа/выхода), `pages/404`, `shared/api/graphql-client` (URQL с Bearer-токеном) |
-| Фронтенд | Роуты: `/callback` (OIDC redirect после входа), `*` (404 через `defaultNotFoundComponent`) |
+| Backend | Auth: the `JwtAuthGuard`, `JwtOptionalAuthGuard`, `RolesGuard` guards; OIDC JWT via an external provider |
+| Backend | Profile GraphQL: the `me`, `updateProfile`, `profileUpdated` operations; the `Profile` model in the DB |
+| Backend | Infrastructure: Health check `GET /health`, BullMQ, Redis pub/sub, i18n (en/ru), gqlErrorFormatter |
+| Frontend | `features/auth` — OIDC PKCE auth, `AuthGuard` (blocks unauthenticated users), `MockAuthProvider` (for tests) |
+| Frontend | `widgets/Header` (navigation + login/logout buttons), `pages/404`, `shared/api/graphql-client` (URQL with a Bearer token) |
+| Frontend | Routes: `/callback` (OIDC redirect after login), `*` (404 via `defaultNotFoundComponent`) |
 
-**Protected routes (TanStack Router):** паттерн `beforeLoad` + `redirect()`. Контент страницы оборачивается в `AuthGuard` — компонент, перенаправляющий неавторизованного пользователя.
+**Protected routes (TanStack Router):** the `beforeLoad` + `redirect()` pattern. The page content is wrapped in `AuthGuard` — a component that redirects an unauthenticated user.
 
-## Backend: NestJS-модули
-| Модуль | Ответственность | Зависимости |
+## Backend: NestJS modules
+| Module | Responsibility | Dependencies |
 |--------|----------------|-------------|
 
-## Frontend: FSD-слайсы
+## Frontend: FSD slices
 
-### Entities (бизнес-сущности)
-| Сущность | Что представляет | Модель данных |
+### Entities (business entities)
+| Entity | What it represents | Data model |
 |---------|-----------------|---------------|
 
-### Features (действия пользователя)
-| Фича | Что делает пользователь | Связанная операция API |
+### Features (user actions)
+| Feature | What the user does | Related API operation |
 |------|------------------------|----------------------|
 
-### Widgets (составные блоки UI)
-| Виджет | Из каких фич состоит | Где используется |
+### Widgets (composite UI blocks)
+| Widget | Which features it's made of | Where it's used |
 |--------|---------------------|-----------------|
 
-### Pages (страницы приложения)
-<иерархия страниц из prototype/ без файловых путей>
+### Pages (application pages)
+<a hierarchy of pages from prototype/ without file paths>
 
-## Frontend: управление состоянием
+## Frontend: state management
 
-### Серверный стейт (URQL-кэш)
-<какие данные кэшируются через URQL: сущности, списки, их инвалидация>
+### Server state (URQL cache)
+<which data is cached via URQL: entities, lists, their invalidation>
 
-### UI-стейт (Zustand)
-<какие состояния в Zustand: открытые модалки, активные фильтры, тема, локальные флаги>
+### UI state (Zustand)
+<which states are in Zustand: open modals, active filters, theme, local flags>
 
-## Frontend: локализация (i18n)
-<пространства имён ParaglideJS на основе прототипа или «i18n не требуется»>
+## Frontend: localization (i18n)
+<ParaglideJS namespaces based on the prototype or "i18n not required">
 
-## Переменные окружения
-| Переменная | Тип | Назначение | BE/FE |
+## Environment variables
+| Variable | Type | Purpose | BE/FE |
 |-----------|-----|-----------|-------|
 ```
 
-### Обязательные правила
+### Mandatory rules
 
-**СТРОГИЙ ЗАПРЕТ файловых путей.** Запрещены любые строки вида `src/features/auth`, `src/entities/user`, `app/pages/dashboard`, `components/Button`. Только логические названия: фича `auth`, сущность `User`, страница `Dashboard`.
+**STRICT BAN on file paths.** Any strings like `src/features/auth`, `src/entities/user`, `app/pages/dashboard`, `components/Button` are forbidden. Only logical names: the `auth` feature, the `User` entity, the `Dashboard` page.
 
-**Разделение состояния обязательно.** Явно указать для каждой области данных:
-- Данные, пришедшие с сервера и кэшированные → URQL
-- Локальное UI-состояние (не нужно сохранять на сервер) → Zustand
+**State separation is mandatory.** Explicitly state for each data area:
+- Data that came from the server and is cached → URQL
+- Local UI state (not meant to be persisted to the server) → Zustand
 
-Нельзя оставить раздел «Управление состоянием» без конкретного содержимого или написать «используется URQL» без указания конкретных сущностей.
+You can't leave the "State management" section without concrete content or write "URQL is used" without naming the specific entities.
 
-**FSD без деталей реализации.** Описывать только бизнес-смысл слайса. Не упоминать структуру файлов, barrel-exports, модель папок.
+**FSD without implementation details.** Describe only the business meaning of the slice. Don't mention the file structure, barrel exports, or the folder model.
 
-**ENV — только бизнес-переменные.** Не включать `PORT`, `NODE_ENV`, `DATABASE_URL`, `REDIS_URL`, стандартные переменные фреймворков. Только специфичные для данного продукта.
+**ENV — business variables only.** Don't include `PORT`, `NODE_ENV`, `DATABASE_URL`, `REDIS_URL`, or the standard framework variables. Only the ones specific to this product.
 
-**i18n.** Если в прототипе есть тексты (labels, кнопки, сообщения, уведомления) — перечислить namespace'ы ParaglideJS. Если прототип без текстов — явно писать: «i18n не требуется».
+**i18n.** If the prototype has text (labels, buttons, messages, notifications) — list the ParaglideJS namespaces. If the prototype has no text — write explicitly: "i18n not required".
 
-**Роутер: TanStack Router (file-based).** Не описывать Next.js или React Router паттерны. Защищённые страницы используют `beforeLoad` + `redirect()`:
+**Router: TanStack Router (file-based).** Don't describe Next.js or React Router patterns. Protected pages use `beforeLoad` + `redirect()`:
 ```
-// Паттерн protected route (beforeLoad):
-если не аутентифицирован → redirect на главную
-контент страницы оборачивается в AuthGuard
+// Protected route pattern (beforeLoad):
+if not authenticated → redirect to home
+the page content is wrapped in AuthGuard
 ```
 
-**Уже существующие FSD-слайсы из стартового шаблона — не включать в Blueprint:**
-- `features/auth` — OIDC-авторизация, `AuthGuard`, `MockAuthProvider`
-- `widgets/Header` — навигация с кнопками входа/выхода
-- `pages/404` — страница «не найдено»
-- `shared/api/graphql-client` — URQL (GraphQL-клиент) с Bearer-токеном
+**Existing FSD slices from the starter template — do not include in the Blueprint:**
+- `features/auth` — OIDC auth, `AuthGuard`, `MockAuthProvider`
+- `widgets/Header` — navigation with login/logout buttons
+- `pages/404` — a "not found" page
+- `shared/api/graphql-client` — URQL (the GraphQL client) with a Bearer token
 
-**Zustand: паттерн со store.** Все новые store используют обёртку с devtools:
+**Zustand: the store pattern.** All new stores use the wrapper with devtools:
 ```typescript
-// Паттерн нового Zustand-стора:
+// New Zustand store pattern:
 create(devtools<MyStore>((set) => ({ ... })))
 ```
 
-**Запрещено:**
-- Файловые пути FSD (`src/`, `app/`, `components/`)
-- Раздел «Управление состоянием» без разделения URQL/Zustand
-- Технические паттерны реализации (DI-контейнеры, репозитории, паттерны)
-- Упоминание библиотек вне утверждённого стека
-- Включать в Blueprint уже существующие FSD-слайсы (`auth`, `Header`, `404`)
+**Forbidden:**
+- FSD file paths (`src/`, `app/`, `components/`)
+- A "State management" section without a URQL/Zustand split
+- Technical implementation patterns (DI containers, repositories, patterns)
+- Mentioning libraries outside the approved stack
+- Including existing FSD slices (`auth`, `Header`, `404`) in the Blueprint
 
 ---
 
-## Правила генерации: TESTING_PLAN.md
+## Generation rules: TESTING_PLAN.md
 
-### Структура файла
+### File structure
 
 ```markdown
-# План тестирования: <Название продукта>
+# Testing plan: <Product name>
 
-**Статус:** черновик | **Дата:** YYYY-MM-DD
+**Status:** draft | **Date:** YYYY-MM-DD
 
-## Ссылки
-- Спецификация: [SPEC.md](../2_PRODUCT_SPEC/SPEC.md) — источник сценариев
+## Links
+- Specification: [SPEC.md](../2_PRODUCT_SPEC/SPEC.md) — the source of scenarios
 
-## Контекст тестирования
+## Testing context
 
-**Бэкенд (Vitest):**
-- `E2EClient` — встроенная тест-утилита из `test/utils/`, выполняет GraphQL-запросы с авторизацией через специальный HTTP-заголовок `x-mock-sub` (без реального OIDC-провайдера).
-- Использование: `await client.loginAs(profile)` — выполнить запросы от имени пользователя.
-- Обязательно в `beforeEach()`: `clearDatabase()` (очистить таблицы БД) + `clearRedis()` (сбросить кэш Redis) — чтобы тесты не влияли друг на друга.
-- В `.env.test`: `OIDC_MOCK_ENABLED=true` — включает мок-режим авторизации, JWT проверяется через `x-mock-sub`, не через реальный OIDC.
+**Backend (Vitest):**
+- `E2EClient` — a built-in test utility from `test/utils/`, runs GraphQL queries with authentication via a special HTTP header `x-mock-sub` (without a real OIDC provider).
+- Usage: `await client.loginAs(profile)` — run queries on behalf of a user.
+- Mandatory in `beforeEach()`: `clearDatabase()` (clear the DB tables) + `clearRedis()` (reset the Redis cache) — so the tests don't affect each other.
+- In `.env.test`: `OIDC_MOCK_ENABLED=true` — enables mock-auth mode, the JWT is verified via `x-mock-sub`, not via a real OIDC.
 
-**Фронтенд (Vitest + React Testing Library + Playwright):**
-- Unit/component тесты: `tests/setup.ts` глобально мокает `react-oidc-context` (библиотека OIDC-авторизации) — OIDC-состояние доступно в тестах без дополнительной настройки.
-- E2E тесты (Playwright): запускать с `VITE_MOCK_AUTH=true` — активирует `MockAuthProvider`, который автоматически авторизует пользователя в браузере без реального OIDC-провайдера.
+**Frontend (Vitest + React Testing Library + Playwright):**
+- Unit/component tests: `tests/setup.ts` globally mocks `react-oidc-context` (the OIDC auth library) — the OIDC state is available in tests with no extra setup.
+- E2E tests (Playwright): run with `VITE_MOCK_AUTH=true` — activates `MockAuthProvider`, which automatically authenticates the user in the browser without a real OIDC provider.
 
 **Coverage targets:** lines / functions / statements ≥ 80%, branches ≥ 70%
 
-## Unit-тесты: сложная бизнес-логика
-| Что тестируем | Входные данные | Ожидаемый результат | Почему нетривиально |
+## Unit tests: complex business logic
+| What we test | Inputs | Expected result | Why it's non-trivial |
 |--------------|----------------|--------------------|--------------------|
 
-## E2E-сценарии (Playwright)
-| Сценарий | Шаги | Ожидаемый результат | Источник в SPEC.md |
+## E2E scenarios (Playwright)
+| Scenario | Steps | Expected result | Source in SPEC.md |
 |----------|------|--------------------|--------------------|
 
-## Критические пути (из SPEC.md §Тестирование)
-<полный перенос критических сценариев без сокращений>
+## Critical paths (from SPEC.md §Testing)
+<a full transfer of the critical scenarios without abbreviations>
 
-## Негативные сценарии (из SPEC.md §Тестирование)
-<полный перенос негативных сценариев без сокращений>
+## Negative scenarios (from SPEC.md §Testing)
+<a full transfer of the negative scenarios without abbreviations>
 ```
 
-### Обязательные правила
+### Mandatory rules
 
-- Unit-тесты — только для нетривиальной логики: расчёты, валидации, конечные автоматы состояний. Не тестировать простой CRUD.
-- E2E-сценарии берутся из SPEC.md §Тестирование. Каждый сценарий ссылается на источник.
-- Критические пути и негативные сценарии из SPEC.md переносятся полностью.
+- Unit tests — only for non-trivial logic: calculations, validations, state machines. Don't test simple CRUD.
+- E2E scenarios are taken from SPEC.md §Testing. Each scenario references its source.
+- Critical paths and negative scenarios from SPEC.md are transferred in full.
 
-### Backend: конкретные паттерны
+### Backend: concrete patterns
 
-**E2E-тесты** используют готовую инфраструктуру из `test/utils/`:
+**E2E tests** use the ready-made infrastructure from `test/utils/`:
 ```typescript
-// Аутентификация в тесте:
+// Authentication in a test:
 await client.loginAs(profile)
 
-// Запрос:
+// Query:
 const result = await client.requestGraphQL<MyQuery>(query, variables)
 
-// Очистка (обязательно в beforeEach):
+// Cleanup (mandatory in beforeEach):
 await clearDatabase()
 await clearRedis()
 ```
 
-**Мок авторизации:** `OIDC_MOCK_ENABLED=true` + `x-mock-sub` header. Не писать собственный механизм мока.
+**Auth mock:** `OIDC_MOCK_ENABLED=true` + the `x-mock-sub` header. Don't write your own mock mechanism.
 
-**Unit-тесты:** Vitest + NestJS Testing Module. Моки сервисов — через фабрики из `test/utils/mocks.ts`.
+**Unit tests:** Vitest + NestJS Testing Module. Service mocks — via the factories from `test/utils/mocks.ts`.
 
-### Frontend: конкретные паттерны
+### Frontend: concrete patterns
 
-**Три уровня тестирования:**
-| Уровень | Инструмент | Что тестировать |
+**Three testing levels:**
+| Level | Tool | What to test |
 |---------|-----------|----------------|
-| Unit | Vitest | Store-логика, утилиты, трансформации данных |
-| Component | Vitest + React Testing Library | Рендер компонентов, взаимодействие, состояния |
-| E2E | Playwright | Пользовательские сценарии из SPEC.md |
+| Unit | Vitest | Store logic, utilities, data transformations |
+| Component | Vitest + React Testing Library | Component rendering, interactions, states |
+| E2E | Playwright | User scenarios from SPEC.md |
 
-**Auth в тестах:**
-- Unit/component: OIDC автоматически замокан через `tests/setup.ts` (unauthenticated по умолчанию). Переопределять локально в конкретном тесте.
-- E2E: собирать приложение с `VITE_MOCK_AUTH=true` — `MockAuthProvider` авторизует автоматически.
+**Auth in tests:**
+- Unit/component: OIDC is mocked automatically via `tests/setup.ts` (unauthenticated by default). Override it locally in a specific test.
+- E2E: build the app with `VITE_MOCK_AUTH=true` — `MockAuthProvider` authenticates automatically.
 
-**Coverage targets (обязательно):**
+**Coverage targets (mandatory):**
 - lines / functions / statements: ≥ 80%
 - branches: ≥ 70%
 
 ---
 
-## Правила генерации: IMPLEMENTATION_GUIDE.md
+## Generation rules: IMPLEMENTATION_GUIDE.md
 
-### Назначение
+### Purpose
 
-Онбординг-документ: позволяет новому разработчику взять Blueprint и начать работу **без знакомства с boilerplate**. Генерировать **последним** — после DATABASE_MODEL.md, API_CONTRACTS.md, ARCHITECTURE.md, TESTING_PLAN.md, так как суммирует их содержимое.
+An onboarding document: lets a new developer take the Blueprint and start working **without learning the boilerplate**. Generate it **last** — after DATABASE_MODEL.md, API_CONTRACTS.md, ARCHITECTURE.md, TESTING_PLAN.md, since it summarizes their contents.
 
-### Структура файла
+### File structure
 
 ```markdown
-# Руководство по реализации: <Название продукта>
+# Implementation guide: <Product name>
 
-**Статус:** черновик | **Дата:** YYYY-MM-DD
+**Status:** draft | **Date:** YYYY-MM-DD
 
-## Стек
+## Stack
 
-| Слой | Технология | Назначение |
+| Layer | Technology | Purpose |
 |------|-----------|-----------|
-| Бэкенд | NestJS + Fastify | Node.js-фреймворк для API-сервера |
-| GraphQL | MercuriusDriver | GraphQL-сервер (адаптер Fastify) |
-| ORM | Prisma | TypeScript ORM для работы с БД |
-| БД | PostgreSQL | Реляционная база данных |
-| Очереди | BullMQ + Redis | Фоновые задачи и очереди |
-| Фронтенд | React + Vite | UI-библиотека + сборщик |
-| Роутер | TanStack Router | Файловый роутинг для React |
-| GraphQL-клиент | URQL | Запросы к API с кэшированием |
-| UI-состояние | Zustand | Хранилище локального состояния |
-| i18n | ParaglideJS | Локализация (Vite-плагин) |
-| Тесты бэкенда | Vitest + E2EClient | Юнит и E2E для бэкенда |
-| Тесты фронтенда | Vitest + RTL + Playwright | Юнит, компонент, E2E для фронтенда |
+| Backend | NestJS + Fastify | Node.js framework for the API server |
+| GraphQL | MercuriusDriver | GraphQL server (Fastify adapter) |
+| ORM | Prisma | TypeScript ORM for working with the DB |
+| DB | PostgreSQL | Relational database |
+| Queues | BullMQ + Redis | Background jobs and queues |
+| Frontend | React + Vite | UI library + bundler |
+| Router | TanStack Router | File-based routing for React |
+| GraphQL client | URQL | API requests with caching |
+| UI state | Zustand | Local state store |
+| i18n | ParaglideJS | Localization (Vite plugin) |
+| Backend tests | Vitest + E2EClient | Unit and E2E for the backend |
+| Frontend tests | Vitest + RTL + Playwright | Unit, component, E2E for the frontend |
 
-## Что уже реализовано
+## What's already implemented
 
-> Эти части **не нужно писать** — они готовы в стартовых шаблонах проекта.
+> These parts **don't need to be written** — they're ready in the project's starter templates.
 
-### Бэкенд
-- **Авторизация (OIDC JWT):** вход через внешний OIDC-провайдер (Logto/Keycloak). Гарды NestJS: `JwtAuthGuard` (требует токен), `JwtOptionalAuthGuard` (необязательно), `RolesGuard` (по роли). Декораторы резолвера: `@CurrentUser()` (получить текущий Profile), `@Roles(ProfileRole.ADMIN)` (ограничить по роли).
-- **Profile — модель пользователя:** `Profile { id, oidcSub @unique, roles, avatarUrl }`. Уже реализованы GraphQL-операции: `me` (получить свой профиль), `updateProfile` (обновить), `profileUpdated` (подписка на изменения).
-- **Инфраструктура:** Health check `GET /health`, BullMQ (очереди задач на Redis), Redis pub/sub (для GraphQL Subscriptions), nestjs-i18n en/ru, `gqlErrorFormatter` (автоматический маппинг ошибок в GraphQL-формат).
+### Backend
+- **Authentication (OIDC JWT):** login via an external OIDC provider (Logto/Keycloak). NestJS guards: `JwtAuthGuard` (requires a token), `JwtOptionalAuthGuard` (optional), `RolesGuard` (by role). Resolver decorators: `@CurrentUser()` (get the current Profile), `@Roles(ProfileRole.ADMIN)` (restrict by role).
+- **Profile — the user model:** `Profile { id, oidcSub @unique, roles, avatarUrl }`. The GraphQL operations are already implemented: `me` (get your profile), `updateProfile` (update it), `profileUpdated` (subscribe to changes).
+- **Infrastructure:** Health check `GET /health`, BullMQ (task queues on Redis), Redis pub/sub (for GraphQL Subscriptions), nestjs-i18n en/ru, `gqlErrorFormatter` (automatic mapping of errors to the GraphQL format).
 
-### Фронтенд
-- **Авторизация (OIDC PKCE):** `react-oidc-context` — библиотека для OAuth2/OIDC в React. FSD-слайс `features/auth` содержит: `AuthGuard` (блокирует доступ неавторизованным), `MockAuthProvider` (автоматическая авторизация в тестах).
-- **Готовые UI-компоненты:** `widgets/Header` (навигация с кнопками входа/выхода), `pages/404` (страница ошибки с кнопками «Назад» и «На главную»).
-- **GraphQL API:** `shared/api/graphql-client` — настроенный URQL-клиент (GraphQL-клиент для React) с автоматической подстановкой Bearer-токена авторизации.
-- **Роутинг (TanStack Router):** `/callback` — обработчик OIDC-редиректа после входа; `*` — 404-заглушка через `defaultNotFoundComponent`.
+### Frontend
+- **Authentication (OIDC PKCE):** `react-oidc-context` — a library for OAuth2/OIDC in React. The FSD slice `features/auth` contains: `AuthGuard` (blocks access for unauthenticated users), `MockAuthProvider` (automatic authentication in tests).
+- **Ready-made UI components:** `widgets/Header` (navigation with login/logout buttons), `pages/404` (an error page with "Back" and "Home" buttons).
+- **GraphQL API:** `shared/api/graphql-client` — a configured URQL client (a GraphQL client for React) with automatic insertion of the auth Bearer token.
+- **Routing (TanStack Router):** `/callback` — the OIDC redirect handler after login; `*` — a 404 fallback via `defaultNotFoundComponent`.
 
-## Что нужно реализовать
+## What needs to be implemented
 
-> Всё описанное в данном Blueprint.
+> Everything described in this Blueprint.
 
-### Backend-модули
-<список из ARCHITECTURE.md §Backend: NestJS-модули>
+### Backend modules
+<the list from ARCHITECTURE.md §Backend: NestJS modules>
 
-### Frontend-слайсы (новые)
-<список из ARCHITECTURE.md §Frontend: FSD-слайсы — только те, которых нет в boilerplate>
+### Frontend slices (new)
+<the list from ARCHITECTURE.md §Frontend: FSD slices — only the ones not in the boilerplate>
 
-## Локальный запуск
+## Local run
 
-### Требования
+### Requirements
 - Node.js 20+, pnpm
 - Docker (PostgreSQL + Redis)
-- OIDC: для разработки используется mock-режим
+- OIDC: mock mode is used for development
 
 ### Backend
 ```bash
 pnpm install
 cp .env.example .env
-# Заполнить: DATABASE_URL, REDIS_URL, JWT_SECRET, OIDC_ISSUER
+# Fill in: DATABASE_URL, REDIS_URL, JWT_SECRET, OIDC_ISSUER
 
 docker compose up -d postgres redis
 pnpm prisma migrate dev
@@ -643,17 +643,17 @@ pnpm start:dev
 ```bash
 pnpm install
 cp .env.example .env
-# Заполнить: VITE_API_URL, VITE_OIDC_AUTHORITY, VITE_OIDC_CLIENT_ID
+# Fill in: VITE_API_URL, VITE_OIDC_AUTHORITY, VITE_OIDC_CLIENT_ID
 
-VITE_MOCK_AUTH=true pnpm dev   # разработка с мок-авторизацией
+VITE_MOCK_AUTH=true pnpm dev   # development with mock auth
 ```
 
-## Тестирование
+## Testing
 
 ### Backend
 ```bash
 pnpm test         # unit (Vitest)
-pnpm test:e2e     # e2e (требует Postgres + Redis)
+pnpm test:e2e     # e2e (requires Postgres + Redis)
 ```
 
 ### Frontend
@@ -664,227 +664,227 @@ VITE_MOCK_AUTH=true pnpm test:e2e      # e2e (Playwright)
 
 **Coverage:** lines / functions / statements ≥ 80%, branches ≥ 70%
 
-## Ключевые решения
+## Key decisions
 
-<Обоснование нетривиальных технических решений.
-Пример: «Soft delete для Order — SPEC.md §Данные запрещает физическое удаление».
-Если нетривиальных решений нет — написать «Особых нетривиальных решений нет».>
+<Rationale for non-trivial technical decisions.
+Example: "Soft delete for Order — SPEC.md §Data forbids physical deletion".
+If there are no non-trivial decisions — write "No special non-trivial decisions".>
 
-## Ссылки
+## Links
 
-- Спецификация: [SPEC.md](../../docs/<имя>/2_PRODUCT_SPEC/SPEC.md)
+- Specification: [SPEC.md](../../docs/<name>/2_PRODUCT_SPEC/SPEC.md)
 - [DATABASE_MODEL.md](./DATABASE_MODEL.md)
 - [API_CONTRACTS.md](./API_CONTRACTS.md)
 - [ARCHITECTURE.md](./ARCHITECTURE.md)
 - [TESTING_PLAN.md](./TESTING_PLAN.md)
 ```
 
-### Обязательные правила
+### Mandatory rules
 
-- `## Стек` — полная таблица технологий без сокращений
-- `## Что уже реализовано` — точный список boilerplate: разработчик видит, что **не нужно писать**
-- `## Что нужно реализовать` — конкретный список модулей и слайсов из ARCHITECTURE.md, не общие фразы
-- `## Локальный запуск` — реальные shell-команды с `.env` и docker; не «см. README»
-- `## Тестирование` — команды запуска + coverage targets
-- `## Ключевые решения` — не пустой раздел: либо обоснование решений, либо явная фраза «нет нетривиальных решений»
+- `## Stack` — a complete technology table with no abbreviations
+- `## What's already implemented` — a precise list of the boilerplate: the developer sees what **doesn't need to be written**
+- `## What needs to be implemented` — a concrete list of modules and slices from ARCHITECTURE.md, not generic phrases
+- `## Local run` — real shell commands with `.env` and docker; not "see README"
+- `## Testing` — run commands + coverage targets
+- `## Key decisions` — not an empty section: either a rationale for the decisions or the explicit phrase "no non-trivial decisions"
 
-**Запрещено:**
-- Пустые разделы
-- `## Что нужно реализовать` без списка конкретных модулей/слайсов
-- Общие фразы вместо команд в `## Локальный запуск`
-- Дублирование полного содержимого других документов Blueprint
+**Forbidden:**
+- Empty sections
+- `## What needs to be implemented` without a list of concrete modules/slices
+- Generic phrases instead of commands in `## Local run`
+- Duplicating the full contents of the other Blueprint documents
 
 ---
 
-## Адаптивность: режим обновления проекта
+## Adaptability: project update mode
 
-Если в проекте уже существуют `schema.prisma` или `schema.graphql`:
+If the project already has a `schema.prisma` or `schema.graphql`:
 
-1. **Не переписывать схему с нуля.** Прочитать существующие схемы, описать только дельту.
-2. **DATABASE_MODEL.md обязан содержать раздел `## План миграции`:**
+1. **Don't rewrite the schema from scratch.** Read the existing schemas, describe only the delta.
+2. **DATABASE_MODEL.md must contain a `## Migration plan` section:**
    ```markdown
-   ## План миграции
+   ## Migration plan
    
-   ### Новые таблицы
-   - `Notification` — уведомления пользователей
+   ### New tables
+   - `Notification` — user notifications
    
-   ### Изменения существующих таблиц
-   - `User` — добавить поле `avatarUrl String?`
-   - `Order` — добавить enum-значение `OrderStatus.REFUNDED`
+   ### Changes to existing tables
+   - `User` — add the field `avatarUrl String?`
+   - `Order` — add the enum value `OrderStatus.REFUNDED`
    
-   ### Опасные операции
-   - Нет
+   ### Dangerous operations
+   - None
    ```
-3. **API_CONTRACTS.md** содержит разделы `## Новые операции` и `## Изменённые операции`.
-4. Существующие схемы не ломать — только расширять.
+3. **API_CONTRACTS.md** contains the sections `## New operations` and `## Changed operations`.
+4. Don't break the existing schemas — only extend them.
 
 ---
 
-## Проверка ТЗ по запросу
+## Reviewing the spec on request
 
-Когда пользователь говорит **«проверь ТЗ»**, **«валидируй blueprint»**, **«check blueprint»**, **«посмотри что я изменил»** — выполнить следующую последовательность:
+When the user says **"check the spec"**, **"validate the blueprint"**, **"check blueprint"**, **"look at what I changed"** — perform the following sequence:
 
-### Шаг 1. Запустить скрипт-валидатор
+### Step 1. Run the validator script
 
 ```bash
-# Стандартный режим:
-python3 {BLUEPRINT} validate "ИмяПроекта"
+# Standard mode:
+python3 {BLUEPRINT} validate "ProjectName"
 
-# Если проект — обновление существующего:
-python3 {BLUEPRINT} validate "ИмяПроекта" --update-mode
+# If the project is an update to an existing one:
+python3 {BLUEPRINT} validate "ProjectName" --update-mode
 ```
 
-### Шаг 2. Прочитать все 5 файлов полностью
+### Step 2. Read all 5 files in full
 
 `IMPLEMENTATION_GUIDE.md`, `DATABASE_MODEL.md`, `API_CONTRACTS.md`, `ARCHITECTURE.md`, `TESTING_PLAN.md`
 
-### Шаг 3. Ручная проверка противоречий с boilerplate
+### Step 3. Manual check for conflicts with the boilerplate
 
-- [ ] Нет моделей `User`, `Session`, `AuthToken` — пользователь только через `Profile` (oidcSub)
-- [ ] Нет GraphQL-операций `login`, `register`, `logout`, `refreshToken` — OIDC внешний
-- [ ] Нет операций `me`, `updateProfile`, `profileUpdated` — уже в boilerplate
-- [ ] В ARCHITECTURE.md нет `features/auth`, `widgets/Header`, `pages/404` — уже есть
-- [ ] Protected routes описаны через `beforeLoad` паттерн
-- [ ] Тесты упоминают `E2EClient.loginAs()` (BE) или `VITE_MOCK_AUTH=true` (FE)
-- [ ] Нет несовместимых библиотек (Apollo вместо Mercurius, React Router вместо TanStack)
+- [ ] No `User`, `Session`, `AuthToken` models — the user is only via `Profile` (oidcSub)
+- [ ] No `login`, `register`, `logout`, `refreshToken` GraphQL operations — OIDC is external
+- [ ] No `me`, `updateProfile`, `profileUpdated` operations — already in the boilerplate
+- [ ] ARCHITECTURE.md has no `features/auth`, `widgets/Header`, `pages/404` — they already exist
+- [ ] Protected routes are described via the `beforeLoad` pattern
+- [ ] The tests mention `E2EClient.loginAs()` (BE) or `VITE_MOCK_AUTH=true` (FE)
+- [ ] No incompatible libraries (Apollo instead of Mercurius, React Router instead of TanStack)
 
-### Шаг 4. Проверка согласованности со SPEC.md
+### Step 4. Consistency check against SPEC.md
 
-- [ ] Все сущности SPEC.md §Сущности покрыты в DATABASE_MODEL.md
-- [ ] Все операции SPEC.md §Ключевые операции присутствуют в API_CONTRACTS.md
-- [ ] Все страницы SPEC.md §Страницы отражены в ARCHITECTURE.md
-- [ ] Сценарии SPEC.md §Тестирование перенесены в TESTING_PLAN.md
+- [ ] All entities from SPEC.md §Entities are covered in DATABASE_MODEL.md
+- [ ] All operations from SPEC.md §Key operations are present in API_CONTRACTS.md
+- [ ] All pages from SPEC.md §Pages are reflected in ARCHITECTURE.md
+- [ ] The scenarios from SPEC.md §Testing are transferred into TESTING_PLAN.md
 
-### Шаг 5. Выдать структурированный отчёт
+### Step 5. Produce a structured report
 
 ```
-## Проверка Blueprint: <ИмяПроекта>
+## Blueprint review: <ProjectName>
 
-### Скрипт-валидатор
-✓ Прошёл без ошибок
-— или —
-✗ Ошибки: <список>
-⚠ Предупреждения: <список>
+### Validator script
+✓ Passed without errors
+— or —
+✗ Errors: <list>
+⚠ Warnings: <list>
 
-### Противоречия с boilerplate
-✓ Не обнаружены
-— или —
-✗ Обнаружены:
-  - <проблема> → <как исправить>
+### Conflicts with the boilerplate
+✓ None found
+— or —
+✗ Found:
+  - <issue> → <how to fix>
 
-### Согласованность со SPEC.md
-✓ Все требования покрыты
-— или —
-⚠ Не покрыто:
-  - <что отсутствует в Blueprint>
+### Consistency with SPEC.md
+✓ All requirements covered
+— or —
+⚠ Not covered:
+  - <what's missing from the Blueprint>
 
-### Итог
-Готов к разработке / Требует исправлений: <N проблем>
+### Conclusion
+Ready for development / Needs fixes: <N issues>
 ```
 
-После исправлений — повторно запустить валидатор и создать git-коммит.
+After the fixes — re-run the validator and create a git commit.
 
 ---
 
-## Процесс работы
+## Workflow
 
-> **Скрипт:** `~/.config/opencode/skills/tech-blueprint/scripts/blueprint_validator.py`
-> Скрипт НЕ копируется в проект — используется напрямую из папки скилла.
-> Далее: `{BLUEPRINT}` = полный путь выше.
+> **Script:** `~/.config/opencode/skills/tech-blueprint/scripts/blueprint_validator.py`
+> The script is NOT copied into the project — it is used directly from the skill folder.
+> Below: `{BLUEPRINT}` = the full path above.
 
-### Шаг 1. Анализ входных данных
+### Step 1. Input analysis
 
-1. Прочитать VISION.md и SPEC.md целиком — это **единственный источник истины**
-2. Проверить `prototype/`: зафиксировать список страниц и переходов между ними. **Не переносить** реализацию — только скоп. Прототип — черновик, архитектурные решения принимаются независимо
-3. Проверить наличие `schema.prisma`, `schema.graphql` → определить режим (новый / обновление)
-4. Составить рабочий список: сущности, операции, страницы, роли
+1. Read VISION.md and SPEC.md in full — this is the **single source of truth**
+2. Check `prototype/`: record the list of pages and the transitions between them. **Don't transfer** the implementation — only the scope. The prototype is a draft, architectural decisions are made independently
+3. Check for the presence of `schema.prisma`, `schema.graphql` → determine the mode (new / update)
+4. Build a working list: entities, operations, pages, roles
 
-### Шаг 2. Генерация документов
+### Step 2. Document generation
 
-Заполнять строго в порядке:
+Fill in strictly in this order:
 ```
 DATABASE_MODEL.md → API_CONTRACTS.md → ARCHITECTURE.md → TESTING_PLAN.md → IMPLEMENTATION_GUIDE.md
 ```
-Каждый следующий документ опирается на предыдущий (API — на модели БД, архитектура — на API). IMPLEMENTATION_GUIDE.md — последним: он суммирует все четыре документа.
+Each subsequent document builds on the previous one (the API on the DB models, the architecture on the API). IMPLEMENTATION_GUIDE.md — last: it summarizes all four documents.
 
-### Шаг 3. Самопроверка перед валидатором
+### Step 3. Self-check before the validator
 
-- [ ] Каждая Prisma-модель (кроме join-таблиц с `_` в названии) имеет `createdAt`/`updatedAt`
-- [ ] Для критичных сущностей добавлено `deletedAt DateTime?`
-- [ ] Нет голых массивов `[Type!]!` в Query/Mutation без пагинации
-- [ ] Каждая Query/Mutation имеет комментарий с директивой доступа
-- [ ] В ARCHITECTURE.md нет ни одного файлового пути (`src/`, `app/`)
-- [ ] В DATABASE_MODEL.md и API_CONTRACTS.md есть ссылки на SPEC.md
-- [ ] Если режим обновления — раздел `## План миграции` существует
-- [ ] IMPLEMENTATION_GUIDE.md содержит разделы `## Стек`, `## Что уже реализовано`, `## Локальный запуск`
+- [ ] Each Prisma model (except join tables with a `_` in the name) has `createdAt`/`updatedAt`
+- [ ] `deletedAt DateTime?` is added for critical entities
+- [ ] No bare arrays `[Type!]!` in Query/Mutation without pagination
+- [ ] Each Query/Mutation has a comment with an access directive
+- [ ] ARCHITECTURE.md has not a single file path (`src/`, `app/`)
+- [ ] DATABASE_MODEL.md and API_CONTRACTS.md have links to SPEC.md
+- [ ] If it's update mode — the `## Migration plan` section exists
+- [ ] IMPLEMENTATION_GUIDE.md contains the sections `## Stack`, `## What's already implemented`, `## Local run`
 
-### Шаг 4. Валидация (обязательно)
+### Step 4. Validation (mandatory)
 
 ```bash
-# Новый проект:
-python3 {BLUEPRINT} validate "ИмяПроекта"
+# New project:
+python3 {BLUEPRINT} validate "ProjectName"
 
-# Обновление существующего проекта:
-python3 {BLUEPRINT} validate "ИмяПроекта" --update-mode
+# Updating an existing project:
+python3 {BLUEPRINT} validate "ProjectName" --update-mode
 
-# Нестандартная папка вывода:
-python3 {BLUEPRINT} validate "ИмяПроекта" --output /путь/к/blueprint
+# Non-standard output folder:
+python3 {BLUEPRINT} validate "ProjectName" --output /path/to/blueprint
 ```
 
-**Документация не считается готовой, пока валидация не пройдена без ошибок.**
+**The documentation is not considered ready until validation passes without errors.**
 
-Скрипт выполняет 8 или 9 проверок:
-1. Наличие всех 5 файлов (включая IMPLEMENTATION_GUIDE.md)
-2. Наличие блоков ` ```prisma ` и ` ```graphql `
-3. Отсутствие FSD-путей в ARCHITECTURE.md
-4. Кросс-чек: Prisma-модели покрыты в API_CONTRACTS.md (≥50%)
-5. Трассируемость: ссылки на SPEC.md в DATABASE_MODEL.md и API_CONTRACTS.md
-6. Пагинация: все Query/Mutation-поля с `[...]` имеют аргументы пагинации
-7. Технические поля: `createdAt`/`updatedAt` в каждой Prisma-модели (кроме join-таблиц)
-8. IMPLEMENTATION_GUIDE.md содержит обязательные разделы (`## Стек`, `## Что уже реализовано`, `## Локальный запуск`)
-9. *(только с `--update-mode`)* Наличие раздела «План миграции» в DATABASE_MODEL.md
+The script runs 8 or 9 checks:
+1. The presence of all 5 files (including IMPLEMENTATION_GUIDE.md)
+2. The presence of ` ```prisma ` and ` ```graphql ` blocks
+3. The absence of FSD paths in ARCHITECTURE.md
+4. Cross-check: Prisma models are covered in API_CONTRACTS.md (≥50%)
+5. Traceability: links to SPEC.md in DATABASE_MODEL.md and API_CONTRACTS.md
+6. Pagination: all Query/Mutation fields with `[...]` have pagination arguments
+7. Technical fields: `createdAt`/`updatedAt` in each Prisma model (except join tables)
+8. IMPLEMENTATION_GUIDE.md contains the mandatory sections (`## Stack`, `## What's already implemented`, `## Local run`)
+9. *(only with `--update-mode`)* The presence of a "Migration plan" section in DATABASE_MODEL.md
 
-### Шаг 5. Git-коммит (обязательно)
+### Step 5. Git commit (mandatory)
 
 ```bash
-git add blueprint/<ИмяПроекта>/3_TECH_BLUEPRINT/
-git commit -m "feat(blueprint): технические контракты <ИмяПроекта>"
+git add blueprint/<ProjectName>/3_TECH_BLUEPRINT/
+git commit -m "feat(blueprint): technical contracts for <ProjectName>"
 ```
 
 ---
 
-## Глоссарий
+## Glossary
 
-| Термин | Значение |
+| Term | Meaning |
 |--------|---------|
-| Boilerplate | Стартовый шаблон проекта с готовыми базовыми решениями (auth, инфраструктура) |
-| OIDC | OpenID Connect — протокол авторизации через внешний сервис (Logto, Keycloak, Google) |
-| JWT | JSON Web Token — подписанный токен, подтверждающий личность пользователя |
-| FSD | Feature-Sliced Design — методология структуры фронтенда по слоям: app, pages, widgets, features, entities, shared |
-| MercuriusDriver | NestJS-адаптер GraphQL для веб-фреймворка Fastify (альтернатива Apollo Server) |
-| URQL | GraphQL-клиент для React с встроенным кэшем и инвалидацией |
-| Zustand | Минималистичная библиотека состояния для React (альтернатива Redux) |
-| ParaglideJS | i18n-библиотека с типизированными ключами переводов, работает как Vite-плагин |
-| BullMQ | Библиотека очередей задач для Node.js на основе Redis |
-| E2EClient | Встроенная тест-утилита (`test/utils/`) для выполнения GraphQL-запросов с мок-авторизацией |
-| Profile | Модель пользователя в БД; связана с OIDC через поле `oidcSub @unique` |
-| TanStack Router | Файловый роутер для React: маршруты определяются структурой папок `src/routes/` |
-| AuthGuard | FSD-слайс-компонент, перенаправляющий неавторизованного пользователя с защищённой страницы |
-| beforeLoad | Хук TanStack Router для проверки условий перед загрузкой страницы (используется для защиты роутов) |
+| Boilerplate | A starter project template with ready-made basic solutions (auth, infrastructure) |
+| OIDC | OpenID Connect — an authentication protocol via an external service (Logto, Keycloak, Google) |
+| JWT | JSON Web Token — a signed token confirming a user's identity |
+| FSD | Feature-Sliced Design — a methodology for structuring the frontend by layers: app, pages, widgets, features, entities, shared |
+| MercuriusDriver | A NestJS GraphQL adapter for the Fastify web framework (an alternative to Apollo Server) |
+| URQL | A GraphQL client for React with a built-in cache and invalidation |
+| Zustand | A minimalist state library for React (an alternative to Redux) |
+| ParaglideJS | An i18n library with typed translation keys, runs as a Vite plugin |
+| BullMQ | A task-queue library for Node.js based on Redis |
+| E2EClient | A built-in test utility (`test/utils/`) for running GraphQL queries with mock auth |
+| Profile | The user model in the DB; linked to OIDC via the `oidcSub @unique` field |
+| TanStack Router | A file-based router for React: routes are defined by the structure of the `src/routes/` folders |
+| AuthGuard | An FSD slice component that redirects an unauthenticated user away from a protected page |
+| beforeLoad | A TanStack Router hook for checking conditions before a page loads (used for protecting routes) |
 
 ---
 
-## Ключевые ограничения
+## Key constraints
 
-- Язык документации — **русский**, код — латиница
-- Стек: **NestJS, Prisma, PostgreSQL, GraphQL (MercuriusDriver), React, TanStack Router, FSD, URQL, Zustand, ParaglideJS**
-- **Запрещены файловые пути FSD** в ARCHITECTURE.md — только логические названия
-- **Все Query/Mutation с `[...]`** — обязательно с пагинацией (limit/offset или first/after)
-- **Все Query/Mutation** — с комментарием-директивой доступа (`@public`, `@UseGuards(JwtAuthGuard)`, `@Roles(ADMIN)`)
-- **Каждая Prisma-модель** (не join) — с `createdAt`/`updatedAt`
-- **Enum вместо String** для всех перечислимых значений
-- **Трассируемость** — ссылки на SPEC.md в комментариях к схемам
-- **Режим обновления** — раздел «План миграции», не переписывание схемы
-- **Не дублировать boilerplate**: Profile, me/updateProfile/profileUpdated, auth-слайс, Header, 404-страница
-- **Тесты**: использовать `E2EClient.loginAs()` (BE) и `VITE_MOCK_AUTH=true` (FE), coverage ≥ 80%/70%
-- После валидации — **git-коммит**
+- The documentation language is **Russian**, the code is Latin
+- Stack: **NestJS, Prisma, PostgreSQL, GraphQL (MercuriusDriver), React, TanStack Router, FSD, URQL, Zustand, ParaglideJS**
+- **FSD file paths are forbidden** in ARCHITECTURE.md — only logical names
+- **All Query/Mutation with `[...]`** — must have pagination (limit/offset or first/after)
+- **All Query/Mutation** — with an access-directive comment (`@public`, `@UseGuards(JwtAuthGuard)`, `@Roles(ADMIN)`)
+- **Each Prisma model** (not a join table) — with `createdAt`/`updatedAt`
+- **Enum instead of String** for all enumerable values
+- **Traceability** — links to SPEC.md in the schema comments
+- **Update mode** — a "Migration plan" section, not rewriting the schema
+- **Don't duplicate the boilerplate**: Profile, me/updateProfile/profileUpdated, the auth slice, Header, the 404 page
+- **Tests**: use `E2EClient.loginAs()` (BE) and `VITE_MOCK_AUTH=true` (FE), coverage ≥ 80%/70%
+- After validation — a **git commit**

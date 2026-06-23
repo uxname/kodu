@@ -1,237 +1,237 @@
 ---
 name: implement-project
-description: Реализует полный проект по готовым документации, ТЗ и прототипу. Инициализирует бэкенд (liteend-init) и фронтенд (litefront-init), реализует все сущности/операции/страницы, покрывает тестами, верифицирует соответствие документам. Запускай когда VISION.md + SPEC.md готовы и tech-blueprint утверждён. НЕ запускай если ТЗ ещё черновик или проект уже частично реализован.
+description: Implements a complete project from ready documentation, specs, and a prototype. Initializes the backend (liteend-init) and frontend (litefront-init), implements all entities/operations/pages, covers them with tests, and verifies conformance to the documents. Run when VISION.md + SPEC.md are ready and the tech-blueprint is approved. Do NOT run if the spec is still a draft or the project is already partially implemented.
 license: MIT
 compatibility: opencode
 metadata:
   level: multi
-  output: папка projects/<ИмяПроекта>/
+  output: folder projects/<ProjectName>/
 ---
 
-## Назначение
+## Purpose
 
-Скилл берёт готовые артефакты проектирования и **реализует проект от нуля до работающего состояния с тестами**:
-- Инициализирует бэкенд и фронтенд из стартовых шаблонов
-- Имплементирует всю бизнес-логику строго по ТЗ
-- Покрывает тестами согласно TESTING_PLAN.md
-- Верифицирует соответствие документации и запускает полный прогон проверок
+The skill takes the ready design artifacts and **implements the project from zero to a working, tested state**:
+- Initializes the backend and frontend from the starter templates
+- Implements all the business logic strictly per the spec
+- Covers it with tests per TESTING_PLAN.md
+- Verifies conformance to the documentation and runs the full suite of checks
 
-**Когда запускать:**
-- `docs/<name>/` и `blueprint/<name>/3_TECH_BLUEPRINT/` готовы и утверждены
-- ТЗ прошло валидацию `blueprint_validator.py` без ошибок
-- Команда готова к разработке
+**When to run:**
+- `docs/<name>/` and `blueprint/<name>/3_TECH_BLUEPRINT/` are ready and approved
+- The spec passed `blueprint_validator.py` validation without errors
+- The team is ready to develop
 
-**Когда НЕ запускать:**
-- ТЗ в черновике или не прошло валидацию
-- Проект уже частично реализован (это не скилл для рефакторинга)
-- Задача — добавить одну фичу, а не построить проект с нуля
-
----
-
-## Входные данные
-
-Перед началом **обязательно прочитать** все документы:
-
-```
-docs/<ИмяПроекта>/
-├── 1_PRODUCT_VISION/VISION.md           ← бизнес-цели, границы, роли
-└── 2_PRODUCT_SPEC/SPEC.md               ← сущности, операции, страницы, бизнес-правила
-
-blueprint/<ИмяПроекта>/3_TECH_BLUEPRINT/
-├── IMPLEMENTATION_GUIDE.md              ← стек, что уже готово, команды запуска
-├── DATABASE_MODEL.md                    ← Prisma-схема всех моделей
-├── API_CONTRACTS.md                     ← GraphQL-схема, guards, пагинация
-├── ARCHITECTURE.md                      ← NestJS-модули, FSD-слайсы, состояние
-└── TESTING_PLAN.md                      ← unit-тесты, E2E-сценарии, coverage
-
-prototype/                               ← UI-прототип (только для понимания UX-потоков)
-```
-
-Если любой из первых шести документов отсутствует — **остановиться** и сообщить пользователю какого файла не хватает. Прототип опционален.
+**When NOT to run:**
+- The spec is a draft or hasn't passed validation
+- The project is already partially implemented (this is not a refactoring skill)
+- The task is to add a single feature, not to build a project from scratch
 
 ---
 
-## Структура вывода
+## Inputs
+
+Before starting, you **must read** all the documents:
 
 ```
-projects/<ИмяПроекта>/
-├── backend/     ← NestJS + Fastify API (инициализируется через liteend-init)
-└── frontend/    ← React SPA (инициализируется через litefront-init)
+docs/<ProjectName>/
+├── 1_PRODUCT_VISION/VISION.md           ← business goals, scope, roles
+└── 2_PRODUCT_SPEC/SPEC.md               ← entities, operations, pages, business rules
+
+blueprint/<ProjectName>/3_TECH_BLUEPRINT/
+├── IMPLEMENTATION_GUIDE.md              ← stack, what's already done, run commands
+├── DATABASE_MODEL.md                    ← Prisma schema of all models
+├── API_CONTRACTS.md                     ← GraphQL schema, guards, pagination
+├── ARCHITECTURE.md                      ← NestJS modules, FSD slices, state
+└── TESTING_PLAN.md                      ← unit tests, E2E scenarios, coverage
+
+prototype/                               ← UI prototype (only for understanding UX flows)
 ```
 
-Создать корневую папку до инициализации:
+If any of the first six documents is missing — **stop** and tell the user which file is missing. The prototype is optional.
+
+---
+
+## Output structure
+
+```
+projects/<ProjectName>/
+├── backend/     ← NestJS + Fastify API (initialized via liteend-init)
+└── frontend/    ← React SPA (initialized via litefront-init)
+```
+
+Create the root folder before initialization:
 ```bash
-mkdir -p projects/<ИмяПроекта>
+mkdir -p projects/<ProjectName>
 ```
 
 ---
 
-## Процесс реализации
+## Implementation process
 
-### Шаг 0. Анализ документации
+### Step 0. Documentation analysis
 
-1. Прочитать все документы целиком
-2. Составить внутренний рабочий список:
-   - Prisma-модели из DATABASE_MODEL.md (без Profile/ProfileRole — они уже в шаблоне)
-   - GraphQL-операции по доменам из API_CONTRACTS.md (без `me`, `updateProfile`, `profileUpdated`, `debug`, `echo`)
-   - NestJS-модули из ARCHITECTURE.md §Backend
-   - FSD-слайсы для реализации из ARCHITECTURE.md §Frontend (без `features/auth`, `widgets/Header`, `pages/404`, `shared/api/graphql-client`)
-   - Тест-сценарии из TESTING_PLAN.md
-3. Зафиксировать: всё из стартовых шаблонов — **не трогать и не дублировать**
+1. Read all documents in full
+2. Build an internal working list:
+   - Prisma models from DATABASE_MODEL.md (without Profile/ProfileRole — they're already in the template)
+   - GraphQL operations by domain from API_CONTRACTS.md (without `me`, `updateProfile`, `profileUpdated`, `debug`, `echo`)
+   - NestJS modules from ARCHITECTURE.md §Backend
+   - FSD slices to implement from ARCHITECTURE.md §Frontend (without `features/auth`, `widgets/Header`, `pages/404`, `shared/api/graphql-client`)
+   - Test scenarios from TESTING_PLAN.md
+3. Note: everything from the starter templates is **not to be touched or duplicated**
 
 ---
 
-### Шаг 1. Инициализация бэкенда
+### Step 1. Backend initialization
 
-Запустить скилл **liteend-init** (`~/.config/opencode/skills/liteend-init/SKILL.md`):
+Run the **liteend-init** skill (`~/.config/opencode/skills/liteend-init/SKILL.md`):
 
 ```
-project_name: projects/<ИмяПроекта>/backend
+project_name: projects/<ProjectName>/backend
 use_docker:   true
 install_deps: true
 ```
 
-После завершения:
-- Прочитать `projects/<ИмяПроекта>/backend/AGENTS.md` — понять доступные команды проекта
-- Убедиться что `GET /health` отвечает 200 (бэкенд запустился)
+After it finishes:
+- Read `projects/<ProjectName>/backend/AGENTS.md` — understand the project's available commands
+- Make sure `GET /health` responds with 200 (the backend started)
 
 ---
 
-### Шаг 2. Реализация бэкенда
+### Step 2. Backend implementation
 
-**2.1. Схема базы данных**
+**2.1. Database schema**
 
-Открыть `backend/prisma/schema.prisma` и **добавить** новые модели из DATABASE_MODEL.md к существующим:
-- Существующие модели `Profile`, `ProfileRole` — не изменять
-- Для связи новых сущностей с пользователем: `profileId Int` + `@relation(fields: [profileId], references: [id], onDelete: Cascade)`
-- Все связи — с явным `onDelete`; все перечислимые значения — только через `enum`
+Open `backend/prisma/schema.prisma` and **add** the new models from DATABASE_MODEL.md to the existing ones:
+- Existing models `Profile`, `ProfileRole` — do not change
+- To link new entities to the user: `profileId Int` + `@relation(fields: [profileId], references: [id], onDelete: Cascade)`
+- All relations — with an explicit `onDelete`; all enumerable values — only via `enum`
 
-Применить миграцию:
+Apply the migration:
 ```bash
-# внутри backend/
+# inside backend/
 npm run db:migrations:apply
 ```
 
-**2.2. NestJS-модули**
+**2.2. NestJS modules**
 
-Для каждого модуля из ARCHITECTURE.md §Backend создать структуру:
+For each module from ARCHITECTURE.md §Backend, create the structure:
 ```
 src/modules/<domain>/
 ├── <domain>.module.ts       ← @Module({ imports, providers, exports })
-├── <domain>.resolver.ts     ← @Resolver() с GraphQL-операциями
-├── <domain>.service.ts      ← бизнес-логика, Prisma-запросы
+├── <domain>.resolver.ts     ← @Resolver() with the GraphQL operations
+├── <domain>.service.ts      ← business logic, Prisma queries
 └── dto/
-    └── <entity>.input.ts    ← ZodDto или class-validator Input для мутаций
+    └── <entity>.input.ts    ← ZodDto or class-validator Input for mutations
 ```
 
-Правила реализации резолверов:
-- Guards соответствуют директивам доступа из API_CONTRACTS.md:
+Resolver implementation rules:
+- Guards correspond to the access directives from API_CONTRACTS.md:
   ```typescript
-  @UseGuards(JwtAuthGuard)         // # @auth в API_CONTRACTS.md
-  @UseGuards(JwtOptionalAuthGuard) // # @auth? в API_CONTRACTS.md
+  @UseGuards(JwtAuthGuard)         // # @auth in API_CONTRACTS.md
+  @UseGuards(JwtOptionalAuthGuard) // # @auth? in API_CONTRACTS.md
   @Roles(ProfileRole.ADMIN)        // # @auth @hasRole(ADMIN)
-  // без guard                     // # @public
+  // no guard                      // # @public
   ```
-- Текущий пользователь: `@CurrentUser() profile: Profile`
-- Ошибки: выбрасывать `HttpException` или `ZodValidationException` — `gqlErrorFormatter` сам преобразует
-- Soft delete: при `deletedAt DateTime?` в модели → фильтровать `{ deletedAt: null }` во **всех** запросах Prisma
-- Пагинация: все списочные операции принимают `limit`/`offset` и возвращают `{ items, total, hasMore }`
+- Current user: `@CurrentUser() profile: Profile`
+- Errors: throw `HttpException` or `ZodValidationException` — `gqlErrorFormatter` converts them itself
+- Soft delete: when the model has `deletedAt DateTime?` → filter `{ deletedAt: null }` in **all** Prisma queries
+- Pagination: all list operations accept `limit`/`offset` and return `{ items, total, hasMore }`
 
 **2.3. Subscriptions**
 
-Если в API_CONTRACTS.md есть Subscription-операции — реализовывать через Redis pub/sub (уже настроен). Не добавлять новых transport-зависимостей.
+If API_CONTRACTS.md has Subscription operations — implement them via Redis pub/sub (already configured). Don't add new transport dependencies.
 
-**2.4. Коммит бэкенда**
+**2.4. Backend commit**
 ```bash
 git add .
-git commit -m "feat(backend): реализация бизнес-логики <ИмяПроекта>"
+git commit -m "feat(backend): implement business logic for <ProjectName>"
 ```
 
 ---
 
-### Шаг 3. Инициализация фронтенда
+### Step 3. Frontend initialization
 
-Запустить скилл **litefront-init** (`~/.config/opencode/skills/litefront-init/SKILL.md`):
+Run the **litefront-init** skill (`~/.config/opencode/skills/litefront-init/SKILL.md`):
 
 ```
-project_name: projects/<ИмяПроекта>/frontend
+project_name: projects/<ProjectName>/frontend
 install_deps: true
 setup_env:    true
 run_dev:      false
 ```
 
-Настроить `.env` фронтенда:
+Configure the frontend `.env`:
 ```
 VITE_GRAPHQL_API_URL=http://localhost:<PORT>/graphql
 VITE_BASE_URL=http://localhost:<FRONT_PORT>
-VITE_OIDC_AUTHORITY=<из IMPLEMENTATION_GUIDE.md>
-VITE_OIDC_CLIENT_ID=<из IMPLEMENTATION_GUIDE.md>
+VITE_OIDC_AUTHORITY=<from IMPLEMENTATION_GUIDE.md>
+VITE_OIDC_CLIENT_ID=<from IMPLEMENTATION_GUIDE.md>
 ```
 
-Запустить бэкенд в фоне и сгенерировать GraphQL-типы:
+Start the backend in the background and generate the GraphQL types:
 ```bash
-# в backend/:
+# in backend/:
 npm run start:dev &
 
-# в frontend/:
+# in frontend/:
 npm run gen
 ```
 
-Прочитать `projects/<ИмяПроекта>/frontend/AGENTS.md` — понять доступные команды.
+Read `projects/<ProjectName>/frontend/AGENTS.md` — understand the available commands.
 
-**3.5. Корневой AGENTS.md проекта**
+**3.5. The project's root AGENTS.md**
 
-Создать `projects/<ИмяПроекта>/AGENTS.md`:
+Create `projects/<ProjectName>/AGENTS.md`:
 
 ```markdown
-# <ИмяПроекта>
+# <ProjectName>
 
-## Структура проекта
+## Project structure
 
 - `backend/` — NestJS + Fastify API
 - `frontend/` — React SPA
 
-## Важно
+## Important
 
-При работе с бэкендом **обязательно прочитать** `backend/AGENTS.md`.
-При работе с фронтендом **обязательно прочитать** `frontend/AGENTS.md`.
+When working with the backend, **you must read** `backend/AGENTS.md`.
+When working with the frontend, **you must read** `frontend/AGENTS.md`.
 
-Каждый подпроект содержит специфичные команды, соглашения и особенности среды,
-которые необходимо знать перед внесением изменений.
+Each subproject contains specific commands, conventions, and environment quirks
+that you need to know before making changes.
 ```
 
 ---
 
-### Шаг 4. Реализация фронтенда
+### Step 4. Frontend implementation
 
-**4.1. FSD-слайсы (только новые)**
+**4.1. FSD slices (new ones only)**
 
-Для каждого слайса из ARCHITECTURE.md §Frontend: FSD-слайсы создать структуру:
+For each slice from ARCHITECTURE.md §Frontend, create the structure:
 ```
 src/
 ├── entities/<name>/
-│   ├── api/        ← URQL useQuery / useMutation с типами из npm run gen
-│   └── model/      ← TypeScript-типы, трансформации данных
+│   ├── api/        ← URQL useQuery / useMutation with types from npm run gen
+│   └── model/      ← TypeScript types, data transformations
 ├── features/<name>/
-│   ├── ui/         ← React-компоненты
-│   └── model/      ← Zustand-стор или локальное состояние
+│   ├── ui/         ← React components
+│   └── model/      ← Zustand store or local state
 └── widgets/<name>/
     └── ui/
 ```
 
-Правила:
-- GraphQL-запросы: только через URQL, типы из `npm run gen` — без `any`
-- Zustand-стор: `create(devtools<MyStore>((set, get) => ({ ... })))` — только UI-состояние, не дублировать серверные данные
-- Компоненты: из прототипа брать только UX-логику (потоки, формы), не копировать код
-- **Тема и стиль:** взять из прототипа как базовую основу — цветовая схема, типографика, отступы, визуальный язык. Реальные компоненты должны выглядеть узнаваемо по сравнению с прототипом
-- **Никаких замоканных данных в production-коде:** все данные получаются через GraphQL-запросы к бэкенду. Хардкод данных и `mockData`-константы допустимы только в тестах (`*.test.ts`, `*.spec.ts`, `tests/`)
+Rules:
+- GraphQL requests: only via URQL, types from `npm run gen` — no `any`
+- Zustand store: `create(devtools<MyStore>((set, get) => ({ ... })))` — only UI state, don't duplicate server data
+- Components: take only the UX logic from the prototype (flows, forms), don't copy the code
+- **Theme and style:** take them from the prototype as the baseline — color scheme, typography, spacing, visual language. The real components should look recognizable compared to the prototype
+- **No mocked data in production code:** all data is fetched via GraphQL requests to the backend. Hardcoded data and `mockData` constants are allowed only in tests (`*.test.ts`, `*.spec.ts`, `tests/`)
 
-**4.2. Страницы и роутинг**
+**4.2. Pages and routing**
 
-Для каждой страницы из ARCHITECTURE.md §Pages создать файл в `src/routes/`:
+For each page from ARCHITECTURE.md §Pages, create a file in `src/routes/`:
 
 ```typescript
-// Защищённая страница (паттерн beforeLoad):
+// Protected page (beforeLoad pattern):
 export const Route = createFileRoute('/my-page')({
   beforeLoad: ({ context: { auth } }) => {
     if (!auth.isAuthenticated) throw redirect({ to: '/' })
@@ -239,31 +239,31 @@ export const Route = createFileRoute('/my-page')({
   component: () => <AuthGuard><MyPage /></AuthGuard>,
 })
 
-// Публичная страница:
+// Public page:
 export const Route = createFileRoute('/public-page')({
   component: MyPublicPage,
 })
 ```
 
-**4.3. Переменные окружения**
+**4.3. Environment variables**
 
-Добавить в `.env` переменные из ARCHITECTURE.md §Переменные окружения (только бизнес-специфичные).
+Add the variables from ARCHITECTURE.md §Environment variables to `.env` (only the business-specific ones).
 
 **4.4. i18n**
 
-Если ARCHITECTURE.md §Frontend: локализация содержит namespace'ы — создать файлы переводов в `messages/`.
+If ARCHITECTURE.md §Frontend: localization contains namespaces — create the translation files in `messages/`.
 
-**4.5. Коммит фронтенда**
+**4.5. Frontend commit**
 ```bash
 git add .
-git commit -m "feat(frontend): реализация <ИмяПроекта>"
+git commit -m "feat(frontend): implement <ProjectName>"
 ```
 
 ---
 
-### Шаг 5. Тесты
+### Step 5. Tests
 
-Реализовать все сценарии из TESTING_PLAN.md. **Не пропускать сценарии** — каждый описан в документе.
+Implement all scenarios from TESTING_PLAN.md. **Don't skip any scenarios** — each one is described in the document.
 
 **Backend E2E (Vitest + E2EClient):**
 ```typescript
@@ -276,14 +276,14 @@ describe('<Domain>Resolver', () => {
     client = await createTestClient()
   })
 
-  it('успешный сценарий', async () => {
+  it('success scenario', async () => {
     const profile = await createTestProfile()
     await client.loginAs(profile)
     const result = await client.requestGraphQL<QueryType>(QUERY, vars)
     expect(result.data).toBeDefined()
   })
 
-  it('негативный сценарий — нет прав', async () => {
+  it('negative scenario — no permissions', async () => {
     const result = await client.requestGraphQL<QueryType>(QUERY, vars)
     expect(result.errors?.[0].message).toContain('Unauthorized')
   })
@@ -293,7 +293,7 @@ describe('<Domain>Resolver', () => {
 **Backend unit (Vitest + NestJS Testing Module):**
 ```typescript
 describe('<Domain>Service.complexMethod', () => {
-  it('корректно рассчитывает ...', () => {
+  it('correctly calculates ...', () => {
     const result = service.complexMethod(input)
     expect(result).toEqual(expected)
   })
@@ -303,107 +303,107 @@ describe('<Domain>Service.complexMethod', () => {
 **Frontend component (Vitest + React Testing Library):**
 ```typescript
 describe('<ComponentName>', () => {
-  it('отображает состояние загрузки', () => {
+  it('renders the loading state', () => {
     render(<MyComponent loading />)
     expect(screen.getByRole('progressbar')).toBeInTheDocument()
   })
 })
-// OIDC автоматически замокан через tests/setup.ts — дополнительная настройка не нужна
+// OIDC is mocked automatically via tests/setup.ts — no extra setup needed
 ```
 
 **Frontend E2E (Playwright):**
 ```typescript
-// Запускать с VITE_MOCK_AUTH=true — MockAuthProvider авторизует автоматически
-test('критический путь: <название>', async ({ page }) => {
+// Run with VITE_MOCK_AUTH=true — MockAuthProvider authenticates automatically
+test('critical path: <name>', async ({ page }) => {
   await page.goto('/target-page')
-  await page.getByRole('button', { name: 'Действие' }).click()
-  await expect(page.getByText('Успех')).toBeVisible()
+  await page.getByRole('button', { name: 'Action' }).click()
+  await expect(page.getByText('Success')).toBeVisible()
 })
 ```
 
-**Коммит тестов:**
+**Test commit:**
 ```bash
 git add .
-git commit -m "test(<ИмяПроекта>): покрытие по TESTING_PLAN.md"
+git commit -m "test(<ProjectName>): coverage per TESTING_PLAN.md"
 ```
 
 ---
 
-### Шаг 6. Верификация (обязательна — не пропускать)
+### Step 6. Verification (mandatory — do not skip)
 
-**6.1. Автоматические проверки**
+**6.1. Automated checks**
 
-Запустить в обоих проектах:
+Run in both projects:
 ```bash
-# Бэкенд:
-cd projects/<ИмяПроекта>/backend && npm run check && npm run test:all
+# Backend:
+cd projects/<ProjectName>/backend && npm run check && npm run test:all
 
-# Фронтенд:
-cd projects/<ИмяПроекта>/frontend && npm run check && npm run test:all
+# Frontend:
+cd projects/<ProjectName>/frontend && npm run check && npm run test:all
 ```
 
-**Если хотя бы одна команда завершается с ошибкой — устранить причину и запустить повторно.** Проект не считается реализованным, пока все проверки не зелёные.
+**If even one command finishes with an error — fix the cause and run it again.** The project is not considered implemented until all checks are green.
 
-**6.2. Ручной чеклист по документам**
+**6.2. Manual checklist against the documents**
 
-Сверить реализацию с каждым документом:
+Verify the implementation against each document:
 
 **DATABASE_MODEL.md:**
-- [ ] Каждая Prisma-модель из документа существует в `schema.prisma`
-- [ ] Все миграции применены — `prisma migrate status` без pending
-- [ ] Индексы `@@index`, уникальные ограничения `@@unique` соответствуют документу
-- [ ] Каскадные операции `onDelete`/`onUpdate` соответствуют документу
+- [ ] Every Prisma model from the document exists in `schema.prisma`
+- [ ] All migrations are applied — `prisma migrate status` shows no pending
+- [ ] The `@@index` indexes and `@@unique` constraints match the document
+- [ ] The `onDelete`/`onUpdate` cascade operations match the document
 
 **API_CONTRACTS.md:**
-- [ ] Каждая Query/Mutation/Subscription реализована в соответствующем резолвере
-- [ ] Guards соответствуют директивам (`# @auth` → `JwtAuthGuard`, `# @public` → без guard)
-- [ ] Типы возвращаемых значений совпадают (включая wrapper-типы пагинации)
-- [ ] Input-типы мутаций соответствуют схеме
+- [ ] Every Query/Mutation/Subscription is implemented in the corresponding resolver
+- [ ] Guards match the directives (`# @auth` → `JwtAuthGuard`, `# @public` → no guard)
+- [ ] Return types match (including the pagination wrapper types)
+- [ ] Mutation input types match the schema
 
 **ARCHITECTURE.md:**
-- [ ] Все NestJS-модули из §Backend реализованы и зарегистрированы в AppModule
-- [ ] Все FSD-слайсы из §Frontend реализованы (кроме boilerplate-слайсов)
-- [ ] Все страницы из §Pages существуют и маршрутизируются корректно
-- [ ] Серверный стейт управляется через URQL, UI-стейт — через Zustand
+- [ ] All NestJS modules from §Backend are implemented and registered in AppModule
+- [ ] All FSD slices from §Frontend are implemented (except the boilerplate slices)
+- [ ] All pages from §Pages exist and route correctly
+- [ ] Server state is managed via URQL, UI state — via Zustand
 
 **TESTING_PLAN.md:**
-- [ ] Все сценарии из §Unit-тесты реализованы
-- [ ] Все сценарии из §E2E-сценарии реализованы
-- [ ] Все сценарии из §Критические пути покрыты
-- [ ] Все сценарии из §Негативные сценарии покрыты
+- [ ] All scenarios from §Unit tests are implemented
+- [ ] All scenarios from §E2E scenarios are implemented
+- [ ] All scenarios from §Critical paths are covered
+- [ ] All scenarios from §Negative scenarios are covered
 - [ ] Coverage: statements / functions / lines ≥ 80%, branches ≥ 70%
 
 **SPEC.md:**
-- [ ] Все бизнес-сущности из §Сущности присутствуют в коде
-- [ ] Все бизнес-правила из §Ключевые операции реализованы и соблюдены
-- [ ] Все страницы из §Страницы реализованы
+- [ ] All business entities from §Entities are present in the code
+- [ ] All business rules from §Key operations are implemented and enforced
+- [ ] All pages from §Pages are implemented
 
-**Прототип:**
-- [ ] Ключевые UX-потоки прототипа воспроизводятся в готовом продукте
-- [ ] Формы, действия и обратная связь пользователю соответствуют прототипу
-- [ ] Визуальный стиль (цвета, типографика, компоновка) соответствует прототипу
-- [ ] В production-коде нет замоканных данных, хардкод-констант и `TODO: replace with API`
+**Prototype:**
+- [ ] The prototype's key UX flows are reproduced in the finished product
+- [ ] Forms, actions, and user feedback match the prototype
+- [ ] The visual style (colors, typography, layout) matches the prototype
+- [ ] Production code has no mocked data, hardcoded constants, or `TODO: replace with API`
 
 ---
 
-### Шаг 7. Финальный коммит
+### Step 7. Final commit
 
 ```bash
 git add .
-git commit -m "feat(<ИмяПроекта>): полная реализация — все тесты зелёные"
+git commit -m "feat(<ProjectName>): full implementation — all tests green"
 ```
 
 ---
 
-## Ключевые ограничения
+## Key constraints
 
-- **Не дублировать стартовый шаблон:** модель `Profile`, операции `me`/`updateProfile`/`profileUpdated`, слайсы `features/auth`, `widgets/Header`, `pages/404`, `shared/api/graphql-client` — уже готовы, не трогать
-- **Только типизированный код:** TypeScript без `any`; GraphQL-типы — только из `npm run gen`
-- **Soft delete:** при `deletedAt DateTime?` → фильтровать `{ deletedAt: null }` во всех Prisma-запросах
-- **Пагинация:** все списочные операции возвращают `{ items: [...], total: Int, hasMore: Boolean }`
-- **Тесты обязательны** для каждого сценария из TESTING_PLAN.md — не пропускать, не заглушать
-- **Читать AGENTS.md** обоих проектов — там могут быть специфичные команды и соглашения
-- **Порядок имплементации:** бэкенд → фронтенд (генерация GraphQL-типов требует работающего бэкенда)
-- **Нет замоканным данным в production:** `mockData`, хардкод-массивы, `TODO: replace with API` — запрещены в production-коде; допустимы только в тестовых файлах
-- **Тема берётся из прототипа:** реальный UI должен воспроизводить визуальный язык прототипа — цвета, типографику, компоновку
-- **Верификация блокирующая:** `npm run check && npm run test:all` должны быть зелёными перед финальным коммитом
+- **Don't duplicate the starter template:** the `Profile` model, the `me`/`updateProfile`/`profileUpdated` operations, the `features/auth`, `widgets/Header`, `pages/404`, `shared/api/graphql-client` slices — are already done, don't touch them
+- **Typed code only:** TypeScript with no `any`; GraphQL types — only from `npm run gen`
+- **Soft delete:** when `deletedAt DateTime?` → filter `{ deletedAt: null }` in all Prisma queries
+- **Pagination:** all list operations return `{ items: [...], total: Int, hasMore: Boolean }`
+- **Tests are mandatory** for every scenario from TESTING_PLAN.md — don't skip, don't stub them out
+- **Read the AGENTS.md** of both projects — they may contain specific commands and conventions
+- **Implementation order:** backend → frontend (generating the GraphQL types requires a running backend)
+- **No mocked data in production:** `mockData`, hardcoded arrays, `TODO: replace with API` — forbidden in production code; allowed only in test files
+- **The theme comes from the prototype:** the real UI must reproduce the prototype's visual language — colors, typography, layout
+- **Verification is blocking:** `npm run check && npm run test:all` must be green before the final commit

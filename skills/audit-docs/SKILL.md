@@ -1,32 +1,31 @@
 ---
 name: audit-docs
 description: >
-  Аудит документации: расхождение README/инструкций с реальным кодом, битые ссылки,
-  рассинхрон env-переменных, комментарии и JSDoc, противоречащие сигнатурам, устаревшие
-  упоминания удалённых сущностей. Запускай при /audit-docs или запросе проверить документацию.
+  Documentation audit: mismatches between the README/instructions and the actual code, broken links,
+  env-variable drift, comments and JSDoc that contradict signatures, stale
+  references to removed entities. Run on /audit-docs or a request to check documentation.
 ---
 
-## Правило применимости (Relevance Rule)
+## Relevance Rule
 
-Применим к любому проекту, где есть документация (README, `docs/**`, JSDoc, инструкции запуска) или комментарии в коде. Для проектов без документации вообще — проверяй только DOC-01 (минимум для онбординга) и DOC-04 (комментарии).
+Applies to any project that has documentation (README, `docs/**`, JSDoc, run instructions) or code comments. For projects with no documentation at all, check only DOC-01 (the minimum for onboarding) and DOC-04 (comments).
 
-**Фокус — только верифицируемые расхождения.** Этот аудит НЕ оценивает «достаточно ли документации» субъективно. `❌ FAIL` ставится только когда документация **противоречит** коду или ссылается на то, чего нет — и это доказуемо `file:line`. «Хорошо бы добавить описание» без конкретного противоречия — не находка.
+**Focus only on verifiable discrepancies.** This audit does NOT subjectively judge whether "there is enough documentation". `❌ FAIL` is assigned only when the documentation **contradicts** the code or references something that does not exist — and this is provable with a `file:line`. "It would be nice to add a description" without a concrete contradiction is not a finding.
 
-**Граница с соседними аудитами** (чтобы не дублировать находки):
-- `audit-api-contracts` — владеет «документация API vs реализация» (эндпоинты, формы ответов, OpenAPI/GraphQL-схема). REST/GraphQL-контракты отдавай туда.
-- `audit-yagni` (YAGNI-05) — владеет устаревшими TODO/FIXME без прогресса. Здесь TODO не проверяем.
-- `audit-naming` — владеет самодокументирующимися именами. Здесь не оцениваем «понятность имён».
-- `audit-deployment` (DEP-08) — владеет полнотой `.env.example`. DOC-02 фокусируется на **рассинхроне** «код ↔ документация», а не на наличии файла.
+**Boundary With Adjacent Audits** (to avoid duplicating findings):
+- `audit-api-contracts` — owns "API documentation vs implementation" (endpoints, response shapes, OpenAPI/GraphQL schema). Hand REST/GraphQL contracts off there.
+- `audit-yagni` (YAGNI-05) — owns stale TODO/FIXME with no progress. We do not check TODOs here.
+- `audit-naming` — owns self-documenting names. We do not judge "name clarity" here.
+- `audit-deployment` (DEP-08) — owns the completeness of `.env.example`. DOC-02 focuses on the **drift** between "code ↔ documentation", not on the file's presence.
 
 ## Runtime Detection & Stack Profile
 
-Этот аудит стек-агностичен: проверки сформулированы нейтрально, а конкретика
-(инструменты, идиомы, анти-паттерны, примеры) берётся из профиля стека.
+This audit is stack-agnostic: the checks are framed neutrally, and the specifics (tools, idioms, anti-patterns, examples) come from the stack profile.
 
-1. **Профиль передан контекстом?** Если оркестратор `/audit` передал
-   `runtime=<id>` и/или содержимое профиля — используй его, шаги 2–3 пропусти.
+1. **Profile passed in context?** If the `/audit` orchestrator passed
+   `runtime=<id>` and/or the profile contents, use it and skip steps 2–3.
 
-2. **Иначе определи РОВНО ОДИН рантайм** этого каталога:
+2. **Otherwise, detect EXACTLY ONE runtime** for this directory:
    ```bash
    if   [ -f package.json ]; then echo "runtime=node"
    elif [ -f go.mod ]; then echo "runtime=go"
@@ -35,74 +34,72 @@ description: >
    elif [ -f pom.xml ] || ls build.gradle* settings.gradle* >/dev/null 2>&1; then echo "runtime=java"
    else echo "runtime=generic"; fi
    ```
-   Один запуск = один рантайм; не миксуй backend и frontend. Если найдено
-   несколько маркеров (монорепо) — выбери соответствующий текущему scope/анализируемым
-   файлам и зафиксируй выбор в разделе Audit Coverage.
+   One run = one runtime; do not mix backend and frontend. If several markers are found (monorepo), pick the one matching the current scope / files under analysis and record the choice in the Audit Coverage section.
 
-3. **Загрузи профиль** через Read: `./skills/audit/stacks/<runtime>.md`
-   (fallback `./skills/audit/stacks/_generic.md`, если файл не найден).
+3. **Load the profile** via Read: `./skills/audit/stacks/<runtime>.md`
+   (fallback `./skills/audit/stacks/_generic.md` if the file is not found).
 
-Дальше используй профиль:
-- **Инструменты** — из секции «Tooling by category» профиля (раздел
-  «Инструментальная поддержка» ниже ссылается на категории, а не на команды).
-- **Ожидания PASS** — из «Idioms»; **формулировки FAIL** — из «Anti-patterns».
-- **Точечные подсказки** — из «Check-ID hints» по префиксу `DOC-`.
-- Если профиль `tier: general` или `runtime=generic` → стек-специфичные находки
-  без однозначного evidence помечай `🔍 UNVERIFIED`, а не `❌ FAIL`. Проверки,
-  чей механизм в рантайме отсутствует, помечай `N/A`.
+Then use the profile:
+- **Tools** — from the profile's "Tooling by category" section (the
+  "Tooling Support" section below references categories, not commands).
+- **PASS expectations** — from "Idioms"; **FAIL wording** — from "Anti-patterns".
+- **Targeted hints** — from "Check-ID hints" by the prefix `DOC-`.
+- If the profile is `tier: general` or `runtime=generic`, mark stack-specific
+  findings without unambiguous evidence as `🔍 UNVERIFIED` rather than `❌ FAIL`.
+  Mark checks whose mechanism is absent in the runtime as `N/A`.
 
 ## Severity Guide
 
-| Severity | Критерий назначения |
+| Severity | Assignment criterion |
 |----------|---------------------|
-| 🔴 Critical | Документация направляет на небезопасное действие: инструкция отключить security-механизм, опубликованный реальный секрет «для примера», команда с разрушительным побочным эффектом без предупреждения |
-| 🟠 High | Инструкция, ломающая онбординг/деплой: неверная команда установки/запуска, отсутствующая обязательная env-переменная, из-за которой прод падает или конфигурируется неверно |
-| 🟡 Medium | Дрейф: README/комментарий/JSDoc противоречит текущему коду, битые внутренние ссылки, упоминание удалённых сущностей |
-| 🟢 Low | Незначительная нехватка: публичный экспорт без doc-комментария, мелкая неактуальность без риска |
+| 🔴 Critical | The documentation steers toward an unsafe action: instructions to disable a security mechanism, a real secret published "as an example", a command with a destructive side effect and no warning |
+| 🟠 High | An instruction that breaks onboarding/deployment: an incorrect install/run command, a missing required env variable that causes prod to crash or be misconfigured |
+| 🟡 Medium | Drift: README/comment/JSDoc contradicts the current code, broken internal links, references to removed entities |
+| 🟢 Low | Minor gap: a public export without a doc comment, a small staleness with no risk |
 
-Правило: severity = impact × вероятность ввести разработчика/оператора в заблуждение × blast radius. Одинаковый паттерн → одинаковый severity между аудитами.
+Rule: severity = impact × the likelihood of misleading a developer/operator × blast radius. The same pattern → the same severity across audits.
 
-## Чеклист
+## Checklist
 
-| Check ID | Проверка |
+| Check ID | Check |
 |----------|----------|
-| DOC-01 | README/онбординг документирует установку, запуск, тесты, сборку; команды совпадают с манифестом задач проекта (package.json scripts / Makefile / Taskfile) |
-| DOC-02 | Env-переменные синхронизированы: каждая используемая в коде переменная задокументирована, нет задокументированных, но неиспользуемых |
-| DOC-03 | Внутренние ссылки и пути в Markdown-документации ведут на существующие файлы и секции |
-| DOC-04 | Комментарии и JSDoc/docstring не противоречат коду (сигнатура, имена параметров, типы, описанное поведение) |
-| DOC-05 | Публичная поверхность (экспортируемое API библиотеки/пакета) имеет doc-комментарий назначения и параметров |
-| DOC-06 | Проектная/архитектурная документация не ссылается на удалённые или переименованные сущности и неактуальные факты |
+| DOC-01 | The README/onboarding documents install, run, test, and build; the commands match the project's task manifest (package.json scripts / Makefile / Taskfile) |
+| DOC-02 | Env variables are in sync: every variable used in the code is documented, and there are no documented-but-unused ones |
+| DOC-03 | Internal links and paths in the Markdown documentation point to existing files and sections |
+| DOC-04 | Comments and JSDoc/docstrings do not contradict the code (signature, parameter names, types, described behavior) |
+| DOC-05 | The public surface (the exported API of the library/package) has a doc comment for its purpose and parameters |
+| DOC-06 | Project/architecture documentation does not reference removed or renamed entities or outdated facts |
 
-## Правила верификации
+## Verification Rules
 
-1. **Только чеклист**: оценивай ТОЛЬКО проверки выше. Не добавляй новые.
-2. **Расхождение, не отсутствие**: `❌ FAIL` валиден только при доказуемом противоречии «документация ↔ код» или ссылке на несуществующее. Субъективное «мало документации» — не FAIL.
-3. **Два якоря на находку**: каждый FAIL обязан указывать И место в документации (`file:line`), И место в коде, которое его опровергает (`file:line`).
-4. **Явная верификация = PASS**: ставь `✅ PASS`, только если сверил документ с кодом и подтвердил соответствие — укажи что именно сверено.
-5. **Нет доказательства = UNVERIFIED**: не можешь указать оба якоря — ставь `🔍 UNVERIFIED`.
-6. **Baseline приоритетен**: check_id есть в `docs/audit-baseline.yml` → `⏸ ACCEPTED`.
-7. **Только 🔴/🟠 FAIL требуют решения**: 🟡/🟢 — решение необязательно.
+1. **Checklist only**: evaluate ONLY the checks above. Do not add new ones.
+2. **Discrepancy, not absence**: `❌ FAIL` is valid only with a provable "documentation ↔ code" contradiction or a reference to something nonexistent. A subjective "not enough documentation" is not a FAIL.
+3. **Two anchors per finding**: every FAIL must point to BOTH the place in the documentation (`file:line`) AND the place in the code that refutes it (`file:line`).
+4. **Explicit verification = PASS**: assign `✅ PASS` only if you compared the document against the code and confirmed they match — state exactly what was compared.
+5. **No evidence = UNVERIFIED**: if you cannot provide both anchors, assign `🔍 UNVERIFIED`.
+6. **Baseline takes priority**: if the check_id is in `docs/audit-baseline.yml` → `⏸ ACCEPTED`.
+7. **Only 🔴/🟠 FAILs require a solution**: 🟡/🟢 — a solution is optional.
 
 ## Evidence Quality Rules
 
-Любой `❌ FAIL` обязан содержать:
-- Якорь в документации: `file:line` + цитата утверждения (1–2 строки)
-- Якорь в коде: `file:line`, опровергающий утверждение
-- Causal chain: почему расхождение → кого и как введёт в заблуждение (разработчик при онбординге / оператор при деплое / читатель API)
+Every `❌ FAIL` must include:
+- A documentation anchor: `file:line` + a quote of the claim (1–2 lines)
+- A code anchor: `file:line` that refutes the claim
+- Causal chain: why the discrepancy → who it misleads and how (a developer during onboarding / an operator during deployment / an API reader)
 
-Запрещено:
-- Считать FAIL отсутствие комментария там, где код самоочевиден (это не противоречие)
-- Проверять внешние URL на доступность (сеть нестабильна) — только внутренние ссылки/пути и якоря внутри репозитория
-- Предполагать, что команда/переменная «вероятно устарела» без сверки с кодом — только `🔍 UNVERIFIED`
-- Дублировать находки, принадлежащие `audit-api-contracts`/`audit-yagni`/`audit-naming` (см. границы выше)
+Not allowed:
+- Treating a missing comment as a FAIL where the code is self-evident (that is not a contradiction)
+- Checking external URLs for availability (the network is unstable) — only internal links/paths and anchors within the repository
+- Assuming a command/variable is "probably stale" without comparing it against the code — only `🔍 UNVERIFIED`
+- Duplicating findings that belong to `audit-api-contracts`/`audit-yagni`/`audit-naming` (see the boundaries above)
 
 ## Language Rule
 
-Результаты аудита должны быть написаны простым и понятным языком. Избегай сложных терминов, жаргона и абстрактных понятий без необходимости. Общепринятые технические термины (Docker, HTTP, API, JSON, URL) допустимы. Описывай проблемы так, чтобы они были понятны разработчику любого уровня, а не только узкому специалисту в данной области.
+Audit results must be written in plain, clear language. Avoid complex terms, jargon, and abstract concepts unless necessary. Common technical terms (Docker, HTTP, API, JSON, URL) are fine. Describe problems so they are understandable to a developer of any level, not only a narrow specialist in the area.
 
 ## Baseline
 
-До анализа:
+Before analysis:
 ```bash
 if [ ! -f ./docs/audit-baseline.yml ]; then
   mkdir -p ./docs
@@ -112,98 +109,98 @@ fi
 cat ./docs/audit-baseline.yml
 ```
 
-## Контекст анализа
+## Analysis Context
 
-**DOC-01 — Инструкции совпадают с реальностью:**
-- README ссылается на скрипт/команду, которой нет в манифесте задач проекта (package.json scripts / Makefile / Taskfile)
-- Документированы шаги установки с неверным менеджером пакетов или версией рантайма (несовпадение с `engines`/lock-файлом)
-- Отсутствует базовый онбординг (как установить / запустить / прогнать тесты) при наличии этих скриптов в проекте
+**DOC-01 — Instructions match reality:**
+- The README references a script/command that is not in the project's task manifest (package.json scripts / Makefile / Taskfile)
+- Install steps are documented with the wrong package manager or runtime version (mismatch with `engines`/the lock file)
+- Basic onboarding is missing (how to install / run / run tests) even though these scripts exist in the project
 
-**DOC-02 — Синхронизация env-переменных:**
-- Переменная используется в коде, но отсутствует в `.env.example`/README — оператор не узнает о ней
-- Переменная задокументирована, но больше нигде не читается (устаревшая инструкция)
-- Описание переменной противоречит коду (дефолт, формат, обязательность)
-- Синтаксис извлечения env-переменных из кода бери из профиля стека (`process.env` / `import.meta.env` / `os.Getenv`)
+**DOC-02 — Env-variable synchronization:**
+- A variable is used in the code but absent from `.env.example`/README — the operator will not learn about it
+- A variable is documented but no longer read anywhere (a stale instruction)
+- A variable's description contradicts the code (default, format, whether it is required)
+- Take the syntax for extracting env variables from code from the stack profile (`process.env` / `import.meta.env` / `os.Getenv`)
 
-**DOC-03 — Валидные ссылки и пути:**
-- Относительная ссылка в Markdown ведёт на несуществующий файл
-- Якорь (`#section`) указывает на отсутствующий заголовок
-- Путь к файлу/папке в инструкции не существует в репозитории
+**DOC-03 — Valid links and paths:**
+- A relative link in Markdown points to a nonexistent file
+- An anchor (`#section`) points to a missing heading
+- A file/folder path in an instruction does not exist in the repository
 
-**DOC-04 — Комментарии не лгут:**
-- JSDoc/TSDoc `@param`/`@returns` не совпадает с фактической сигнатурой (имя, число, тип параметров)
-- Комментарий описывает поведение, противоположное коду («возвращает null, если...» — а код кидает исключение)
-- Docstring/комментарий ссылается на параметр/шаг, которого в функции уже нет
+**DOC-04 — Comments do not lie:**
+- JSDoc/TSDoc `@param`/`@returns` does not match the actual signature (name, count, type of parameters)
+- A comment describes behavior opposite to the code ("returns null if..." while the code throws an exception)
+- A docstring/comment references a parameter/step that is no longer in the function
 
-**DOC-05 — Документация публичной поверхности:**
-- Применять ТОЛЬКО если проект является публикуемой библиотекой/пакетом (по манифесту проекта)
-- Экспортируемая публичная функция/класс/тип без doc-комментария назначения
-- Для приложений (не публикуемая библиотека) — DOC-05 = `N/A`, не FAIL
+**DOC-05 — Public surface documentation:**
+- Apply ONLY if the project is a published library/package (per the project manifest)
+- An exported public function/class/type without a doc comment for its purpose
+- For applications (not a published library), DOC-05 = `N/A`, not FAIL
 
-**DOC-06 — Актуальность проектной документации:**
-- Архитектурный документ описывает модуль/сервис/эндпоинт, удалённый или переименованный в коде
-- Диаграмма/схема упоминает технологию, которой больше нет в зависимостях
-- Версия в документации расходится с `package.json`/тегом (если документация декларирует версию)
+**DOC-06 — Project documentation currency:**
+- An architecture document describes a module/service/endpoint that was removed or renamed in the code
+- A diagram/chart mentions a technology that is no longer in the dependencies
+- The version in the documentation diverges from `package.json`/the tag (if the documentation declares a version)
 
-## Инструментальная поддержка
+## Tooling Support
 
-Env-переменные — код vs документация (DOC-02): извлеки имена env-переменных из кода
-инструментом категории **env-extraction** из профиля стека (секция «Tooling by
-category»; синтаксис зависит от рантайма — Node: `process.env`/`import.meta.env`;
-Go: `os.Getenv`). Сравни полученный список с задокументированными переменными
-(`.env.example`/README); разница между списками — кандидаты в DOC-02. Верифицируй
-каждую вручную (бывают переменные из CI/инфраструктуры, не из `.env`).
+Env variables — code vs documentation (DOC-02): extract env-variable names from the code
+with a tool from the **env-extraction** category of the stack profile (the "Tooling by
+category" section; the syntax depends on the runtime — Node: `process.env`/`import.meta.env`;
+Go: `os.Getenv`). Compare the resulting list against the documented variables
+(`.env.example`/README); the difference between the lists is the set of DOC-02 candidates. Verify
+each one manually (some variables come from CI/infrastructure, not from `.env`).
 
-Команды README vs манифест задач (DOC-01): возьми список задач/скриптов из
-**манифеста задач проекта** (по профилю стека: `package.json` scripts / `Makefile` /
-`Taskfile`). Команды, упомянутые в README, сверь с этим манифестом — команда из
-README, которой нет в манифесте, → кандидат в DOC-01.
+README commands vs the task manifest (DOC-01): take the list of tasks/scripts from
+the **project's task manifest** (per the stack profile: `package.json` scripts / `Makefile` /
+`Taskfile`). Compare the commands mentioned in the README against this manifest — a command from
+the README that is not in the manifest → a DOC-01 candidate.
 
-Внутренние ссылки в Markdown (DOC-03): извлеки относительные ссылки `[...](./path)` и проверь существование путей через `Read`/`ls`. Внешние `http(s)://`-ссылки НЕ проверяй на доступность.
+Internal Markdown links (DOC-03): extract relative links `[...](./path)` and check that the paths exist via `Read`/`ls`. Do NOT check external `http(s)://` links for availability.
 
-## Формат вывода
+## Output Format
 
-| Check ID | Проверка | Статус | Уверенность | Доказательство | Решение | Исправлено |
+| Check ID | Check | Status | Confidence | Evidence | Solution | Fixed |
 |----------|----------|--------|-------------|----------------|---------|------------|
-| DOC-01 | README документирует установку/запуск/тесты, команды совпадают со scripts | ❌ FAIL 🟠 | High | `README.md:24` — `npm run start:dev`; в `package.json` есть только `dev` | **1. Исправить README на `npm run dev`** \\ 2. Добавить алиас `start:dev` в scripts \\ 3. Сгенерировать раздел команд из scripts автоматически | Нет |
-| DOC-02 | Env-переменные синхронизированы | ❌ FAIL 🟠 | High | `src/config.ts:9` читает `REDIS_URL`; нет в `.env.example` | **1. Добавить `REDIS_URL` в `.env.example` с описанием** \\ 2. Валидировать env при старте (zod/envalid) \\ 3. Удалить чтение переменной, если она не нужна | Нет |
-| DOC-04 | Комментарии и JSDoc не противоречат коду | ❌ FAIL 🟡 | Medium | `src/user.ts:40` JSDoc `@returns User`; функция возвращает `User | null` | **1. Поправить `@returns` на `User \| null`** \\ 2. Удалить устаревший JSDoc \\ 3. Включить `eslint-plugin-jsdoc` для авто-проверки | Нет |
-| DOC-05 | Публичная поверхность задокументирована | ✅ PASS | Medium | по манифесту — приложение, не публикуемая библиотека → N/A | — | — |
+| DOC-01 | README documents install/run/tests, commands match the scripts | ❌ FAIL 🟠 | High | `README.md:24` — `npm run start:dev`; `package.json` only has `dev` | **1. Fix the README to `npm run dev`** \\ 2. Add a `start:dev` alias to scripts \\ 3. Generate the commands section from scripts automatically | No |
+| DOC-02 | Env variables are in sync | ❌ FAIL 🟠 | High | `src/config.ts:9` reads `REDIS_URL`; not in `.env.example` | **1. Add `REDIS_URL` to `.env.example` with a description** \\ 2. Validate env at startup (zod/envalid) \\ 3. Remove the variable read if it is not needed | No |
+| DOC-04 | Comments and JSDoc do not contradict the code | ❌ FAIL 🟡 | Medium | `src/user.ts:40` JSDoc `@returns User`; the function returns `User | null` | **1. Fix `@returns` to `User \| null`** \\ 2. Remove the stale JSDoc \\ 3. Enable `eslint-plugin-jsdoc` for automatic checking | No |
+| DOC-05 | The public surface is documented | ✅ PASS | Medium | per the manifest — an application, not a published library → N/A | — | — |
 
-Статусы: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED` / `🔍 UNVERIFIED` / `N/A`
+Statuses: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED` / `🔍 UNVERIFIED` / `N/A`
 
-Уверенность: `High` — сверил утверждение документации с кодом, расхождение однозначно / `Medium` — расхождение вероятно, контекст проверен выборочно / `Low` — ограниченный контекст, полная уверенность невозможна
+Confidence: `High` — compared the documentation claim against the code, the discrepancy is unambiguous / `Medium` — the discrepancy is likely, context checked selectively / `Low` — limited context, full certainty is impossible
 
-Для `❌ FAIL`: ровно 3 варианта решения, разделитель `\\`, вариант 1 жирным.
+For `❌ FAIL`: exactly 3 solution options, separated by `\\`, with option 1 in bold.
 
-`Исправлено`: FAIL → `Нет` (разработчик меняет на `✅ Да` вручную после фикса). PASS / ACCEPTED / UNVERIFIED / N/A → `—`.
+`Fixed`: FAIL → `No` (the developer changes it to `✅ Yes` manually after the fix). PASS / ACCEPTED / UNVERIFIED / N/A → `—`.
 
-Требования к решениям:
-- Взаимно исключающие (не перефразировки одного и того же)
-- Минимум один вариант — «исправить документ», минимум один — «исправить/удалить код или автоматизировать сверку»
-- Реалистичная стоимость, без «переписать всю документацию»
-- Вариант 3 может быть «удалить устаревший раздел/комментарий», если он больше не нужен
+Solution requirements:
+- Mutually exclusive (not rephrasings of the same thing)
+- At least one option is "fix the document", at least one is "fix/remove the code or automate the comparison"
+- Realistic cost, without "rewrite all the documentation"
+- Option 3 may be "remove the stale section/comment" if it is no longer needed
 
-В конце отчёта добавь раздел покрытия:
+At the end of the report, add a coverage section:
 ```
 ## Audit Coverage
-Проверено: README.md, docs/**, src/**/*.ts (JSDoc), .env.example
-Пропущено: CHANGELOG.md (auto-generated), node_modules/**
-Файлов проверено: N | Пропущено: N
+Checked: README.md, docs/**, src/**/*.ts (JSDoc), .env.example
+Skipped: CHANGELOG.md (auto-generated), node_modules/**
+Files checked: N | Skipped: N
 ```
 
-Если все PASS — выведи: `✅ Расхождений документации с кодом не обнаружено.`
+If everything is PASS, output: `✅ No discrepancies between documentation and code were found.`
 
-## Сохранение результатов
+## Saving Results
 
-1. Найди папку сессии:
+1. Find the session folder:
    ```bash
    ls -dt ./docs/audits/[0-9]*/ 2>/dev/null | head -1 | sed 's|/$||'
    ```
-   Если пусто — создай: `mkdir -p ./docs/audits/$(date +"%Y-%m-%d_%H-%M")`
-2. Сохрани через Write: `<AUDIT_DIR>/audit-docs.md`
+   If empty, create it: `mkdir -p ./docs/audits/$(date +"%Y-%m-%d_%H-%M")`
+2. Save via Write: `<AUDIT_DIR>/audit-docs.md`
 
 ```
 # Audit Report: Documentation — <YYYY-MM-DD HH:MM>
-<таблица>
+<table>
 ```

@@ -9,7 +9,7 @@ import (
 	"github.com/uxname/kodu/internal/config"
 )
 
-// mkfile создаёт файл с содержимым, создавая родительские директории.
+// mkfile creates a file with content, creating parent directories.
 func mkfile(t *testing.T, root, rel string, content []byte) {
 	t.Helper()
 	p := filepath.Join(root, filepath.FromSlash(rel))
@@ -57,7 +57,7 @@ func TestGitignoreRespected(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// .gitignore сам по себе не игнорируется и попадает в список (паритет с TS dot:true).
+	// .gitignore itself is not ignored and ends up in the list (parity with TS dot:true).
 	want := []string{".gitignore", "keep.txt"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("got %v, want %v", got, want)
@@ -84,7 +84,7 @@ func TestBinaryExtensionExcludedTextForced(t *testing.T) {
 	f, root := newFinder(t)
 	mkfile(t, root, "img.png", []byte("binary"))
 	mkfile(t, root, "code.ts", []byte("text"))
-	// .go в списке knownText, расширения нет в binary — точно текст
+	// .go is in the knownText list and not in binary — definitely text
 	mkfile(t, root, "main.go", []byte("package x"))
 
 	got, err := f.Find(FindOptions{})
@@ -99,7 +99,7 @@ func TestBinaryExtensionExcludedTextForced(t *testing.T) {
 
 func TestContentBasedBinaryDetection(t *testing.T) {
 	f, root := newFinder(t)
-	// Расширение неизвестно, есть нулевой байт → бинарный при включённой детекции.
+	// Extension unknown, has a null byte → binary when detection is enabled.
 	mkfile(t, root, "blob.xyz", []byte{0x41, 0x00, 0x42})
 	mkfile(t, root, "plain.xyz", []byte("hello"))
 
@@ -146,7 +146,7 @@ func TestLargeFileSkipped(t *testing.T) {
 		t.Fatalf("got %v, want %v", got, want)
 	}
 	if len(warned) != 1 {
-		t.Fatalf("ожидал 1 предупреждение о крупном файле, got %v", warned)
+		t.Fatalf("expected 1 large-file warning, got %v", warned)
 	}
 }
 

@@ -5,340 +5,340 @@ description: Design reusable AI agent skills in SKILL.md format — activation r
 
 ## PURPOSE
 
-Мета-скилл для проектирования других skills.
-Часть 1 — принципы качества. Часть 2 — пошаговый процесс создания и улучшения.
+A meta-skill for designing other skills.
+Part 1 — quality principles. Part 2 — a step-by-step process for creating and improving.
 
 ---
 
-# Часть 1. Принципы
+# Part 1. Principles
 
-## Skill vs промпт
+## Skill vs prompt
 
-Skill — это SOP, а не инструкция чат-боту. Хороший skill описывает:
+A skill is an SOP, not an instruction to a chatbot. A good skill describes:
 
-1. Когда использовать / когда НЕ использовать.
-2. Как принимать решения.
-3. Какие инструменты применять.
-4. Что делать при неопределённости.
-5. Как выглядит хороший / плохой результат.
+1. When to use it / when NOT to use it.
+2. How to make decisions.
+3. Which tools to apply.
+4. What to do under uncertainty.
+5. What a good / bad result looks like.
 
-## 6 ключевых паттернов
+## 6 key patterns
 
-| # | Паттерн | Плохо | Хорошо |
+| # | Pattern | Bad | Good |
 |---|---------|-------|--------|
-| 1 | Роль + ограничения раздельно | «Ты эксперт по K8s» | ROLE + CONSTRAINTS |
-| 2 | Ветка «не знаю» | «Ответь на вопрос» | Если данных нет — остановись, перечисли |
-| 3 | Позитивные инструкции | «Не будь многословным» | «Используй 3-7 предложений» |
-| 4 | Few-shot примеры | Только инструкции | INPUT / GOOD OUTPUT / BAD OUTPUT |
-| 5 | Явная иерархия | 20 правил | PRIORITY 1 > 2 > 3 |
-| 6 | Инструменты отдельно | «Используй поиск если нужно» | SEARCH TOOL: когда, когда нет, что после |
+| 1 | Role + constraints separated | "You're a K8s expert" | ROLE + CONSTRAINTS |
+| 2 | A "don't know" branch | "Answer the question" | If there's no data — stop, list what's missing |
+| 3 | Positive instructions | "Don't be verbose" | "Use 3–7 sentences" |
+| 4 | Few-shot examples | Instructions only | INPUT / GOOD OUTPUT / BAD OUTPUT |
+| 5 | Explicit hierarchy | 20 rules | PRIORITY 1 > 2 > 3 |
+| 6 | Tools separated | "Use search if needed" | SEARCH TOOL: when, when not, what after |
 
-## Антипаттерны
+## Anti-patterns
 
-- простыня без структуры;
-- десятки запретов подряд;
-- расплывчатые слова («будь умным», «по возможности»);
-- отсутствие примеров, критериев остановки, ветки неопределённости;
-- бизнес-логика и форматирование в одном разделе.
+- a wall of text with no structure;
+- dozens of prohibitions in a row;
+- vague words ("be smart", "where possible");
+- no examples, stop criteria, or uncertainty branch;
+- business logic and formatting in one section.
 
 ## What not to optimize
 
-- **бесконечные примеры** — 1-2 пар GOOD/BAD достаточно, остальное в appendix;
-- **перегруженный YAML** — только name + description, никакой логики;
-- **skill-учебник** — не объясняй основы языка или технологии, это SOP, не туториал;
-- **идеальную изоляцию** — повторяющийся паттерн лучше вынести в reference, чем дублировать;
-- **waterfall-структуру** — если секция не нужна, оставь «(not applicable)», а не удаляй.
+- **endless examples** — 1–2 GOOD/BAD pairs are enough, the rest goes in an appendix;
+- **bloated YAML** — only name + description, no logic;
+- **a tutorial-skill** — don't explain the basics of the language or technology, this is an SOP, not a tutorial;
+- **perfect isolation** — a recurring pattern is better extracted into a reference than duplicated;
+- **a waterfall structure** — if a section isn't needed, leave "(not applicable)" rather than deleting it.
 
 ---
 
-# Часть 2. Процесс
+# Part 2. Process
 
-Сначала определи режим: **CREATE** (новый skill) или **IMPROVE** (существующий).
+First, determine the mode: **CREATE** (a new skill) or **IMPROVE** (an existing one).
 
 ---
 
 ## Pre-flight gate
 
-**Не начинай генерацию финального SKILL.md, пока не определены все критичные поля.**
+**Don't start generating the final SKILL.md until all the critical fields are determined.**
 
-Критичные (без них — STOP, запроси у пользователя):
-- [ ] цель навыка
-- [ ] платформа (OpenCode / Claude Code / универсальный)
-- [ ] аудитория (разработчик / тимлид / QA / AI-агент)
+Critical (without them — STOP, ask the user):
+- [ ] the skill's purpose
+- [ ] the platform (OpenCode / Claude Code / universal)
+- [ ] the audience (developer / team lead / QA / AI agent)
 
-Второстепенные (если нет — генерируй с явными допущениями):
-- [ ] тип навыка (аналитический / генеративный / ревью / диагностика / утилита)
-- [ ] нужны ли инструменты
-- [ ] ожидаемый формат результата
-- [ ] нужен ли контекст существующего проекта
+Secondary (if missing — generate with explicit assumptions):
+- [ ] the skill type (analytical / generative / review / diagnostic / utility)
+- [ ] whether tools are needed
+- [ ] the expected result format
+- [ ] whether the context of an existing project is needed
 
-Если хотя бы одно критичное поле отсутствует — **не пиши финальный файл, задай вопросы**.
+If even one critical field is missing — **don't write the final file, ask questions**.
 
 ---
 
 ## Skill Type Inference
 
-Если тип навыка не указан пользователем — определи его до начала работы над brief.
+If the user didn't specify the skill type — determine it before starting work on the brief.
 
-| Тип | Характерный паттерн | На что влияет |
+| Type | Characteristic pattern | What it affects |
 |-----|---------------------|---------------|
-| Аналитический | Проверка, поиск проблем, сравнение | PROCESS: крайние случаи, ветвление по данным |
-| Генеративный | Создание текста, кода, документации | OUTPUT REQUIREMENTS: точная структура результата |
-| Диагностический | Поиск причины, расследование сбоев | FAILURE HANDLING: 3+ сценария отказа |
-| Ревью | Оценка, классификация, вердикт | DECISION RULES: чёткая шкала severity |
-| Утилита | Преобразование, запуск, миграция | TOOL USAGE: точные команды, флаги |
+| Analytical | Checking, finding problems, comparing | PROCESS: edge cases, branching on the data |
+| Generative | Creating text, code, documentation | OUTPUT REQUIREMENTS: the exact structure of the result |
+| Diagnostic | Finding the cause, investigating failures | FAILURE HANDLING: 3+ failure scenarios |
+| Review | Evaluation, classification, verdict | DECISION RULES: a clear severity scale |
+| Utility | Transformation, running, migration | TOOL USAGE: exact commands, flags |
 
-Если тип всё ещё неясен — выбери наиболее вероятный, запиши в brief и отметь как inferred.
+If the type is still unclear — pick the most likely one, record it in the brief, and mark it as inferred.
 
 ---
 
-## CREATE: новый skill
+## CREATE: a new skill
 
-### Step 1. Skill Brief (единственный источник правды)
+### Step 1. Skill Brief (the single source of truth)
 
-Заполни brief. Поля имеют жёсткий формат, а не произвольный текст.
+Fill in the brief. The fields have a strict format, not free-form text.
 
 ```yaml
 brief:
-  purpose: '<глагол + что делает. Одна фраза.>'
-  activation: ['<триггер 1>', '<триггер 2>']        # 2-4 элемента
-  do_not_use: ['<условие 1>', '<условие 2>']          # 2+ элемента
-  required_inputs: ['<поле 1>', '<поле 2>']           # обязательные + опциональные
-  tools: ['<инструмент>: <когда>']                      # или пустой []
-  output_format: '<структура результата. Один абзац.>'
-  failure_handling: ['<сценарий 1>: <действие>', '<сценарий 2>: <действие>']  # 2+
-  examples:                                            # 1-2 элемента
-    - input: '<вход>'
-      good: '<правильный ответ>'
-      bad: '<неправильный ответ>'
+  purpose: '<verb + what it does. One phrase.>'
+  activation: ['<trigger 1>', '<trigger 2>']        # 2-4 items
+  do_not_use: ['<condition 1>', '<condition 2>']          # 2+ items
+  required_inputs: ['<field 1>', '<field 2>']           # required + optional
+  tools: ['<tool>: <when>']                      # or empty []
+  output_format: '<the result structure. One paragraph.>'
+  failure_handling: ['<scenario 1>: <action>', '<scenario 2>: <action>']  # 2+
+  examples:                                            # 1-2 items
+    - input: '<input>'
+      good: '<correct answer>'
+      bad: '<incorrect answer>'
 ```
 
-Пока brief не заполнен целиком — не переходи к рендерингу.
+Until the brief is filled in completely — don't move on to rendering.
 
 ### Step 2. YAML frontmatter
 
 ```yaml
 ---
 name: <kebab-case>
-description: <глагол + объект>. Use when <триггер>.
+description: <verb + object>. Use when <trigger>.
 ---
 ```
 
-Формула description:
-> **глагол в активном залоге + что делает + «. Use when / Use for» + триггер**
+Description formula:
+> **active-voice verb + what it does + ". Use when / Use for" + trigger**
 
-Правила:
-- глагол + объект: «Analyze Node.js dependencies», «Review code changes»
-- 1-2 триггера: «Use when reviewing package.json»
-- **запрещены** `help with`, `assist`, `support` без конкретного действия
-- без платформенных деталей (кроме strict single-platform)
-- без логики, примеров, инструкций
-- один абзац, макс 3 предложения
+Rules:
+- verb + object: "Analyze Node.js dependencies", "Review code changes"
+- 1–2 triggers: "Use when reviewing package.json"
+- `help with`, `assist`, `support` without a concrete action are **forbidden**
+- no platform details (except strict single-platform)
+- no logic, examples, or instructions
+- one paragraph, max 3 sentences
 
-Тест на проверяемость: **прочитай только description. Сразу ясно, когда skill нужен, а когда нет?** Если нет — перепиши.
+Testability test: **read only the description. Is it immediately clear when the skill is needed and when not?** If not — rewrite it.
 
-Запрещено:
+Forbidden:
 ```yaml
 description: Helps with code stuff. Use when needed.
 ```
-Правильно:
+Correct:
 ```yaml
 description: Review code changes for bugs, security issues, and convention violations. Use when reviewing a PR or diff before merge.
 ```
 
 ### Step 3. Render SKILL.md
 
-Каждое поле brief маппится на секцию. Порядок фиксирован. Это единственный шаблон.
+Each brief field maps to a section. The order is fixed. This is the only template.
 
-| Brief field | → | Section | Формат содержимого |
+| Brief field | → | Section | Content format |
 |-------------|---|---------|-------------------|
-| `purpose` | → | `## PURPOSE` | Один абзац |
-| `activation` | → | `## ACTIVATION` | Маркированный список триггеров |
-| `do_not_use` | → | `## DO NOT USE WHEN` | Маркированный список условий |
-| `required_inputs` | → | `## INPUTS` | Маркированный список полей |
-| _(выводится)_ | → | `## PROCESS` | Нумерованный список конкретных действий (не «проанализируй», а «собери данные» → «проверь ограничения» → «выбери вариант»), минимум 3 шага |
-| _(выводится)_ | → | `## DECISION RULES` | Маркированный список приоритетов. Минимум одно правило приоритизации (PRIORITY 1 / 2 / 3) |
-| `tools` | → | `## TOOL USAGE` | Описание или «(not applicable)» |
-| `output_format` | → | `## OUTPUT REQUIREMENTS` | Один абзац или список |
-| `failure_handling` | → | `## FAILURE HANDLING` | Маркированный список сценариев |
+| `purpose` | → | `## PURPOSE` | One paragraph |
+| `activation` | → | `## ACTIVATION` | A bulleted list of triggers |
+| `do_not_use` | → | `## DO NOT USE WHEN` | A bulleted list of conditions |
+| `required_inputs` | → | `## INPUTS` | A bulleted list of fields |
+| _(derived)_ | → | `## PROCESS` | A numbered list of concrete actions (not "analyze", but "gather data" → "check constraints" → "choose an option"), at least 3 steps |
+| _(derived)_ | → | `## DECISION RULES` | A bulleted list of priorities. At least one prioritization rule (PRIORITY 1 / 2 / 3) |
+| `tools` | → | `## TOOL USAGE` | A description or "(not applicable)" |
+| `output_format` | → | `## OUTPUT REQUIREMENTS` | One paragraph or a list |
+| `failure_handling` | → | `## FAILURE HANDLING` | A bulleted list of scenarios |
 | `examples` | → | `## EXAMPLES` | INPUT / GOOD OUTPUT / BAD OUTPUT |
 
-Обязательность секций:
+Section requirements:
 
-| Секция | Всегда содержательна | Может быть «(not applicable)» |
+| Section | Always substantive | May be "(not applicable)" |
 |--------|---------------------|------------------------------|
-| PURPOSE | да | нет |
-| ACTIVATION | да | нет |
-| DO NOT USE WHEN | да | нет |
-| INPUTS | да | нет |
-| PROCESS | да (>=3 шага) | нет |
-| DECISION RULES | да | нет |
-| TOOL USAGE | нет | да |
-| OUTPUT REQUIREMENTS | да | нет |
-| FAILURE HANDLING | да (>=2 сценария) | нет |
-| EXAMPLES | нет (но >=1 если есть) | да |
+| PURPOSE | yes | no |
+| ACTIVATION | yes | no |
+| DO NOT USE WHEN | yes | no |
+| INPUTS | yes | no |
+| PROCESS | yes (>=3 steps) | no |
+| DECISION RULES | yes | no |
+| TOOL USAGE | no | yes |
+| OUTPUT REQUIREMENTS | yes | no |
+| FAILURE HANDLING | yes (>=2 scenarios) | no |
+| EXAMPLES | no (but >=1 if present) | yes |
 
 ### Step 4. Conflict check
 
-1. **Межсекционные** — ACTIVATION не противоречит DO NOT USE; PROCESS не дублирует DECISION RULES.
-2. **С запросом пользователя** — приоритет у запроса, но skill не нарушает принципы качества.
-3. **Рантайм-конфликт** — если две инструкции могут противоречить, расставь PRIORITY явно.
-4. **Двусмысленность** — нет фраз «по возможности», «если уместно», «будь внимателен».
-5. **Длина** — skill должен быть настолько коротким, насколько возможно, но настолько длинным, насколько необходимо. Если документ содержит большие примеры, справочники или команды — рассмотри вынос в reference-файлы.
+1. **Cross-section** — ACTIVATION doesn't contradict DO NOT USE; PROCESS doesn't duplicate DECISION RULES.
+2. **With the user's request** — the request takes priority, but the skill doesn't violate the quality principles.
+3. **Runtime conflict** — if two instructions might contradict, set PRIORITY explicitly.
+4. **Ambiguity** — no phrases like "where possible", "if appropriate", "be careful".
+5. **Length** — the skill should be as short as possible but as long as necessary. If the document contains large examples, references, or commands — consider extracting them into reference files.
 
 ### Step 5. Modularity check
 
-- [ ] Паттерн повторяется >2 раз? → вынеси в reference-файл
-- [ ] Пример >30 строк? → сократи или вынеси в appendix
-- [ ] Инструменты с длинными командами? → вынеси в TOOL USAGE reference
-- [ ] Skill ссылается на внешние документы? → сделай автономным или пропиши зависимость явно
-- [ ] Расползается? → сокращай в порядке: examples → process → пояснения
+- [ ] A pattern repeats >2 times? → extract it into a reference file
+- [ ] An example >30 lines? → shorten it or move it to an appendix
+- [ ] Tools with long commands? → move them into a TOOL USAGE reference
+- [ ] Does the skill reference external documents? → make it self-contained or declare the dependency explicitly
+- [ ] Sprawling? → trim in this order: examples → process → explanations
 
 ### Step 6. Quality check
 
-Общие минимумы:
-- PURPOSE — одно полное предложение с глаголом
-- ACTIVATION — минимум 2 триггера
-- DO NOT USE — минимум 2 условия отказа
-- PROCESS — минимум 3 нумерованных шага с конкретными действиями, а не с оценками
-- DECISION RULES — минимум одно правило приоритизации (PRIORITY 1 / 2 / 3)
-- FAILURE HANDLING — минимум 2 сценария с конкретными действиями
-- EXAMPLES — минимум 1 пара GOOD / BAD
-- OUTPUT REQUIREMENTS — формат вывода описан так, что результат проверяем
+General minimums:
+- PURPOSE — one complete sentence with a verb
+- ACTIVATION — at least 2 triggers
+- DO NOT USE — at least 2 refusal conditions
+- PROCESS — at least 3 numbered steps with concrete actions, not assessments
+- DECISION RULES — at least one prioritization rule (PRIORITY 1 / 2 / 3)
+- FAILURE HANDLING — at least 2 scenarios with concrete actions
+- EXAMPLES — at least 1 GOOD / BAD pair
+- OUTPUT REQUIREMENTS — the output format is described so the result is verifiable
 
-Дополнительно по типу навыка:
+Additionally, by skill type:
 
-| Тип | Приоритет | Особое внимание |
+| Type | Priority | Special attention |
 |-----|-----------|-----------------|
-| Аналитический | Conflict detection | PROCESS покрывает крайние случаи (нет данных, битые данные) |
-| Генеративный | Output format | OUTPUT REQUIREMENTS содержит точную структуру результата |
-| Диагностический | Failure handling | FAILURE HANDLING покрывает 3+ сценария |
-| Ревью | Severity classification | DECISION RULES чётко делит findings по severity |
-| Утилита | Tool usage | TOOL USAGE содержит точные команды, флаги, примеры |
+| Analytical | Conflict detection | PROCESS covers edge cases (no data, broken data) |
+| Generative | Output format | OUTPUT REQUIREMENTS contains the exact result structure |
+| Diagnostic | Failure handling | FAILURE HANDLING covers 3+ scenarios |
+| Review | Severity classification | DECISION RULES clearly divides findings by severity |
+| Utility | Tool usage | TOOL USAGE contains exact commands, flags, examples |
 
 ### Step 7. Three test scenarios
 
-Если хоть один не проходит — вернись к Step 3.
+If even one fails — go back to Step 3.
 
-| Кейс | Проверка |
+| Case | Check |
 |------|----------|
-| Простой | Идеальные данные → корректный результат без лишних действий |
-| Неполные | Данных не хватает → FAILURE HANDLING: запрос конкретных данных, без гадания |
-| Вне зоны | Запрос вне DO NOT USE → отказ или делегирование, без выполнения |
+| Simple | Ideal data → correct result with no extra actions |
+| Incomplete | Not enough data → FAILURE HANDLING: request specific data, no guessing |
+| Out of scope | Request outside DO NOT USE → refusal or delegation, no execution |
 
 ### Step 8. Activation Coverage Test
 
-Проверь, что skill срабатывает тогда, когда нужно, и молчит тогда, когда не нужно.
+Check that the skill fires when it should and stays silent when it shouldn't.
 
-Сгенерируй:
+Generate:
 
-- **3 should-trigger запроса** — пользователь явно находится в зоне skill
-- **3 should-not-trigger запроса** — пользователь вне зоны skill или рядом, но не в ней
+- **3 should-trigger requests** — the user is clearly within the skill's scope
+- **3 should-not-trigger requests** — the user is outside the skill's scope, or near it but not in it
 
-Проверь:
+Check:
 
-- все should-trigger запросы активируют skill (по ACTIVATION и description)
-- все should-not-trigger запросы **не** активируют skill (попадают в DO NOT USE или не совпадают с триггерами)
+- all should-trigger requests activate the skill (per ACTIVATION and description)
+- all should-not-trigger requests do **not** activate the skill (they fall under DO NOT USE or don't match the triggers)
 
-Если тест не проходит — перепиши description и ACTIVATION триггеры.
+If the test fails — rewrite the description and the ACTIVATION triggers.
 
 ### Step 9. Meta decision rules
 
-- **Brief не закрыт** → не переходи к рендерингу.
-- **Конфликт краткости и полноты** → в core секциях (PROCESS, FAILURE HANDLING) предпочитай полноту; в примерах — краткость.
-- **Шаблон vs запрос** → приоритет у запроса. Если запрос нарушает принципы качества — объясни why и предложи компромисс.
-- **Не знаешь, нужна ли секция** → добавь с пометкой «(not applicable)», а не удаляй.
+- **Brief not closed** → don't move on to rendering.
+- **Conflict between brevity and completeness** → in the core sections (PROCESS, FAILURE HANDLING) prefer completeness; in examples — brevity.
+- **Template vs request** → the request takes priority. If the request violates the quality principles — explain why and propose a compromise.
+- **Unsure whether a section is needed** → add it with a "(not applicable)" note rather than deleting it.
 
 ---
 
-## IMPROVE: улучшить существующий skill
+## IMPROVE: improve an existing skill
 
-### Step 0. Найди повторы и конфликты ДО переписывания
+### Step 0. Find repetitions and conflicts BEFORE rewriting
 
-Прежде чем что-то менять, зафиксируй проблемные места. Не начинай править, пока не составлен полный список дефектов.
+Before changing anything, record the problem spots. Don't start fixing until a full defect list is compiled.
 
-### Step 1. Полный аудит
+### Step 1. Full audit
 
-- **Покрытие секций**: какие есть, каких нет.
-- **Содержательность**: секция полезна или заглушка («...», «TBD»).
-- **Конфликты**: инструкции противоречат друг другу.
-- **Неопределённость**: есть ли фразы «по возможности», «если нужно».
-- **Длина**: не превышает разумных пределов. Если есть большие примеры или справочники — их место в reference.
-- **YAML**: name в kebab-case, description по формуле.
-- **Примеры**: отражают реальные use-case или абстрактны.
-- **FAILURE HANDLING**: покрывает типичные отказы или пустой.
-- **Output contract**: описан ли формат результата.
-- **Платформа**: соответствует ли целевой.
+- **Section coverage**: which exist, which are missing.
+- **Substance**: is the section useful or a stub ("...", "TBD").
+- **Conflicts**: instructions contradict each other.
+- **Uncertainty**: are there phrases like "where possible", "if needed".
+- **Length**: doesn't exceed reasonable limits. If there are large examples or references — their place is in a reference file.
+- **YAML**: name in kebab-case, description per the formula.
+- **Examples**: reflect real use cases or are abstract.
+- **FAILURE HANDLING**: covers typical failures or is empty.
+- **Output contract**: is the result format described.
+- **Platform**: does it match the target.
 
-### Step 2. Классифицируй дефекты
+### Step 2. Classify the defects
 
-| Категория | Дефекты | Действие |
+| Category | Defects | Action |
 |-----------|---------|----------|
-| Missing | Нет секции, примеров, YAML | Добавить |
-| Shallow | Секция-заглушка, абстрактные примеры | Заполнить по контексту |
-| Conflict | PROCESS дублирует DECISION RULES | Переписать, расставить PRIORITY |
-| Vague | «по возможности», «будь внимателен» | Заменить на конкретные условия |
-| Bloated | Много повторов, большие примеры, справочники внутри | Сократить: examples → process → пояснения; вынести в reference
-| Wrong platform | YAML/формат не под платформу | Переписать под целевую платформу |
+| Missing | No section, examples, YAML | Add |
+| Shallow | A stub section, abstract examples | Fill in from context |
+| Conflict | PROCESS duplicates DECISION RULES | Rewrite, set PRIORITY |
+| Vague | "where possible", "be careful" | Replace with concrete conditions |
+| Bloated | Lots of repetition, large examples, references inside | Trim: examples → process → explanations; extract into a reference
+| Wrong platform | YAML/format not for the platform | Rewrite for the target platform |
 
-### Step 3. Примени исправления
+### Step 3. Apply the fixes
 
-По каждому дефекту — одно действие из таблицы. Не меняй то, что работает.
+For each defect — one action from the table. Don't change what works.
 
 ### Step 4. Re-validate
 
-Прогони через шаги 4-9 режима CREATE.
+Run it through steps 4–9 of the CREATE mode.
 
 ---
 
-## Output contract (обязательный)
+## Output contract (mandatory)
 
-При любом ответе выдавай строго этот набор блоков:
+For any response, output exactly this set of blocks:
 
 ```
 ## Assumptions
-<допущения, сделанные в процессе>
+<assumptions made in the process>
 
 ## Brief / Analysis
-<для CREATE: brief из Step 1>
-<для IMPROVE: аудит из Step 1>
+<for CREATE: the brief from Step 1>
+<for IMPROVE: the audit from Step 1>
 
 ## Final SKILL.md
-<готовый файл целиком, включая YAML>
+<the finished file in full, including the YAML>
 
 ## Validation
-<результаты проверки: конфликты, модульность, качество (Step 6), 3 теста (Step 7) — пройдены/не пройдены>
+<check results: conflicts, modularity, quality (Step 6), the 3 tests (Step 7) — passed/failed>
 
 ## Open Questions
-<вопросы, если остались>
+<questions, if any remain>
 ```
 
-Если пользователь просит только фрагмент — выдай его с пометкой «это неполный output».
+If the user asks for only a fragment — provide it with a note "this is an incomplete output".
 
 ---
 
 # Platform compatibility
 
-Этот мета-скилл проектирует skills. По умолчанию тело skill считается **платформо-независимым**.
+This meta-skill designs skills. By default, the skill body is considered **platform-independent**.
 
-Универсальные правила (всегда):
-- YAML frontmatter с name + description
-- Все секции PURPOSE–EXAMPLES присутствуют
-- PROCESS нумерованный, FAILURE HANDLING конкретный
-- OUTPUT REQUIREMENTS содержит проверяемый формат
+Universal rules (always):
+- YAML frontmatter with name + description
+- All sections PURPOSE–EXAMPLES are present
+- PROCESS is numbered, FAILURE HANDLING is concrete
+- OUTPUT REQUIREMENTS contains a verifiable format
 
-Платформа → формат:
+Platform → format:
 
-| Платформа | Формат файла | Особенности |
+| Platform | File format | Specifics |
 |-----------|-------------|-------------|
-| **universal** (default) | `SKILL.md` | name + description, минимум полей |
-| **opencode-only** | `SKILL.md` | description максимально лаконичный |
-| **claude-code-only** | `CLAUDE.md` / `AGENTS.md` | Возможны доп. поля платформы |
+| **universal** (default) | `SKILL.md` | name + description, minimal fields |
+| **opencode-only** | `SKILL.md` | description as concise as possible |
+| **claude-code-only** | `CLAUDE.md` / `AGENTS.md` | Additional platform fields possible |
 
-Правила:
-- Если платформа не указана → universal
-- Если платформа требует специальных секций, ресурсов или структуры — адаптируй skill под неё, но в базовом виде тело считается платформо-независимым
-- Если skill строго single-platform, отметь в description: «OpenCode-only: ...» или «Claude Code: ...»
+Rules:
+- If the platform isn't specified → universal
+- If the platform requires special sections, resources, or structure — adapt the skill to it, but in its base form the body is considered platform-independent
+- If the skill is strictly single-platform, note it in the description: "OpenCode-only: ..." or "Claude Code: ..."
 
 ---
 
@@ -402,14 +402,14 @@ BAD OUTPUT: «This is potentially unsafe» — no explanation, no fix.
 
 ---
 
-## Pareto Optimization (финальный шаг)
+## Pareto Optimization (final step)
 
-Перед выдачей результата:
+Before delivering the result:
 
-1. Найди 20% инструкций, которые дают 80% качества (обычно это PROCESS, FAILURE HANDLING, DECISION RULES).
-2. Проверь: можно ли удалить остальные 80% инструкций без существенной потери качества?
-3. Если можно — сократи skill.
+1. Find the 20% of instructions that produce 80% of the quality (usually this is PROCESS, FAILURE HANDLING, DECISION RULES).
+2. Check: can the other 80% of instructions be removed without a significant loss of quality?
+3. If so — trim the skill.
 
-Большинство плохих skills становятся лучше после удаления 20-40% текста.
-Не добавляй то, без чего skill будет работать так же хорошо.
+Most bad skills get better after removing 20–40% of the text.
+Don't add anything the skill would work just as well without.
 ```

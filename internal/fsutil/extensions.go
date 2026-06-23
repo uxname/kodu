@@ -2,13 +2,13 @@ package fsutil
 
 import "strings"
 
-// MaxFileSizeBytes — порог пропуска крупных файлов (constants.ts:1).
+// MaxFileSizeBytes is the threshold for skipping large files (constants.ts:1).
 const MaxFileSizeBytes int64 = 1024 * 1024 // 1 MiB
 
-// BinaryProbeSize — сколько байт читать для детекции бинарника по содержимому.
+// BinaryProbeSize is how many bytes to read for content-based binary detection.
 const binaryProbeSize = 8192
 
-// binaryExtensions — расширения, считающиеся бинарными (constants.ts BINARY_EXTENSION_LIST).
+// binaryExtensions are extensions considered binary (constants.ts BINARY_EXTENSION_LIST).
 var binaryExtensions = toSet([]string{
 	".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp", ".ico", ".tif", ".tiff",
 	".psd", ".ai", ".sketch", ".heic", ".heif",
@@ -20,8 +20,8 @@ var binaryExtensions = toSet([]string{
 	".bin", ".pak", ".dat",
 })
 
-// knownTextExtensions — заведомо текстовые расширения/имена (constants.ts KNOWN_TEXT_LIST).
-// Имеют приоритет над binaryExtensions: совпадение форсирует «текст».
+// knownTextExtensions are extensions/names known to be text (constants.ts KNOWN_TEXT_LIST).
+// They take priority over binaryExtensions: a match forces "text".
 var knownTextExtensions = toSet([]string{
 	// Web / JS
 	".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".json", ".html", ".css",

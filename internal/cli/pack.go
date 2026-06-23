@@ -270,7 +270,7 @@ func writeOutput(cwd, content, outPath string) (string, error) {
 	return target, nil
 }
 
-// explainReason повторяет поиск pack.command.ts: по abs-пути, затем по rel.
+// explainReason mirrors the lookup in pack.command.ts: by abs path, then by rel.
 func explainReason(explain map[string]string, cwd, file string) string {
 	abs := filepath.Join(cwd, file)
 	if r, ok := explain[abs]; ok {

@@ -21,7 +21,7 @@ func mk(t *testing.T, root, rel, content string) {
 func TestCollectGraph(t *testing.T) {
 	root := t.TempDir()
 	mk(t, root, "tsconfig.json", `{
-		// комментарий допустим
+		// comments are allowed
 		"compilerOptions": { "baseUrl": ".", "paths": { "@app/*": ["src/*"] } },
 	}`)
 	mk(t, root, "entry.ts", `import './a';
@@ -60,7 +60,7 @@ func TestReExportAndDedup(t *testing.T) {
 	mk(t, root, "entry.ts", `export * from './shared';
 import './a';`)
 	mk(t, root, "shared.ts", `export const s = 1;`)
-	mk(t, root, "a.ts", `import './shared';`) // повтор shared — не дублируется
+	mk(t, root, "a.ts", `import './shared';`) // repeated shared — not duplicated
 
 	res := Collect([]string{"entry.ts"}, root, Options{IncludeTypes: true})
 	want := []string{"entry.ts", "shared.ts", "a.ts"}
@@ -79,7 +79,7 @@ func TestMaxDepth(t *testing.T) {
 	mk(t, root, "a.ts", `import './b';`)
 	mk(t, root, "b.ts", `export const b = 1;`)
 
-	// depth 1: entry + прямые импорты (a), без b.
+	// depth 1: entry + direct imports (a), without b.
 	res := Collect([]string{"entry.ts"}, root, Options{IncludeTypes: true, MaxDepth: 1})
 	want := []string{"entry.ts", "a.ts"}
 	if !reflect.DeepEqual(res.Files, want) {

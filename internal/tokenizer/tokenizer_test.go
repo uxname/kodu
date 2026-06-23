@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// Эталонные значения сняты с js-tiktoken o200k_base (паритет с Node-версией).
+// Reference values captured from js-tiktoken o200k_base (parity with the Node version).
 func TestCountParity(t *testing.T) {
 	tk := New()
 	cases := []struct {
@@ -23,19 +23,19 @@ func TestCountParity(t *testing.T) {
 			t.Fatalf("Count(%q) error: %v", c.text, err)
 		}
 		if est.Tokens != c.want {
-			t.Fatalf("Count(%q) = %d токенов, хотел %d", c.text, est.Tokens, c.want)
+			t.Fatalf("Count(%q) = %d tokens, wanted %d", c.text, est.Tokens, c.want)
 		}
 	}
 }
 
 func TestUSDEstimate(t *testing.T) {
 	tk := New()
-	est, err := tk.Count("hello world") // 2 токена
+	est, err := tk.Count("hello world") // 2 tokens
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := 2.0 / 1_000_000 * DefaultPricePerMillion
 	if math.Abs(est.USDEstimate-want) > 1e-12 {
-		t.Fatalf("usd = %v, хотел %v", est.USDEstimate, want)
+		t.Fatalf("usd = %v, wanted %v", est.USDEstimate, want)
 	}
 }

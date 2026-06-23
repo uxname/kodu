@@ -1,6 +1,6 @@
-// Package runbook управляет per-project директорией .runbook/ (паритет
-// runbook.service.ts): скаффолд config.json + runbook.md, детекция стека,
-// идемпотентная настройка .gitignore.
+// Package runbook manages the per-project .runbook/ directory (parity with
+// runbook.service.ts): scaffolding config.json + runbook.md, stack detection,
+// idempotent .gitignore setup.
 package runbook
 
 import (
@@ -15,15 +15,15 @@ const (
 	gitignoreEntry = "/.runbook/"
 )
 
-// gitignoreEquivalents — варианты записи `.runbook/`, считающиеся дублем.
+// gitignoreEquivalents lists variants of the `.runbook/` entry treated as duplicates.
 var gitignoreEquivalents = map[string]bool{
 	"/.runbook/": true, "/.runbook": true, ".runbook/": true, ".runbook": true,
 }
 
-// GitignoreResult — итог настройки .gitignore.
+// GitignoreResult is the outcome of configuring .gitignore.
 type GitignoreResult string
 
-// Возможные исходы EnsureGitignore.
+// Possible outcomes of EnsureGitignore.
 const (
 	GitignoreCreated GitignoreResult = "created"
 	GitignoreAdded   GitignoreResult = "added"
@@ -31,7 +31,7 @@ const (
 	GitignoreNoGit   GitignoreResult = "no-git"
 )
 
-// ProjectConfig — содержимое .runbook/config.json.
+// ProjectConfig is the contents of .runbook/config.json.
 type ProjectConfig struct {
 	Schema      string   `json:"$schema,omitempty"`
 	Project     string   `json:"project"`
@@ -39,32 +39,32 @@ type ProjectConfig struct {
 	Stands      []string `json:"stands"`
 }
 
-// Service инкапсулирует работу с .runbook/.
+// Service encapsulates work with .runbook/.
 type Service struct{}
 
-// New создаёт сервис.
+// New creates the service.
 func New() *Service { return &Service{} }
 
-// DirPath возвращает путь к .runbook/.
+// DirPath returns the path to .runbook/.
 func (s *Service) DirPath(root string) string { return filepath.Join(root, runbookDir) }
 
-// ConfigPath возвращает путь к .runbook/config.json.
+// ConfigPath returns the path to .runbook/config.json.
 func (s *Service) ConfigPath(root string) string {
 	return filepath.Join(root, runbookDir, "config.json")
 }
 
-// RunbookPath возвращает путь к .runbook/runbook.md.
+// RunbookPath returns the path to .runbook/runbook.md.
 func (s *Service) RunbookPath(root string) string {
 	return filepath.Join(root, runbookDir, "runbook.md")
 }
 
-// Exists сообщает, инициализирован ли проект (есть config.json).
+// Exists reports whether the project is initialized (config.json present).
 func (s *Service) Exists(root string) bool {
 	_, err := os.Stat(s.ConfigPath(root))
 	return err == nil
 }
 
-// ReadConfig читает и нормализует config.json.
+// ReadConfig reads and normalizes config.json.
 func (s *Service) ReadConfig(root string) (ProjectConfig, error) {
 	var cfg ProjectConfig
 	raw, err := os.ReadFile(s.ConfigPath(root))
@@ -83,7 +83,7 @@ func (s *Service) ReadConfig(root string) (ProjectConfig, error) {
 	return cfg, nil
 }
 
-// WriteConfig пишет config.json.
+// WriteConfig writes config.json.
 func (s *Service) WriteConfig(cfg ProjectConfig, root string) error {
 	if cfg.ActiveStand == "" {
 		cfg.ActiveStand = "local"
@@ -101,14 +101,14 @@ func (s *Service) WriteConfig(cfg ProjectConfig, root string) error {
 	return os.WriteFile(s.ConfigPath(root), append(data, '\n'), 0o644)
 }
 
-// ReadRunbook читает runbook.md.
+// ReadRunbook reads runbook.md.
 func (s *Service) ReadRunbook(root string) (string, error) {
 	b, err := os.ReadFile(s.RunbookPath(root))
 	return string(b), err
 }
 
-// Scaffold создаёт .runbook/ (config.json + runbook.md). Существующий
-// runbook.md не перезаписывается.
+// Scaffold creates .runbook/ (config.json + runbook.md). An existing
+// runbook.md is not overwritten.
 func (s *Service) Scaffold(project string, stands []string, activeStand, root string) error {
 	if err := os.MkdirAll(s.DirPath(root), 0o755); err != nil {
 		return err
@@ -126,7 +126,7 @@ func (s *Service) Scaffold(project string, stands []string, activeStand, root st
 	return nil
 }
 
-// DetectStack определяет наличие docker-compose / Dockerfile / .env.example.
+// DetectStack detects the presence of docker-compose / Dockerfile / .env.example.
 func (s *Service) DetectStack(root string) DetectedStack {
 	exists := func(name string) bool {
 		_, err := os.Stat(filepath.Join(root, name))
@@ -139,7 +139,7 @@ func (s *Service) DetectStack(root string) DetectedStack {
 	}
 }
 
-// EnsureGitignore идемпотентно добавляет `.runbook/` в .gitignore.
+// EnsureGitignore idempotently adds `.runbook/` to .gitignore.
 func (s *Service) EnsureGitignore(root string) (GitignoreResult, error) {
 	if _, err := os.Stat(filepath.Join(root, ".git")); os.IsNotExist(err) {
 		return GitignoreNoGit, nil

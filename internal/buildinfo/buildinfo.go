@@ -1,8 +1,8 @@
-// Package buildinfo хранит метаданные сборки, проставляемые через -ldflags -X.
+// Package buildinfo holds build metadata injected via -ldflags -X.
 package buildinfo
 
-// Значения по умолчанию для сборки «из исходников». В релизных бинарях
-// перекрываются линковщиком: -X github.com/uxname/kodu/internal/buildinfo.Version=...
+// Default values for a "from source" build. In release binaries they are
+// overridden by the linker: -X github.com/uxname/kodu/internal/buildinfo.Version=...
 var (
 	Version = "dev"
 	Commit  = "none"

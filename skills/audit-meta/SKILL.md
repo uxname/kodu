@@ -1,120 +1,120 @@
 ---
 name: audit-meta
 description: >
-  Мета-контроль качества аудита: проверяет покрытие кодовой базы, актуальность baseline,
-  качество доказательств в отчётах. Вызывай ПОСЛЕ всех аудитов и audit-verify — /audit-meta
-  или автоматически в финале /audit.
+  Audit quality meta-control: checks codebase coverage, baseline currency,
+  and evidence quality in the reports. Call AFTER all audits and audit-verify — /audit-meta
+  or automatically at the end of /audit.
 ---
 
-## Задача
+## Task
 
-Ты — координатор процесса аудита. Проверяешь не код, а качество самого аудита: всё ли покрыто, нет ли протухших исключений, достаточно ли доказательств.
+You are the coordinator of the audit process. You check not the code, but the quality of the audit itself: is everything covered, are there any stale exceptions, is there enough evidence.
 
-## Шаг 1 — Сбор данных
+## Step 1 — Data collection
 
 ```bash
-# Папка последней сессии
+# Latest session folder
 ls -dt ./docs/audits/[0-9]*/ 2>/dev/null | head -1 | sed 's|/$||'
 ```
 
-Прочитай все `*.md` файлы из папки сессии и `docs/audit-baseline.yml`.
+Read all `*.md` files from the session folder and `docs/audit-baseline.yml`.
 
-## Шаг 2 — Scope Verification
+## Step 2 — Scope Verification
 
-1. Получи список всех исходных файлов проекта:
+1. Get the list of all source files in the project:
    ```bash
    find ./src -type f \( -name "*.ts" -o -name "*.js" -o -name "*.py" \) 2>/dev/null | head -100
    ```
-2. Сверь с доказательствами в отчётах: каждый директорий/модуль упомянут хотя бы в одном аудит-файле.
-3. Выведи список директорий, не упомянутых ни в одном отчёте:
+2. Cross-check against the evidence in the reports: every directory/module is mentioned in at least one audit file.
+3. Output the list of directories not mentioned in any report:
 
 ```
-### Непокрытые модули
-- `src/module-name/` — ни один аудит не содержит ссылок на файлы этой директории
+### Uncovered modules
+- `src/module-name/` — no audit contains references to files in this directory
 ```
 
-Если все модули покрыты → `✅ Scope: все модули проверены.`
+If all modules are covered → `✅ Scope: all modules checked.`
 
-## Шаг 3 — Baseline Expiry
+## Step 3 — Baseline Expiry
 
-Для каждой записи в `docs/audit-baseline.yml` с полем `expires`:
-- Сравни дату с текущей (`date +%Y-%m-%d`)
-- Если истекла — выведи предупреждение:
+For each entry in `docs/audit-baseline.yml` with an `expires` field:
+- Compare the date against the current one (`date +%Y-%m-%d`)
+- If it has expired, output a warning:
 
 ```
-### ⚠️ Истёкшие исключения в baseline
+### ⚠️ Expired exceptions in baseline
 | check_id | expires | accepted_by | reason |
 |----------|---------|-------------|--------|
 | OWA-06 | 2025-12-31 | username | nginx rate limit |
 ```
 
-Если истёкших нет → `✅ Baseline: все исключения актуальны.`
+If none have expired → `✅ Baseline: all exceptions are current.`
 
-## Шаг 4 — Quality of Evidence
+## Step 4 — Quality of Evidence
 
-Проверь каждую строку с `❌ FAIL` в отчётах:
-- Есть ли `файл:строка` в колонке «Доказательство»? Если нет → низкое качество доказательства.
-- Есть ли конкретный код/значение или только имя файла?
+Check every row with `❌ FAIL` in the reports:
+- Is there a `file:line` in the "Evidence" column? If not → low evidence quality.
+- Is there a specific piece of code/value, or only a file name?
 
-Выведи:
+Output:
 ```
-### Находки с недостаточными доказательствами
-| Аудит-файл | Check ID | Проблема |
+### Findings with insufficient evidence
+| Audit file | Check ID | Problem |
 |------------|----------|----------|
-| audit-owasp | OWA-02 | Нет конкретной строки, только имя файла |
+| audit-owasp | OWA-02 | No specific line, only a file name |
 ```
 
-Если все доказательства достаточны → `✅ Evidence: все FAIL подкреплены доказательствами.`
+If all evidence is sufficient → `✅ Evidence: all FAILs are backed by evidence.`
 
-## Шаг 4.5 — False Positive Suppression Audit
+## Step 4.5 — False Positive Suppression Audit
 
-Проверь типы записей в `docs/audit-baseline.yml`. Правильный baseline различает:
-- `accepted-risk` — риск известен, намеренно принят
-- `false-positive` — инструмент ошибся, нарушения нет
-- `intentional-design` — архитектурное решение, не баг
+Check the types of entries in `docs/audit-baseline.yml`. A correct baseline distinguishes:
+- `accepted-risk` — the risk is known and intentionally accepted
+- `false-positive` — the tool was wrong, there is no violation
+- `intentional-design` — an architectural decision, not a bug
 
-Для записей без поля `type` выведи:
+For entries without a `type` field, output:
 ```
-### Записи baseline без типа (требуют уточнения)
-| check_id | reason | Рекомендуемый тип |
+### Baseline entries without a type (need clarification)
+| check_id | reason | Recommended type |
 |----------|--------|-------------------|
 | OWA-06 | nginx rate limit | accepted-risk |
 ```
 
-Без `type` baseline превращается в свалку — уточнить обязательно.
+Without `type`, the baseline turns into a dumping ground — clarification is mandatory.
 
-## Шаг 5 — Отчёт
+## Step 5 — Report
 
 ```
 # Audit Meta Report — <YYYY-MM-DD HH:MM>
 
 ## Scope Coverage
-<результат Шага 2>
+<result of Step 2>
 
 ## Baseline Expiry
-<результат Шага 3>
+<result of Step 3>
 
 ## Evidence Quality
-<результат Шага 4>
+<result of Step 4>
 
-## Итог
-| Проверка | Статус |
+## Summary
+| Check | Status |
 |----------|--------|
-| Scope Coverage | ✅ / ⚠️ N модулей не покрыто |
-| Baseline Expiry | ✅ / ⚠️ N истёкших |
-| Evidence Quality | ✅ / ⚠️ N слабых доказательств |
-| Baseline Types | ✅ / ⚠️ N записей без type |
+| Scope Coverage | ✅ / ⚠️ N modules uncovered |
+| Baseline Expiry | ✅ / ⚠️ N expired |
+| Evidence Quality | ✅ / ⚠️ N weak evidence |
+| Baseline Types | ✅ / ⚠️ N entries without type |
 ```
 
 ## Language Rule
 
-Результаты аудита должны быть написаны простым и понятным языком. Избегай сложных терминов, жаргона и абстрактных понятий без необходимости. Общепринятые технические термины (Docker, HTTP, API, JSON, URL) допустимы. Описывай проблемы так, чтобы они были понятны разработчику любого уровня, а не только узкому специалисту в данной области.
+Audit results must be written in plain, clear language. Avoid complex terms, jargon, and abstract concepts unless necessary. Common technical terms (Docker, HTTP, API, JSON, URL) are fine. Describe problems so they are understandable to a developer of any level, not only a narrow specialist in the area.
 
-## Сохранение
+## Saving
 
-1. Найди папку сессии:
+1. Find the session folder:
    ```bash
    ls -dt ./docs/audits/[0-9]*/ 2>/dev/null | head -1 | sed 's|/$||'
    ```
-   Если пусто — создай: `mkdir -p ./docs/audits/$(date +"%Y-%m-%d_%H-%M")`
-2. Сохрани через Write: `<AUDIT_DIR>/audit-meta.md`
+   If empty, create it: `mkdir -p ./docs/audits/$(date +"%Y-%m-%d_%H-%M")`
+2. Save via Write: `<AUDIT_DIR>/audit-meta.md`

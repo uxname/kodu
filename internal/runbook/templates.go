@@ -2,7 +2,7 @@ package runbook
 
 import "strings"
 
-// DetectedStack — что удалось определить про проект (для подсказок в runbook).
+// DetectedStack is what could be determined about the project (for hints in the runbook).
 type DetectedStack struct {
 	Compose    bool
 	Dockerfile bool
@@ -10,10 +10,10 @@ type DetectedStack struct {
 }
 
 var standTitles = map[string]string{
-	"local": "локальная разработка",
-	"dev":   "dev-стенд",
-	"stage": "stage-стенд",
-	"prod":  "production (осторожно!)",
+	"local": "local development",
+	"dev":   "dev stand",
+	"stage": "stage stand",
+	"prod":  "production (be careful!)",
 }
 
 func renderStandSection(stand string, d DetectedStack) string {
@@ -22,40 +22,40 @@ func renderStandSection(stand string, d DetectedStack) string {
 		title = stand
 	}
 
-	startCmd := "<команда запуска, напр. docker compose up -d>"
-	logsCmd := "<команда логов>"
+	startCmd := "<start command, e.g. docker compose up -d>"
+	logsCmd := "<logs command>"
 	if d.Compose {
 		startCmd = "docker compose up -d"
 		logsCmd = "docker compose logs -f"
 	}
-	envNote := "<откуда взять переменные окружения / секреты>"
+	envNote := "<where to get environment variables / secrets>"
 	if d.EnvExample {
-		envNote = "Скопируй `.env.example` → `.env` и заполни значения."
+		envNote = "Copy `.env.example` → `.env` and fill in the values."
 	}
 
 	return strings.Join([]string{
-		"## Стенд: " + stand + " (" + title + ")",
+		"## Stand: " + stand + " (" + title + ")",
 		"",
-		"- **Где живёт / доступ**: <ssh user@host или localhost>",
-		"- **Рабочая директория**: <путь на сервере или локально>",
-		"- **Получить код**: `git clone <repo>` (первый раз) / `git pull` (обновить)",
-		"- **Запуск**: `" + startCmd + "`",
-		"- **Логи**: `" + logsCmd + "`",
-		"- **Деплой**: <пошаговые команды деплоя на этот стенд>",
-		"- **Откат**: <как откатиться, если что-то пошло не так>",
-		"- **Переменные окружения / секреты**: " + envNote,
+		"- **Where it lives / access**: <ssh user@host or localhost>",
+		"- **Working directory**: <path on the server or locally>",
+		"- **Get the code**: `git clone <repo>` (first time) / `git pull` (to update)",
+		"- **Start**: `" + startCmd + "`",
+		"- **Logs**: `" + logsCmd + "`",
+		"- **Deploy**: <step-by-step deploy commands for this stand>",
+		"- **Rollback**: <how to roll back if something goes wrong>",
+		"- **Environment variables / secrets**: " + envNote,
 		"",
 	}, "\n")
 }
 
-// RenderRunbook возвращает стартовый runbook проекта.
+// RenderRunbook returns the project's starter runbook.
 func RenderRunbook(project string, stands []string, d DetectedStack) string {
 	header := strings.Join([]string{
 		"# Runbook: " + project,
 		"",
-		"> Этот файл описывает, как работать со стендами проекта.",
-		"> Он лежит в `.gitignore` и не коммитится — здесь могут быть хосты и пути.",
-		"> Заполни плейсхолдеры `<...>` под свою инфраструктуру.",
+		"> This file describes how to work with the project's stands.",
+		"> It is listed in `.gitignore` and is not committed — it may contain hosts and paths.",
+		"> Fill in the `<...>` placeholders for your own infrastructure.",
 		"",
 	}, "\n")
 

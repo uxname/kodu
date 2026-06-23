@@ -1,23 +1,23 @@
 ---
 name: audit-tests
 description: >
-  Аудит тестов и линтеров: конфигурации тестов, линтеров, TypeScript, покрытие критических путей,
-  false-positive тесты. Запускай при /audit-tests или запросе проверить тесты/конфигурацию.
+  Audit of tests and linters: test, linter, and TypeScript configurations, critical-path coverage,
+  false-positive tests. Run on /audit-tests or a request to check tests/configuration.
 ---
 
-## Правило применимости (Relevance Rule)
+## Relevance Rule
 
-Применим при наличии файлов тестов (`*.test.*`, `*.spec.*`), конфигов (`jest.config.*`, `eslint*`, `tsconfig*`, `.eslintrc`, `vitest.config.*`). Для кода без тестов и конфигов — верни пустой ответ.
+Applicable when test files (`*.test.*`, `*.spec.*`) or configs (`jest.config.*`, `eslint*`, `tsconfig*`, `.eslintrc`, `vitest.config.*`) are present. For code without tests and configs, return an empty response.
 
 ## Runtime Detection & Stack Profile
 
-Этот аудит стек-агностичен: проверки сформулированы нейтрально, а конкретика
-(инструменты, идиомы, анти-паттерны, примеры) берётся из профиля стека.
+This audit is stack-agnostic: the checks are framed neutrally, and the specifics
+(tools, idioms, anti-patterns, examples) come from the stack profile.
 
-1. **Профиль передан контекстом?** Если оркестратор `/audit` передал
-   `runtime=<id>` и/или содержимое профиля — используй его, шаги 2–3 пропусти.
+1. **Profile passed in context?** If the `/audit` orchestrator passed
+   `runtime=<id>` and/or the profile contents, use it and skip steps 2–3.
 
-2. **Иначе определи РОВНО ОДИН рантайм** этого каталога:
+2. **Otherwise, detect EXACTLY ONE runtime** for this directory:
    ```bash
    if   [ -f package.json ]; then echo "runtime=node"
    elif [ -f go.mod ]; then echo "runtime=go"
@@ -26,76 +26,76 @@ description: >
    elif [ -f pom.xml ] || ls build.gradle* settings.gradle* >/dev/null 2>&1; then echo "runtime=java"
    else echo "runtime=generic"; fi
    ```
-   Один запуск = один рантайм; не миксуй backend и frontend. Если найдено
-   несколько маркеров (монорепо) — выбери соответствующий текущему scope/анализируемым
-   файлам и зафиксируй выбор в разделе Audit Coverage.
+   One run = one runtime; do not mix backend and frontend. If several markers
+   are found (monorepo), pick the one matching the current scope / files under
+   analysis and record the choice in the Audit Coverage section.
 
-3. **Загрузи профиль** через Read: `./skills/audit/stacks/<runtime>.md`
-   (fallback `./skills/audit/stacks/_generic.md`, если файл не найден).
+3. **Load the profile** via Read: `./skills/audit/stacks/<runtime>.md`
+   (fallback `./skills/audit/stacks/_generic.md` if the file is not found).
 
-Дальше используй профиль:
-- **Инструменты** — из секции «Tooling by category» профиля (раздел
-  «Инструментальная поддержка» ниже ссылается на категории, а не на команды).
-- **Ожидания PASS** — из «Idioms»; **формулировки FAIL** — из «Anti-patterns».
-- **Точечные подсказки** — из «Check-ID hints» по префиксу `TST-`.
-- Если профиль `tier: general` или `runtime=generic` → стек-специфичные находки
-  без однозначного evidence помечай `🔍 UNVERIFIED`, а не `❌ FAIL`. Проверки,
-  чей механизм в рантайме отсутствует, помечай `N/A`.
+Then use the profile:
+- **Tools** — from the profile's "Tooling by category" section (the
+  "Tooling Support" section below references categories, not commands).
+- **PASS expectations** — from "Idioms"; **FAIL wording** — from "Anti-patterns".
+- **Targeted hints** — from "Check-ID hints" by the `TST-` prefix.
+- If the profile is `tier: general` or `runtime=generic`, mark stack-specific
+  findings without unambiguous evidence as `🔍 UNVERIFIED` rather than `❌ FAIL`.
+  Mark checks whose mechanism is absent in the runtime as `N/A`.
 
 ## Severity Guide
 
-| Severity | Критерий назначения |
+| Severity | Assignment criterion |
 |----------|---------------------|
-| 🔴 Critical | RCE, auth bypass, data corruption, необратимый финансовый риск |
-| 🟠 High | Падение production, privilege escalation, утечка данных |
-| 🟡 Medium | Деградация производительности или поддерживаемости без immediate outage |
-| 🟢 Low | Стиль, читаемость, слабое нарушение конвенции |
+| 🔴 Critical | RCE, auth bypass, data corruption, irreversible financial risk |
+| 🟠 High | production outage, privilege escalation, data leak |
+| 🟡 Medium | performance or maintainability degradation without an immediate outage |
+| 🟢 Low | style, readability, minor convention violation |
 
-Правило: severity = impact × exploitability × blast radius. Одинаковый паттерн → одинаковый severity между аудитами.
+Rule: severity = impact × exploitability × blast radius. The same pattern → the same severity across audits.
 
-## Чеклист
+## Checklist
 
-| Check ID | Проверка |
+| Check ID | Check |
 |----------|----------|
-| TST-01 | Строгий статический анализ включён и обязателен (компилятор/линтер не пропускает небезопасные конструкции) |
-| TST-02 | Пороги покрытия настроены и применяются |
-| TST-03 | Хуки/CI запускают проверки (тесты, линт, типы) |
-| TST-04 | Критические пути покрыты тестами (auth, validation, error handling) |
-| TST-05 | Тесты изолированы — нет shared mutable state между тестами |
-| TST-06 | Нет отключённых/сфокусированных тестов без обоснования |
-| TST-07 | Тесты проверяют поведение, а не детали реализации |
-| TST-08 | Источники недетерминизма мокаются/инъектируются [⚡ dynamic] |
-| TST-09 | Golden/snapshot-тесты охватывают значимое, не весь объект целиком |
+| TST-01 | Strict static analysis is enabled and mandatory (the compiler/linter does not let unsafe constructs through) |
+| TST-02 | Coverage thresholds are configured and enforced |
+| TST-03 | Hooks/CI run the checks (tests, lint, types) |
+| TST-04 | Critical paths are covered by tests (auth, validation, error handling) |
+| TST-05 | Tests are isolated — no shared mutable state between tests |
+| TST-06 | No disabled/focused tests without justification |
+| TST-07 | Tests verify behavior, not implementation details |
+| TST-08 | Sources of nondeterminism are mocked/injected [⚡ dynamic] |
+| TST-09 | Golden/snapshot tests cover what matters, not the entire object |
 
-## Правила верификации
+## Verification Rules
 
-1. **Только чеклист**: оценивай ТОЛЬКО проверки выше. Не добавляй новые.
-2. **Явная верификация = PASS**: ставь `✅ PASS` только если явно проверил механизм (нашёл схему, конфиг, guard) и подтвердил отсутствие нарушения — укажи что именно проверено.
-3. **Нет доказательства = UNVERIFIED**: не можешь указать `файл:строка` ни для нарушения, ни для подтверждения — ставь `🔍 UNVERIFIED`.
-   - Проверки с `[⚡ dynamic]` нельзя статически подтвердить — только `🔍 UNVERIFIED` или `❌ FAIL` (при явном evidence), но не `✅ PASS`
-4. **Baseline приоритетен**: check_id есть в `docs/audit-baseline.yml` → `⏸ ACCEPTED`.
-5. **Только 🔴/🟠 FAIL требуют решения**: 🟡/🟢 — решение необязательно.
+1. **Checklist only**: evaluate ONLY the checks above. Do not add new ones.
+2. **Explicit verification = PASS**: assign `✅ PASS` only if you explicitly verified the mechanism (found the schema, config, guard) and confirmed there is no violation — state exactly what was checked.
+3. **No evidence = UNVERIFIED**: if you cannot point to a `file:line` for either a violation or a confirmation, assign `🔍 UNVERIFIED`.
+   - Checks marked `[⚡ dynamic]` cannot be confirmed statically — only `🔍 UNVERIFIED` or `❌ FAIL` (with explicit evidence), never `✅ PASS`
+4. **Baseline takes priority**: if the check_id is in `docs/audit-baseline.yml` → `⏸ ACCEPTED`.
+5. **Only 🔴/🟠 FAILs require a solution**: 🟡/🟢 — a solution is optional.
 
 ## Evidence Quality Rules
 
-Любой `❌ FAIL` обязан содержать:
-- Точный `file:line`
-- Минимальный код-фрагмент (1–3 строки)
-- Causal chain: почему именно это нарушение → какой риск возникает
+Every `❌ FAIL` must include:
+- An exact `file:line`
+- A minimal code snippet (1–3 lines)
+- Causal chain: why this specific violation → what risk it creates
 
-Запрещено:
-- Предполагать runtime behavior без evidence в коде
-- Предполагать prod-конфигурацию по dev-конфигу
-- Предполагать отсутствие middleware без проверки всей router chain
-- Если вывод основан на предположении — только `🔍 UNVERIFIED`
+Not allowed:
+- Assuming runtime behavior without evidence in the code
+- Inferring the prod configuration from the dev configuration
+- Assuming middleware is absent without checking the entire router chain
+- If a conclusion rests on an assumption — only `🔍 UNVERIFIED`
 
 ## Language Rule
 
-Результаты аудита должны быть написаны простым и понятным языком. Избегай сложных терминов, жаргона и абстрактных понятий без необходимости. Общепринятые технические термины (Docker, HTTP, API, JSON, URL) допустимы. Описывай проблемы так, чтобы они были понятны разработчику любого уровня, а не только узкому специалисту в данной области.
+Audit results must be written in plain, clear language. Avoid complex terms, jargon, and abstract concepts unless necessary. Common technical terms (Docker, HTTP, API, JSON, URL) are fine. Describe problems so they are understandable to a developer of any level, not only a narrow specialist in the area.
 
 ## Baseline
 
-До анализа:
+Before analysis:
 ```bash
 if [ ! -f ./docs/audit-baseline.yml ]; then
   mkdir -p ./docs
@@ -105,106 +105,106 @@ fi
 cat ./docs/audit-baseline.yml
 ```
 
-## Контекст анализа
+## Analysis Context
 
-> Примеры ниже — иллюстративные. Конкретные инструменты строгого анализа, идиомы
-> и анти-паттерны для текущего рантайма бери из загруженного профиля
-> (`stacks/<runtime>.md`, секции Idioms/Anti-patterns/Tooling by category/Check-ID
-> hints по префиксу `TST-`). Node: tsconfig `strict`, jest/vitest, husky/lefthook.
+> The examples below are illustrative. Take the concrete strict-analysis tools, idioms,
+> and anti-patterns for the current runtime from the loaded profile
+> (`stacks/<runtime>.md`, the Idioms/Anti-patterns/Tooling by category/Check-ID
+> hints sections by the `TST-` prefix). Node: tsconfig `strict`, jest/vitest, husky/lefthook.
 > Go: `go vet`/`staticcheck`/`golangci-lint`, `go test -cover`, Taskfile/lefthook.
 
-**TST-01 — Строгий статический анализ включён и обязателен:**
-- Node: `tsconfig.json` с `strict: false` или отключёнными важными флагами (`noImplicitAny`, `strictNullChecks`); `ts-ignore`/`@ts-expect-error` без объяснений; `any` в публичных API
-- Go: `go vet` + `staticcheck` + `golangci-lint` (включая `errcheck`/`nilness`/`gosec`) не настроены или не обязательны в CI
-- Отключённые важные правила линтера/анализатора без обоснования
+**TST-01 — Strict static analysis is enabled and mandatory:**
+- Node: `tsconfig.json` with `strict: false` or important flags disabled (`noImplicitAny`, `strictNullChecks`); `ts-ignore`/`@ts-expect-error` without explanations; `any` in public APIs
+- Go: `go vet` + `staticcheck` + `golangci-lint` (including `errcheck`/`nilness`/`gosec`) are not configured or not mandatory in CI
+- Important linter/analyzer rules disabled without justification
 
-**TST-02 — Пороги покрытия настроены и применяются:**
-- Node: `jest.config`/`vitest.config` без `coverageThreshold`
-- Go: нет `go test -cover -coverprofile`; порог не задан и не проверяется в CI/Taskfile (встроенного флага порога нет — проверка должна быть явной)
-- Пороги настроены, но не применяются в pipeline; либо заданы слишком низко (0% / не заданы)
+**TST-02 — Coverage thresholds are configured and enforced:**
+- Node: `jest.config`/`vitest.config` without `coverageThreshold`
+- Go: no `go test -cover -coverprofile`; the threshold is not set and not checked in CI/Taskfile (there is no built-in threshold flag — the check must be explicit)
+- Thresholds are configured but not enforced in the pipeline; or set too low (0% / unset)
 
-**TST-03 — Хуки/CI запускают проверки (тесты, линт, типы):**
-- Отсутствие git hooks (lefthook — кросс-стек, husky — Node) или эквивалентных CI-шагов
-- Хуки/цели не запускают статический анализ / линт / тесты (npm-scripts ↔ цели Taskfile)
-- Хуки настроены, но отключены или обходятся через `--no-verify`
+**TST-03 — Hooks/CI run the checks (tests, lint, types):**
+- Missing git hooks (lefthook — cross-stack, husky — Node) or equivalent CI steps
+- Hooks/targets do not run static analysis / lint / tests (npm scripts ↔ Taskfile targets)
+- Hooks are configured but disabled or bypassed via `--no-verify`
 
-**TST-04 — Критические пути покрыты:**
-- Auth пути (login, logout, token refresh) без тестов
-- Validation logic без тестов для невалидных входных данных
-- Error handling пути (что происходит при сбое DB, внешнего API) не протестированы
-- Edge cases (пустой список, максимальное значение, null) не покрыты
+**TST-04 — Critical paths are covered:**
+- Auth paths (login, logout, token refresh) without tests
+- Validation logic without tests for invalid input
+- Error handling paths (what happens on a DB or external-API failure) are not tested
+- Edge cases (empty list, maximum value, null) are not covered
 
-**TST-05 — Тесты изолированы:**
-- Глобальные моки, влияющие на изоляцию других тестов
-- Shared mutable state между тест-кейсами в одном suite
-- Тесты, зависящие от порядка выполнения
-- Отсутствие setup/teardown для интеграционных тестов
-- Go: `t.Parallel()` при общем мутируемом состоянии без синхронизации
+**TST-05 — Tests are isolated:**
+- Global mocks that affect the isolation of other tests
+- Shared mutable state between test cases in the same suite
+- Tests that depend on execution order
+- Missing setup/teardown for integration tests
+- Go: `t.Parallel()` with shared mutable state without synchronization
 
-**TST-06 — Нет отключённых/сфокусированных тестов без обоснования:**
-- Сфокусированный тест глушит остальные (Node: `.only`)
-- Тест отключён без причины (Node: `.skip`; Go: `t.Skip()` без объяснения, скрытие за build-тегами)
-- Закомментированные тесты без объяснения
+**TST-06 — No disabled/focused tests without justification:**
+- A focused test silences the rest (Node: `.only`)
+- A test is disabled without a reason (Node: `.skip`; Go: `t.Skip()` without explanation, hidden behind build tags)
+- Commented-out tests without explanation
 
-**TST-07 — Тесты проверяют поведение:**
-- Tautology-тесты (Node: `expect(true).toBe(true)`)
-- Тесты без assertions (всегда зелёные)
-- Тесты, проверяющие implementation details (внутренние переменные, приватные методы/неэкспортируемые функции) вместо behavior
-- Один огромный тест вместо нескольких изолированных по сценарию
+**TST-07 — Tests verify behavior:**
+- Tautology tests (Node: `expect(true).toBe(true)`)
+- Tests without assertions (always green)
+- Tests that verify implementation details (internal variables, private methods / unexported functions) instead of behavior
+- One huge test instead of several isolated by scenario
 
-**TST-08 — Источники недетерминизма мокаются/инъектируются:**
-- Случайность без контроля (Node: `Math.random()` без mock; Go: `math/rand` без фиксированного seed)
-- Реальное время вместо инъекции (Node: `new Date()`/`Date.now()` без `useFakeTimers`; Go: прямой `time.Now()` вместо инъекции `Clock`)
-- Синхронизация через задержку вместо ожидания события (Node: `setTimeout`/`sleep(N)`; Go: `time.Sleep` для синхронизации горутин вместо канала/`WaitGroup`)
-- Тесты, зависящие от порядка выполнения (shared state)
+**TST-08 — Sources of nondeterminism are mocked/injected:**
+- Uncontrolled randomness (Node: `Math.random()` without a mock; Go: `math/rand` without a fixed seed)
+- Real time instead of injection (Node: `new Date()`/`Date.now()` without `useFakeTimers`; Go: direct `time.Now()` instead of injecting a `Clock`)
+- Synchronization via delay instead of waiting for an event (Node: `setTimeout`/`sleep(N)`; Go: `time.Sleep` to synchronize goroutines instead of a channel/`WaitGroup`)
+- Tests that depend on execution order (shared state)
 
-**TST-09 — Golden/snapshot-тесты охватывают значимое:**
-- Снимок всего объекта/компонента (500+ строк) — изменение одной строки ломает всё (Node: snapshot, Go: `testdata/*.golden`)
-- Снимок объектов с динамическими полями (id, createdAt) без маскировки
-- Обновление golden/snapshot без ревью изменений
+**TST-09 — Golden/snapshot tests cover what matters:**
+- A snapshot of the entire object/component (500+ lines) — changing one line breaks everything (Node: snapshot, Go: `testdata/*.golden`)
+- A snapshot of objects with dynamic fields (id, createdAt) without masking
+- Updating golden/snapshot without reviewing the changes
 
-## Формат вывода
+## Output Format
 
-| Check ID | Проверка | Статус | Уверенность | Доказательство | Решение | Исправлено |
+| Check ID | Check | Status | Confidence | Evidence | Solution | Fixed |
 |----------|----------|--------|-------------|----------------|---------|------------|
-| TST-01 | Строгий статический анализ включён и обязателен (компилятор/линтер не пропускает небезопасные конструкции) | ✅ PASS | High | `tsconfig.json:5` — strict: true | — | — |
-| TST-02 | Пороги покрытия настроены и применяются | ❌ FAIL 🟠 | High | `jest.config.ts:1` | **1. Добавить `coverageThreshold: { global: { lines: 80 } }`** \\ 2. Настроить thresholds только для критических модулей \\ 3. Добавить coverage check в CI без блокировки | Нет |
-| TST-06 | Нет отключённых/сфокусированных тестов без обоснования | ⏸ ACCEPTED | Medium | `tests/auth.test.ts:45` | В baseline: временно для дебага, будет убрано | — |
+| TST-01 | Strict static analysis is enabled and mandatory (the compiler/linter does not let unsafe constructs through) | ✅ PASS | High | `tsconfig.json:5` — strict: true | — | — |
+| TST-02 | Coverage thresholds are configured and enforced | ❌ FAIL 🟠 | High | `jest.config.ts:1` | **1. Add `coverageThreshold: { global: { lines: 80 } }`** \\ 2. Configure thresholds for critical modules only \\ 3. Add a coverage check to CI without blocking | No |
+| TST-06 | No disabled/focused tests without justification | ⏸ ACCEPTED | Medium | `tests/auth.test.ts:45` | In baseline: temporary for debugging, will be removed | — |
 
-Статусы: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED` / `🔍 UNVERIFIED`
+Statuses: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED` / `🔍 UNVERIFIED`
 
-Уверенность: `High` — проверил несколько ключевых файлов, паттерн очевиден / `Medium` — проверил выборочно, паттерн вероятен / `Low` — ограниченный контекст, полная уверенность невозможна
+Confidence: `High` — checked several key files, the pattern is obvious / `Medium` — checked selectively, the pattern is likely / `Low` — limited context, full certainty is impossible
 
-Для `❌ FAIL`: ровно 3 варианта решения, разделитель `\\`, вариант 1 жирным.
+For `❌ FAIL`: exactly 3 solution options, separated by `\\`, with option 1 in bold.
 
-`Исправлено`: FAIL → `Нет` (разработчик меняет на `✅ Да` вручную после фикса). PASS / ACCEPTED / UNVERIFIED → `—`.
+`Fixed`: FAIL → `No` (the developer changes it to `✅ Yes` manually after the fix). PASS / ACCEPTED / UNVERIFIED → `—`.
 
-Требования к решениям:
-- Взаимно исключающие (не перефразировки одного и того же)
-- Соответствуют текущему стеку проекта (не предлагать смену фреймворка)
-- Не требуют переписать всю систему — realistic migration cost
-- Вариант 3 может быть «оставить, задокументировать причину» при наличии обоснования
+Solution requirements:
+- Mutually exclusive (not rephrasings of the same thing)
+- Match the project's current stack (do not propose switching frameworks)
+- Do not require rewriting the whole system — realistic migration cost
+- Option 3 may be "keep it, document the reason" if there is justification
 
-В конце отчёта добавь раздел покрытия:
+At the end of the report, add a coverage section:
 ```
 ## Audit Coverage
-Проверено: src/module1/**, src/module2/**
-Пропущено: scripts/**, migrations/**, tests/**
-Файлов проверено: N | Пропущено: N
+Checked: src/module1/**, src/module2/**
+Skipped: scripts/**, migrations/**, tests/**
+Files checked: N | Skipped: N
 ```
 
-Если все PASS — выведи: `✅ Конфигурации тестов и линтеров в порядке.`
+If everything is PASS, output: `✅ Test and linter configurations are in order.`
 
-## Сохранение результатов
+## Saving Results
 
-1. Найди папку сессии:
+1. Find the session folder:
    ```bash
    ls -dt ./docs/audits/[0-9]*/ 2>/dev/null | head -1 | sed 's|/$||'
    ```
-   Если пусто — создай: `mkdir -p ./docs/audits/$(date +"%Y-%m-%d_%H-%M")`
-2. Сохрани через Write: `<AUDIT_DIR>/audit-tests.md`
+   If empty, create it: `mkdir -p ./docs/audits/$(date +"%Y-%m-%d_%H-%M")`
+2. Save via Write: `<AUDIT_DIR>/audit-tests.md`
 
 ```
 # Audit Report: Test & Linter Integrity — <YYYY-MM-DD HH:MM>
-<таблица>
+<table>
 ```

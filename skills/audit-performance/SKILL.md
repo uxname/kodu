@@ -1,23 +1,23 @@
 ---
 name: audit-performance
 description: >
-  Аудит ресурсов и производительности: блокирующие вызовы, N+1 запросы, тяжёлые запросы
-  без лимитов, memory leaks, отсутствие пагинации. Запускай при /audit-performance.
+  Resource and performance audit: blocking calls, N+1 queries, heavy queries
+  without limits, memory leaks, missing pagination. Run on /audit-performance.
 ---
 
-## Правило применимости (Relevance Rule)
+## Relevance Rule
 
-Применим к коду с I/O операциями (БД, HTTP, файлы), обработкой коллекций, кэшированием. Для stateless математических утилит без I/O — верни пустой ответ.
+Applies to code with I/O operations (DB, HTTP, files), collection processing, or caching. For stateless math utilities without I/O, return an empty response.
 
 ## Runtime Detection & Stack Profile
 
-Этот аудит стек-агностичен: проверки сформулированы нейтрально, а конкретика
-(инструменты, идиомы, анти-паттерны, примеры) берётся из профиля стека.
+This audit is stack-agnostic: the checks are framed neutrally, and the specifics
+(tools, idioms, anti-patterns, examples) come from the stack profile.
 
-1. **Профиль передан контекстом?** Если оркестратор `/audit` передал
-   `runtime=<id>` и/или содержимое профиля — используй его, шаги 2–3 пропусти.
+1. **Profile passed in context?** If the `/audit` orchestrator passed
+   `runtime=<id>` and/or the profile contents, use it and skip steps 2–3.
 
-2. **Иначе определи РОВНО ОДИН рантайм** этого каталога:
+2. **Otherwise, detect EXACTLY ONE runtime** for this directory:
    ```bash
    if   [ -f package.json ]; then echo "runtime=node"
    elif [ -f go.mod ]; then echo "runtime=go"
@@ -26,75 +26,75 @@ description: >
    elif [ -f pom.xml ] || ls build.gradle* settings.gradle* >/dev/null 2>&1; then echo "runtime=java"
    else echo "runtime=generic"; fi
    ```
-   Один запуск = один рантайм; не миксуй backend и frontend. Если найдено
-   несколько маркеров (монорепо) — выбери соответствующий текущему scope/анализируемым
-   файлам и зафиксируй выбор в разделе Audit Coverage.
+   One run = one runtime; do not mix backend and frontend. If several markers
+   are found (monorepo), pick the one matching the current scope / files under
+   analysis and record the choice in the Audit Coverage section.
 
-3. **Загрузи профиль** через Read: `./skills/audit/stacks/<runtime>.md`
-   (fallback `./skills/audit/stacks/_generic.md`, если файл не найден).
+3. **Load the profile** via Read: `./skills/audit/stacks/<runtime>.md`
+   (fallback `./skills/audit/stacks/_generic.md` if the file is not found).
 
-Дальше используй профиль:
-- **Инструменты** — из секции «Tooling by category» профиля (раздел
-  «Инструментальная поддержка» ниже ссылается на категории, а не на команды).
-- **Ожидания PASS** — из «Idioms»; **формулировки FAIL** — из «Anti-patterns».
-- **Точечные подсказки** — из «Check-ID hints» по префиксу `PER-`.
-- Если профиль `tier: general` или `runtime=generic` → стек-специфичные находки
-  без однозначного evidence помечай `🔍 UNVERIFIED`, а не `❌ FAIL`. Проверки,
-  чей механизм в рантайме отсутствует, помечай `N/A`.
+Then use the profile:
+- **Tools** — from the profile's "Tooling by category" section (the
+  "Tooling Support" section below references categories, not commands).
+- **PASS expectations** — from "Idioms"; **FAIL wording** — from "Anti-patterns".
+- **Targeted hints** — from "Check-ID hints" by the prefix `PER-`.
+- If the profile is `tier: general` or `runtime=generic`, mark stack-specific
+  findings without unambiguous evidence as `🔍 UNVERIFIED` rather than `❌ FAIL`.
+  Mark checks whose mechanism is absent in the runtime as `N/A`.
 
 ## Severity Guide
 
-| Severity | Критерий назначения |
+| Severity | Assignment criterion |
 |----------|---------------------|
-| 🔴 Critical | RCE, auth bypass, data corruption, необратимый финансовый риск |
-| 🟠 High | Падение production, privilege escalation, утечка данных |
-| 🟡 Medium | Деградация производительности или поддерживаемости без immediate outage |
-| 🟢 Low | Стиль, читаемость, слабое нарушение конвенции |
+| 🔴 Critical | RCE, auth bypass, data corruption, irreversible financial risk |
+| 🟠 High | production outage, privilege escalation, data leak |
+| 🟡 Medium | performance or maintainability degradation without an immediate outage |
+| 🟢 Low | style, readability, minor convention violation |
 
-Правило: severity = impact × exploitability × blast radius. Одинаковый паттерн → одинаковый severity между аудитами.
+Rule: severity = impact × exploitability × blast radius. The same pattern → the same severity across audits.
 
-## Чеклист
+## Checklist
 
-| Check ID | Проверка |
+| Check ID | Check |
 |----------|----------|
-| PER-01 | Нет N+1: DB-запросы не выполняются внутри циклов [⚡ dynamic] |
-| PER-02 | Выборки из БД ограничены (LIMIT, пагинация) |
-| PER-03 | Обработчики запросов не содержат блокирующего I/O |
-| PER-04 | CPU-интенсивные операции вынесены из main thread |
-| PER-05 | Независимые async-операции выполняются параллельно |
-| PER-06 | Кэши ограничены по размеру и времени жизни (TTL + size limit) |
-| PER-07 | Event listeners и subscriptions очищаются при завершении |
-| PER-08 | Нет утечек памяти: timers и closures не удерживают большие объекты в долгоживущем scope |
+| PER-01 | No N+1: DB queries are not executed inside loops [⚡ dynamic] |
+| PER-02 | DB result sets are bounded (LIMIT, pagination) |
+| PER-03 | Request handlers contain no blocking I/O |
+| PER-04 | CPU-intensive operations are moved off the main thread |
+| PER-05 | Independent async operations run in parallel |
+| PER-06 | Caches are bounded by size and lifetime (TTL + size limit) |
+| PER-07 | Event listeners and subscriptions are cleaned up on teardown |
+| PER-08 | No memory leaks: timers and closures do not retain large objects in a long-lived scope |
 
-## Правила верификации
+## Verification Rules
 
-1. **Только чеклист**: оценивай ТОЛЬКО проверки выше. Не добавляй новые.
-2. **Явная верификация = PASS**: ставь `✅ PASS` только если явно проверил механизм (нашёл схему, конфиг, guard) и подтвердил отсутствие нарушения — укажи что именно проверено.
-3. **Нет доказательства = UNVERIFIED**: не можешь указать `файл:строка` ни для нарушения, ни для подтверждения — ставь `🔍 UNVERIFIED`.
-   - Проверки с `[⚡ dynamic]` нельзя статически подтвердить — только `🔍 UNVERIFIED` или `❌ FAIL` (при явном evidence), но не `✅ PASS`
-4. **Baseline приоритетен**: check_id есть в `docs/audit-baseline.yml` → `⏸ ACCEPTED`.
-5. **Только 🔴/🟠 FAIL требуют решения**: 🟡/🟢 — решение необязательно.
+1. **Checklist only**: evaluate ONLY the checks above. Do not add new ones.
+2. **Explicit verification = PASS**: assign `✅ PASS` only if you explicitly verified the mechanism (found the schema, config, guard) and confirmed there is no violation — state exactly what was checked.
+3. **No evidence = UNVERIFIED**: if you cannot point to a `file:line` for either a violation or a confirmation, assign `🔍 UNVERIFIED`.
+   - Checks marked `[⚡ dynamic]` cannot be confirmed statically — only `🔍 UNVERIFIED` or `❌ FAIL` (with explicit evidence), never `✅ PASS`
+4. **Baseline takes priority**: if the check_id is in `docs/audit-baseline.yml` → `⏸ ACCEPTED`.
+5. **Only 🔴/🟠 FAILs require a solution**: 🟡/🟢 — a solution is optional.
 
 ## Evidence Quality Rules
 
-Любой `❌ FAIL` обязан содержать:
-- Точный `file:line`
-- Минимальный код-фрагмент (1–3 строки)
-- Causal chain: почему именно это нарушение → какой риск возникает
+Every `❌ FAIL` must include:
+- An exact `file:line`
+- A minimal code snippet (1–3 lines)
+- Causal chain: why this specific violation → what risk it creates
 
-Запрещено:
-- Предполагать runtime behavior без evidence в коде
-- Предполагать prod-конфигурацию по dev-конфигу
-- Предполагать отсутствие middleware без проверки всей router chain
-- Если вывод основан на предположении — только `🔍 UNVERIFIED`
+Not allowed:
+- Assuming runtime behavior without evidence in the code
+- Inferring the prod configuration from the dev configuration
+- Assuming middleware is absent without checking the entire router chain
+- If a conclusion rests on an assumption — only `🔍 UNVERIFIED`
 
 ## Language Rule
 
-Результаты аудита должны быть написаны простым и понятным языком. Избегай сложных терминов, жаргона и абстрактных понятий без необходимости. Общепринятые технические термины (Docker, HTTP, API, JSON, URL) допустимы. Описывай проблемы так, чтобы они были понятны разработчику любого уровня, а не только узкому специалисту в данной области.
+Audit results must be written in plain, clear language. Avoid complex terms, jargon, and abstract concepts unless necessary. Common technical terms (Docker, HTTP, API, JSON, URL) are fine. Describe problems so they are understandable to a developer of any level, not only a narrow specialist in the area.
 
 ## Baseline
 
-До анализа:
+Before analysis:
 ```bash
 if [ ! -f ./docs/audit-baseline.yml ]; then
   mkdir -p ./docs
@@ -104,96 +104,96 @@ fi
 cat ./docs/audit-baseline.yml
 ```
 
-## Контекст анализа
+## Analysis Context
 
-**PER-01 — Нет N+1:**
-- Запрос к БД внутри цикла по результатам другого запроса
-- ORM relations загружаются lazy внутри loop
-- Отсутствие `include`/`join` там где возможна одна выборка
-- DataLoader / batch loading не используется при множественных точечных запросах
+**PER-01 — No N+1:**
+- A DB query inside a loop over the results of another query
+- ORM relations loaded lazily inside a loop
+- Missing `include`/`join` where a single fetch is possible
+- DataLoader / batch loading not used when there are many point queries
 
-**PER-02 — Выборки ограничены:**
-- SELECT без LIMIT/пагинации (возможный full table scan)
-- Запросы без WHERE на индексированных полях
-- Агрегации на больших таблицах без materialized view / кэша
-- Нет cursor-based пагинации при больших наборах данных
+**PER-02 — Result sets are bounded:**
+- SELECT without LIMIT/pagination (possible full table scan)
+- Queries without WHERE on indexed fields
+- Aggregations on large tables without a materialized view / cache
+- No cursor-based pagination for large data sets
 
-**PER-03 — Нет блокирующего I/O в handlers:**
-- Синхронные файловые операции в async контексте (Node: `fs.readFileSync`)
-- `sleep`/busy-wait в request handler
-- Синхронные операции с большими буферами блокирующие event loop (Node)
-- Go: блокирующие сетевые/I/O-вызовы без таймаута/`context.Context` в обработчике; синхронные тяжёлые вызовы вне горутины (менее критично, чем блокировка event loop в Node, но всё равно держат соединение)
+**PER-03 — No blocking I/O in handlers:**
+- Synchronous file operations in an async context (Node: `fs.readFileSync`)
+- `sleep`/busy-wait in a request handler
+- Synchronous operations on large buffers that block the event loop (Node)
+- Go: blocking network/I/O calls without a timeout/`context.Context` in a handler; synchronous heavy calls outside a goroutine (less critical than blocking the event loop in Node, but they still hold the connection)
 
-**PER-04 — CPU-операции вне main thread:**
-- CPU-intensive операции (crypto, image processing, compression) в main thread без worker
-- Тяжёлые вычисления (сортировка больших массивов, regex на длинных строках) в request path
+**PER-04 — CPU operations off the main thread:**
+- CPU-intensive operations (crypto, image processing, compression) on the main thread without a worker
+- Heavy computations (sorting large arrays, regex on long strings) in the request path
 
-**PER-05 — Параллельные независимые операции:**
-- Последовательные независимые HTTP-запросы вместо `Promise.all`
-- Sequential await там где возможен parallel fetch
-- Повторные запросы к одному URL без мемоизации в рамках одного запроса
+**PER-05 — Parallel independent operations:**
+- Sequential independent HTTP requests instead of `Promise.all`
+- Sequential await where a parallel fetch is possible
+- Repeated requests to the same URL without memoization within a single request
 
-**PER-06 — Кэши ограничены:**
-- Кэш без TTL (unbounded growth, stale data навсегда)
-- Кэш без size limit (memory leak в long-lived процессах)
-- In-memory кэш без механизма инвалидации при обновлении данных
+**PER-06 — Caches are bounded:**
+- Cache without a TTL (unbounded growth, stale data forever)
+- Cache without a size limit (memory leak in long-lived processes)
+- In-memory cache without an invalidation mechanism when data is updated
 
-**PER-07 — Event listeners очищаются:**
-- Event listeners без `removeEventListener` / `off` (leak в long-lived процессах)
-- RxJS subscriptions без `unsubscribe` в destroy/cleanup
-- WebSocket / SSE connections без cleanup при завершении request lifecycle
-- Накопление данных в memory без flush (buffer без drain)
-- Go: горутина-подписчик/воркер без пути завершения по `ctx.Done()` (goroutine leak); незакрытый канал/`time.Ticker` без `Stop()`
+**PER-07 — Event listeners are cleaned up:**
+- Event listeners without `removeEventListener` / `off` (leak in long-lived processes)
+- RxJS subscriptions without `unsubscribe` in destroy/cleanup
+- WebSocket / SSE connections without cleanup at the end of the request lifecycle
+- Data accumulating in memory without flush (buffer without drain)
+- Go: a subscriber/worker goroutine with no termination path via `ctx.Done()` (goroutine leak); an unclosed channel/`time.Ticker` without `Stop()`
 
-**PER-08 — Нет утечек памяти через timers и closures:**
-- `setInterval` / `setTimeout` без соответствующего `clearInterval` / `clearTimeout` в cleanup (Node)
-- Closure в долгоживущем объекте захватывает большой массив/объект — GC не может его собрать
-- `global`-объект или module-level переменная накапливает записи без ограничения (unbounded grow)
-- Circular reference между объектами с WeakMap/WeakRef там где нужна сильная ссылка
-- Go: `defer` в цикле/долгой функции держит ресурсы (rows/файлы/locks) дольше нужного — освобождение откладывается до конца функции, а не итерации
+**PER-08 — No memory leaks via timers and closures:**
+- `setInterval` / `setTimeout` without a corresponding `clearInterval` / `clearTimeout` in cleanup (Node)
+- A closure in a long-lived object captures a large array/object — GC cannot collect it
+- A `global` object or module-level variable accumulates entries without a bound (unbounded growth)
+- Circular reference between objects with WeakMap/WeakRef where a strong reference is needed
+- Go: `defer` in a loop/long function holds resources (rows/files/locks) longer than needed — the release is deferred to the end of the function, not the iteration
 
-## Формат вывода
+## Output Format
 
-| Check ID | Проверка | Статус | Уверенность | Доказательство | Решение | Исправлено |
+| Check ID | Check | Status | Confidence | Evidence | Solution | Fixed |
 |----------|----------|--------|-------------|----------------|---------|------------|
-| PER-01 | Нет N+1: DB-запросы не выполняются внутри циклов | ✅ PASS | High | `repos/` проверены — запросы вне циклов | — [⚡ dynamic] | — |
-| PER-02 | Выборки из БД ограничены (LIMIT, пагинация) | ❌ FAIL 🟠 | High | `repos/user.ts:45` | **1. Добавить .take(limit).skip(offset) в запрос** \\ 2. Добавить cursor-based пагинацию \\ 3. Установить максимальный лимит через конфиг | Нет |
-| PER-06 | Кэши ограничены по размеру и времени жизни (TTL + size limit) | ⏸ ACCEPTED | Medium | `cache/store.ts:12` | В baseline: кэш управляется Redis с TTL | — |
+| PER-01 | No N+1: DB queries are not executed inside loops | ✅ PASS | High | `repos/` checked — queries are outside loops | — [⚡ dynamic] | — |
+| PER-02 | DB result sets are bounded (LIMIT, pagination) | ❌ FAIL 🟠 | High | `repos/user.ts:45` | **1. Add .take(limit).skip(offset) to the query** \\ 2. Add cursor-based pagination \\ 3. Set a maximum limit via config | No |
+| PER-06 | Caches are bounded by size and lifetime (TTL + size limit) | ⏸ ACCEPTED | Medium | `cache/store.ts:12` | In baseline: cache managed by Redis with TTL | — |
 
-Статусы: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED` / `🔍 UNVERIFIED`
+Statuses: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED` / `🔍 UNVERIFIED`
 
-Уверенность: `High` — проверил несколько ключевых файлов, паттерн очевиден / `Medium` — проверил выборочно, паттерн вероятен / `Low` — ограниченный контекст, полная уверенность невозможна
+Confidence: `High` — checked several key files, the pattern is obvious / `Medium` — checked selectively, the pattern is likely / `Low` — limited context, full certainty is impossible
 
-Для `❌ FAIL`: ровно 3 варианта решения, разделитель `\\`, вариант 1 жирным.
+For `❌ FAIL`: exactly 3 solution options, separated by `\\`, with option 1 in bold.
 
-`Исправлено`: FAIL → `Нет` (разработчик меняет на `✅ Да` вручную после фикса). PASS / ACCEPTED / UNVERIFIED → `—`.
+`Fixed`: FAIL → `No` (the developer changes it to `✅ Yes` manually after the fix). PASS / ACCEPTED / UNVERIFIED → `—`.
 
-Требования к решениям:
-- Взаимно исключающие (не перефразировки одного и того же)
-- Соответствуют текущему стеку проекта (не предлагать смену фреймворка)
-- Не требуют переписать всю систему — realistic migration cost
-- Вариант 3 может быть «оставить, задокументировать причину» при наличии обоснования
+Solution requirements:
+- Mutually exclusive (not rephrasings of the same thing)
+- Match the project's current stack (do not propose switching frameworks)
+- Do not require rewriting the whole system — realistic migration cost
+- Option 3 may be "keep it, document the reason" if there is justification
 
-В конце отчёта добавь раздел покрытия:
+At the end of the report, add a coverage section:
 ```
 ## Audit Coverage
-Проверено: src/module1/**, src/module2/**
-Пропущено: scripts/**, migrations/**, tests/**
-Файлов проверено: N | Пропущено: N
+Checked: src/module1/**, src/module2/**
+Skipped: scripts/**, migrations/**, tests/**
+Files checked: N | Skipped: N
 ```
 
-Если все PASS — выведи: `✅ Производительных антипаттернов не обнаружено.`
+If everything is PASS, output: `✅ No performance anti-patterns found.`
 
-## Сохранение результатов
+## Saving Results
 
-1. Найди папку сессии:
+1. Find the session folder:
    ```bash
    ls -dt ./docs/audits/[0-9]*/ 2>/dev/null | head -1 | sed 's|/$||'
    ```
-   Если пусто — создай: `mkdir -p ./docs/audits/$(date +"%Y-%m-%d_%H-%M")`
-2. Сохрани через Write: `<AUDIT_DIR>/audit-performance.md`
+   If empty, create it: `mkdir -p ./docs/audits/$(date +"%Y-%m-%d_%H-%M")`
+2. Save via Write: `<AUDIT_DIR>/audit-performance.md`
 
 ```
 # Audit Report: Resource & Performance — <YYYY-MM-DD HH:MM>
-<таблица>
+<table>
 ```

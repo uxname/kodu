@@ -2,8 +2,8 @@ package cleaner
 
 import "testing"
 
-// Эталонные выводы сняты с Node-версии: `node dist/src/main.js clean --stdin`
-// (stdin парсится как stdin.ts, keepJSDoc=true, whitelist по умолчанию ["//!"]).
+// Reference outputs captured from the Node version: `node dist/src/main.js clean --stdin`
+// (stdin is parsed as stdin.ts, keepJSDoc=true, default whitelist ["//!"]).
 func TestCleanParityWithNode(t *testing.T) {
 	c := New([]string{"//!"})
 	cases := []struct {
@@ -62,7 +62,7 @@ func TestCleanParityWithNode(t *testing.T) {
 	}
 }
 
-// JSDoc удаляется при keepJSDoc=false (флаг --no-jsdoc).
+// JSDoc is removed when keepJSDoc=false (the --no-jsdoc flag).
 func TestNoJSDoc(t *testing.T) {
 	c := New([]string{"//!"})
 	got := c.Clean("stdin.ts", "/** doc */\nconst x = 1;", false).Content
@@ -71,7 +71,7 @@ func TestNoJSDoc(t *testing.T) {
 	}
 }
 
-// Пустое JSX-выражение `{/* */}` удаляется целиком (вместе со скобками).
+// An empty JSX expression `{/* */}` is removed entirely (braces included).
 func TestJSXEmptyExpressionRemovedWhole(t *testing.T) {
 	c := New([]string{"//!"})
 	got := c.Clean("App.tsx", "const a = <div>{/* x */}</div>;", true).Content
@@ -80,7 +80,7 @@ func TestJSXEmptyExpressionRemovedWhole(t *testing.T) {
 	}
 }
 
-// JSX-выражение с реальным выражением сохраняется, удаляется лишь комментарий.
+// A JSX expression with a real expression is preserved; only the comment is removed.
 func TestJSXWithExpressionKeepsBraces(t *testing.T) {
 	c := New([]string{"//!"})
 	got := c.Clean("App.tsx", "const a = <div>{x /* c */}</div>;", true).Content
@@ -89,7 +89,7 @@ func TestJSXWithExpressionKeepsBraces(t *testing.T) {
 	}
 }
 
-// HTML-комментарии вырезаются регуляркой.
+// HTML comments are stripped with a regexp.
 func TestHTMLComment(t *testing.T) {
 	c := New([]string{"//!"})
 	got := c.Clean("page.html", "<!-- c -->\n<div>x</div>", true).Content
@@ -98,7 +98,7 @@ func TestHTMLComment(t *testing.T) {
 	}
 }
 
-// Нет комментариев — содержимое не меняется, removed=0.
+// No comments — the content is unchanged, removed=0.
 func TestNoCommentsUnchanged(t *testing.T) {
 	c := New([]string{"//!"})
 	r := c.Clean("stdin.ts", "const x = 1;", true)

@@ -1,7 +1,7 @@
 name: Release
 
-# Сборка нативная на каждой платформе (CGO+tree-sitter не кросс-компилируется
-# тривиально, поэтому используем нативные раннеры — фолбэк из плана миграции).
+# Native build on each platform (CGO+tree-sitter does not cross-compile
+# trivially, so we use native runners — the fallback from the migration plan).
 on:
   push:
     tags: ["v*"]

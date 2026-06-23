@@ -1,9 +1,9 @@
-// Package config читает и валидирует kodu.json.
+// Package config reads and validates kodu.json.
 //
-// Паритет с src/core/config/config.schema.ts + config.service.ts:
-//   - ищется только kodu.json в текущей директории;
-//   - разбор нестрогий (неизвестные ключи игнорируются, как zod без .strict());
-//   - каждое поле имеет значение по умолчанию (зеркалит zod .default()).
+// Parity with src/core/config/config.schema.ts + config.service.ts:
+//   - only kodu.json in the current directory is looked up;
+//   - parsing is non-strict (unknown keys are ignored, like zod without .strict());
+//   - every field has a default value (mirrors zod .default()).
 package config
 
 import (
@@ -14,7 +14,7 @@ import (
 	"path/filepath"
 )
 
-// Cleaner — настройки удаления комментариев.
+// Cleaner holds comment-stripping settings.
 type Cleaner struct {
 	Whitelist    []string `json:"whitelist"`
 	KeepJSDoc    bool     `json:"keepJSDoc"`
@@ -22,19 +22,19 @@ type Cleaner struct {
 	Ignore       []string `json:"ignore"`
 }
 
-// Packer — настройки сбора контекста.
+// Packer holds context-collection settings.
 type Packer struct {
 	Ignore                      []string `json:"ignore"`
 	UseGitignore                bool     `json:"useGitignore"`
 	ContentBasedBinaryDetection bool     `json:"contentBasedBinaryDetection"`
 }
 
-// Prompts — пользовательские шаблоны промптов.
+// Prompts holds user-defined prompt templates.
 type Prompts struct {
 	Pack string `json:"pack,omitempty"`
 }
 
-// Config — корневая конфигурация kodu.json.
+// Config is the root configuration of kodu.json.
 type Config struct {
 	Schema  string   `json:"$schema,omitempty"`
 	Cleaner Cleaner  `json:"cleaner"`
@@ -42,10 +42,10 @@ type Config struct {
 	Prompts *Prompts `json:"prompts,omitempty"`
 }
 
-// ConfigFileName — единственное имя файла конфига (как searchPlaces в lilconfig).
+// ConfigFileName is the single config file name (like searchPlaces in lilconfig).
 const ConfigFileName = "kodu.json"
 
-// DefaultPackerIgnore — дефолтный список игнора packer (config.schema.ts:13).
+// DefaultPackerIgnore is the default packer ignore list (config.schema.ts:13).
 func DefaultPackerIgnore() []string {
 	return []string{
 		"package-lock.json",
@@ -59,8 +59,8 @@ func DefaultPackerIgnore() []string {
 	}
 }
 
-// Default возвращает полностью заполненную дефолтами конфигурацию.
-// Значения 1:1 с zod .default() в config.schema.ts.
+// Default returns a configuration fully populated with default values.
+// Values match zod .default() in config.schema.ts 1:1.
 func Default() Config {
 	return Config{
 		Cleaner: Cleaner{
@@ -77,12 +77,12 @@ func Default() Config {
 	}
 }
 
-// Load читает kodu.json из dir. Если файла нет — возвращает дефолты.
-// Невалидный JSON (в т.ч. неверные типы полей) возвращается ошибкой.
+// Load reads kodu.json from dir. If the file is missing, it returns defaults.
+// Invalid JSON (including wrong field types) is returned as an error.
 //
-// Дефолты реализованы через разбор поверх предзаполненной структуры:
-// присутствующие в файле ключи перезаписывают дефолт, отсутствующие — нет.
-// Это зеркалит поведение per-field .default() в zod.
+// Defaults are implemented by parsing on top of a pre-populated struct:
+// keys present in the file overwrite the default, absent ones do not.
+// This mirrors the per-field .default() behavior in zod.
 func Load(dir string) (Config, error) {
 	cfg := Default()
 

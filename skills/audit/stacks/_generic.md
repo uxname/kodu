@@ -1,41 +1,41 @@
 # Stack Profile: Generic (fallback)   (id: generic)
 Tier: fallback
 
-Используется, когда рантайм не определён (нет известного маркер-файла) или нужный
-профиль не найден. Инструментов нет; работают только **стек-нейтральные** проверки.
+Used when the runtime is not detected (no known marker file) or the required
+profile is not found. No tools are available; only **stack-neutral** checks work.
 
 ## 1. Detection signals
-- ничего из известных маркеров (`package.json`, `go.mod`, `pyproject.toml`/`requirements.txt`, `Cargo.toml`, `pom.xml`/`build.gradle`)
+- none of the known markers (`package.json`, `go.mod`, `pyproject.toml`/`requirements.txt`, `Cargo.toml`, `pom.xml`/`build.gradle`)
 
 ## 2. Tooling by category
-| Категория | Команда | Как читать вывод |
+| Category | Command | How to read the output |
 |-----------|---------|------------------|
-| unused-code | — | нет инструмента → ручной скан ссылок на символы → `🔍 UNVERIFIED` |
-| clone-detection | — | grep повторяющихся блоков вручную → `🔍 UNVERIFIED` |
-| dep-audit | — | нет → пометить «аудит зависимостей недоступен» |
-| env-extraction | `grep -rEoh '[A-Z][A-Z0-9_]{2,}' . 2>/dev/null \| sort -u` (грубо) | кандидаты в env-переменные, верифицируй вручную |
-| arch-lint | — | ручной разбор слоёв → `🔍 UNVERIFIED` |
+| unused-code | — | no tool → manual scan of symbol references → `🔍 UNVERIFIED` |
+| clone-detection | — | grep for repeated blocks manually → `🔍 UNVERIFIED` |
+| dep-audit | — | none → mark "dependency audit unavailable" |
+| env-extraction | `grep -rEoh '[A-Z][A-Z0-9_]{2,}' . 2>/dev/null \| sort -u` (rough) | env variable candidates, verify manually |
+| arch-lint | — | manual layer analysis → `🔍 UNVERIFIED` |
 | lint/format | — | — |
 | type-check | — | — |
 | test-run | — | — |
-| secret-scan | `gitleaks detect --no-banner 2>/dev/null \|\| trufflehog filesystem . 2>/dev/null \|\| true` | стек-нейтрально, работает всегда |
+| secret-scan | `gitleaks detect --no-banner 2>/dev/null \|\| trufflehog filesystem . 2>/dev/null \|\| true` | stack-neutral, always works |
 
 ## 3. Idioms
-Стек-нейтральные ожидания (применимы к любому языку):
-- Ошибки обрабатываются или явно пробрасываются, не подавляются молча.
-- Внешние вызовы имеют таймауты и механизм отмены.
-- Секреты не захардкожены; конфигурация изолирована.
-- Логи структурированы, без PII и секретов.
-- Имена описывают назначение; нет дублирования логики.
-- Документация (README, ссылки, env) синхронизирована с кодом.
+Stack-neutral expectations (apply to any language):
+- Errors are handled or explicitly propagated, not silently suppressed.
+- External calls have timeouts and a cancellation mechanism.
+- Secrets are not hardcoded; configuration is isolated.
+- Logs are structured, with no PII or secrets.
+- Names describe purpose; there is no logic duplication.
+- Documentation (README, links, env) is in sync with the code.
 
 ## 4. Anti-patterns
-- Подавление ошибок без обработки.
-- Захардкоженные секреты, разбросанная конфигурация.
-- Дублирование логики, мёртвый код.
+- Suppressing errors without handling.
+- Hardcoded secrets, scattered configuration.
+- Logic duplication, dead code.
 
 ## 5. Check-ID hints
-Для всех стек-специфичных Check ID без однозначного evidence ставь `🔍 UNVERIFIED`.
-Реальные `✅ PASS`/`❌ FAIL` допустимы только для стек-нейтральных направлений:
-secrets (SEC-*), docs (DOC-*), naming-читаемость (NAM-02/03/05), bugs-логика
-(BUG-06/07/09), api-contracts (API-*) при наличии явного evidence.
+For all stack-specific Check IDs without unambiguous evidence, mark `🔍 UNVERIFIED`.
+Real `✅ PASS`/`❌ FAIL` are allowed only for stack-neutral dimensions:
+secrets (SEC-*), docs (DOC-*), naming readability (NAM-02/03/05), bug logic
+(BUG-06/07/09), api-contracts (API-*) when there is explicit evidence.

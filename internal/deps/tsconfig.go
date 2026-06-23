@@ -15,9 +15,9 @@ type tsconfig struct {
 	} `json:"compilerOptions"`
 }
 
-// loadTsconfig читает tsconfig.json/tsconfig.base.json и возвращает базовую
-// директорию для разрешения путей и карту paths. tsconfig может содержать
-// комментарии/висячие запятые — нормализуем через jsonc.
+// loadTsconfig reads tsconfig.json/tsconfig.base.json and returns the base
+// directory for path resolution and the paths map. A tsconfig may contain
+// comments/trailing commas — we normalize it via jsonc.
 func loadTsconfig(projectRoot string) (baseDir string, paths map[string][]string) {
 	for _, name := range []string{"tsconfig.json", "tsconfig.base.json"} {
 		p := filepath.Join(projectRoot, name)

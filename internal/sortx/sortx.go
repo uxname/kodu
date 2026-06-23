@@ -1,5 +1,5 @@
-// Package sortx сортирует строки так же, как JS String.prototype.localeCompare
-// (корневая ICU-коллация) — для паритета порядка файлов с Node-версией.
+// Package sortx sorts strings the same way as JS String.prototype.localeCompare
+// (the root ICU collation) — for file-order parity with the Node version.
 package sortx
 
 import (
@@ -7,7 +7,7 @@ import (
 	"golang.org/x/text/language"
 )
 
-// LocaleStrings сортирует срез на месте по корневой ICU-коллации.
+// LocaleStrings sorts the slice in place using the root ICU collation.
 func LocaleStrings(s []string) {
 	collate.New(language.Und).SortStrings(s)
 }

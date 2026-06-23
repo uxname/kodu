@@ -1,4 +1,4 @@
-// Package git — тонкая обёртка над системным git (паритет git.service.ts).
+// Package git is a thin wrapper around the system git (parity with git.service.ts).
 package git
 
 import (
@@ -8,12 +8,12 @@ import (
 	"strings"
 )
 
-// Git выполняет git-команды в заданной директории.
+// Git runs git commands in a given directory.
 type Git struct {
 	Dir string
 }
 
-// New создаёт обёртку для каталога dir.
+// New creates a wrapper for the directory dir.
 func New(dir string) *Git { return &Git{Dir: dir} }
 
 func (g *Git) run(args ...string) (string, error) {
@@ -29,7 +29,7 @@ func (g *Git) run(args ...string) (string, error) {
 	return string(out), nil
 }
 
-// EnsureRepo проверяет, что мы внутри git-репозитория.
+// EnsureRepo checks that we are inside a git repository.
 func (g *Git) EnsureRepo() error {
 	if _, err := g.run("rev-parse", "--is-inside-work-tree"); err != nil {
 		return fmt.Errorf("git repository not found. Initialize git before running the command")
@@ -37,7 +37,7 @@ func (g *Git) EnsureRepo() error {
 	return nil
 }
 
-// ChangedFiles — объединение изменённых (unstaged + staged + untracked) файлов.
+// ChangedFiles is the union of changed (unstaged + staged + untracked) files.
 func (g *Git) ChangedFiles() ([]string, error) {
 	if err := g.EnsureRepo(); err != nil {
 		return nil, err
@@ -57,7 +57,7 @@ func (g *Git) ChangedFiles() ([]string, error) {
 	return sortedKeys(set), nil
 }
 
-// StagedFiles — только staged-файлы.
+// StagedFiles returns only the staged files.
 func (g *Git) StagedFiles() ([]string, error) {
 	if err := g.EnsureRepo(); err != nil {
 		return nil, err

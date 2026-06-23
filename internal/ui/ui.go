@@ -1,11 +1,11 @@
-// Package ui отвечает за вывод пользователю: статус-логи и спиннер.
+// Package ui handles output to the user: status logs and the spinner.
 //
-// Принцип разделения потоков:
-//   - все статус-сообщения (success/warn/error/info) и спиннер идут в STDERR;
-//   - данные (списки файлов, пути, очищенный код) команды пишут в STDOUT сами.
+// Stream separation principle:
+//   - all status messages (success/warn/error/info) and the spinner go to STDERR;
+//   - data (file lists, paths, cleaned code) is written to STDOUT by the commands themselves.
 //
-// Так `kodu ops path x`, `kodu pack -l`, `kodu clean --stdin` дают чистый
-// stdout, пригодный для пайпов и подстановки команд.
+// This way `kodu ops path x`, `kodu pack -l`, `kodu clean --stdin` produce clean
+// stdout, suitable for pipes and command substitution.
 package ui
 
 import (
@@ -18,24 +18,24 @@ import (
 	"github.com/theckman/yacspin"
 )
 
-// UI инкапсулирует поток вывода и настройки цвета.
+// UI encapsulates the output streams and color settings.
 type UI struct {
-	out   io.Writer // stdout: данные
-	err   io.Writer // stderr: статус/логи/спиннер
-	color bool      // включён ли цвет для статус-логов
-	tty   bool      // является ли stderr интерактивным терминалом
+	out   io.Writer // stdout: data
+	err   io.Writer // stderr: status/logs/spinner
+	color bool      // whether color is enabled for status logs
+	tty   bool      // whether stderr is an interactive terminal
 }
 
-// Options управляет поведением вывода.
+// Options controls output behavior.
 type Options struct {
-	// NoColor принудительно отключает цвет (флаг --no-color).
+	// NoColor forcibly disables color (the --no-color flag).
 	NoColor bool
 }
 
-// New создаёт UI поверх os.Stdout/os.Stderr с авто-детектом TTY и цвета.
+// New creates a UI over os.Stdout/os.Stderr with auto-detection of TTY and color.
 //
-// Цвет включается, только если stderr — это терминал, не задан NO_COLOR
-// (https://no-color.org) и не передан --no-color.
+// Color is enabled only if stderr is a terminal, NO_COLOR is not set
+// (https://no-color.org), and --no-color was not passed.
 func New(opts Options) *UI {
 	return newWith(os.Stdout, os.Stderr, opts)
 }
@@ -47,16 +47,16 @@ func newWith(out, errw io.Writer, opts Options) *UI {
 	return &UI{out: out, err: errw, color: useColor, tty: tty}
 }
 
-// Out возвращает поток для данных (stdout).
+// Out returns the data stream (stdout).
 func (u *UI) Out() io.Writer { return u.out }
 
-// IsTTY сообщает, интерактивен ли терминал (stderr).
+// IsTTY reports whether the terminal (stderr) is interactive.
 func (u *UI) IsTTY() bool { return u.tty }
 
-// Print пишет данные в stdout без префиксов и перевода строки.
+// Print writes data to stdout without prefixes or a trailing newline.
 func (u *UI) Print(s string) { _, _ = fmt.Fprint(u.out, s) }
 
-// Println пишет строку данных в stdout с переводом строки.
+// Println writes a line of data to stdout with a trailing newline.
 func (u *UI) Println(s string) { _, _ = fmt.Fprintln(u.out, s) }
 
 func (u *UI) status(c *color.Color, symbol, msg string) {
@@ -67,27 +67,27 @@ func (u *UI) status(c *color.Color, symbol, msg string) {
 	_, _ = fmt.Fprintf(u.err, "%s %s\n", symbol, msg)
 }
 
-// Success — зелёная галочка в stderr.
+// Success — a green check mark on stderr.
 func (u *UI) Success(msg string) { u.status(color.New(color.FgGreen), "✔", msg) }
 
-// Warn — жёлтое предупреждение в stderr.
+// Warn — a yellow warning on stderr.
 func (u *UI) Warn(msg string) { u.status(color.New(color.FgYellow), "⚠", msg) }
 
-// Error — красная ошибка в stderr.
+// Error — a red error on stderr.
 func (u *UI) Error(msg string) { u.status(color.New(color.FgRed), "✖", msg) }
 
-// Info — голубое информационное сообщение в stderr.
+// Info — a cyan informational message on stderr.
 func (u *UI) Info(msg string) { u.status(color.New(color.FgCyan), "ℹ", msg) }
 
-// Spinner — крутилка прогресса. На не-TTY превращается в no-op,
-// чтобы не засорять неинтерактивный вывод.
+// Spinner is a progress spinner. On a non-TTY it becomes a no-op,
+// so it doesn't clutter non-interactive output.
 type Spinner struct {
 	s  *yacspin.Spinner
 	ui *UI
 }
 
-// NewSpinner создаёт спиннер с начальным текстом. Возвращает no-op спиннер,
-// если stderr не является терминалом.
+// NewSpinner creates a spinner with initial text. Returns a no-op spinner
+// if stderr is not a terminal.
 func (u *UI) NewSpinner(text string) *Spinner {
 	if !u.tty {
 		return &Spinner{ui: u}
@@ -114,7 +114,7 @@ func (u *UI) NewSpinner(text string) *Spinner {
 	return &Spinner{s: s, ui: u}
 }
 
-// Start запускает анимацию (no-op без TTY).
+// Start begins the animation (no-op without a TTY).
 func (sp *Spinner) Start() *Spinner {
 	if sp.s != nil {
 		_ = sp.s.Start()
@@ -122,14 +122,14 @@ func (sp *Spinner) Start() *Spinner {
 	return sp
 }
 
-// SetText обновляет сообщение спиннера.
+// SetText updates the spinner's message.
 func (sp *Spinner) SetText(text string) {
 	if sp.s != nil {
 		sp.s.Message(text)
 	}
 }
 
-// Success останавливает спиннер с галочкой и сообщением.
+// Success stops the spinner with a check mark and a message.
 func (sp *Spinner) Success(msg string) {
 	if sp.s != nil {
 		sp.s.StopMessage(msg)
@@ -139,7 +139,7 @@ func (sp *Spinner) Success(msg string) {
 	sp.ui.Success(msg)
 }
 
-// Fail останавливает спиннер с крестиком и сообщением.
+// Fail stops the spinner with a cross and a message.
 func (sp *Spinner) Fail(msg string) {
 	if sp.s != nil {
 		sp.s.StopFailMessage(msg)
@@ -149,7 +149,7 @@ func (sp *Spinner) Fail(msg string) {
 	sp.ui.Error(msg)
 }
 
-// Stop тихо останавливает спиннер (без финального символа).
+// Stop silently stops the spinner (without a final symbol).
 func (sp *Spinner) Stop(msg string) {
 	if sp.s != nil {
 		sp.s.StopMessage(msg)

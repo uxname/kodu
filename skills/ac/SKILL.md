@@ -1,123 +1,123 @@
 ---
 name: ac
-description: "Обновляет status.md, фиксирует решения и выполняет грамотный git commit."
+description: "Updates status.md, records decisions, and makes a clean git commit."
 compatibility: opencode
 metadata:
   level: multi
   output: .agent-log/ + git commit
 ---
 
-# Что делает этот скилл
+# What this skill does
 
-Перед коммитом делает три вещи:
-1. **Проверяет** — нет ли секретов в коде
-2. **Обновляет** — `status.md` (отмечает что сделано) и пишет decision если нужно
-3. **Коммитит** — по Conventional Commits, с WHY в теле
+Before committing, it does three things:
+1. **Checks** — that there are no secrets in the code
+2. **Updates** — `status.md` (marks what was done) and writes a decision if needed
+3. **Commits** — following Conventional Commits, with the WHY in the body
 
-Запускается **автоматически** при словах "коммитим / готово / push / закончили / сохрани".
-Пользователь может вызвать вручную: `/ac`.
+Runs **automatically** on phrases like "let's commit / done / push / finished / save".
+The user can invoke it manually: `/ac`.
 
 ---
 
-# Шаги
+# Steps
 
-## Шаг 1 — Узнать что изменилось
+## Step 1 — Find out what changed
 
 ```bash
 git diff --cached --name-only
 ```
 
-Если список пустой:
+If the list is empty:
 ```bash
 git diff HEAD --name-only
 ```
 
-Если и там пусто → написать "Нечего коммитить" и **остановиться**.
+If that's empty too → print "Nothing to commit" and **stop**.
 
 ---
 
-## Шаг 2 — Проверить на секреты
+## Step 2 — Check for secrets
 
 ```bash
 git diff --cached
 ```
 
-Проверить весь diff по паттернам:
+Scan the entire diff against these patterns:
 
 - AWS access key
 - GitHub PAT
 - OpenAI / Anthropic key / ...
-- Приватный ключ
-- Пароль в коде (не placeholder)
-- Секрет в коде (не placeholder)
+- Private key
+- Password in code (not a placeholder)
+- Secret in code (not a placeholder)
 
-**Нашёл → СТОП.** Показать строку с проблемой. Коммитить нельзя.
+**Found one → STOP.** Show the offending line. Do not commit.
 
 ---
 
-## Шаг 3 — Записать архитектурное решение (если было)
+## Step 3 — Record an architectural decision (if there was one)
 
-**Сначала ответить:** было ли в сессии архитектурное решение? (обсуждались варианты, выбирался подход)
+**First answer this:** was there an architectural decision in this session? (options were discussed, an approach was chosen)
 
-**Нет → пропустить этот шаг.**
+**No → skip this step.**
 
-**Да:**
+**Yes:**
 
-1. Найти следующий ID: `glob: .agent-log/decisions/**/*.md` → max номер `DEC-NNNN` → +1. Если файлов нет → `DEC-0001`.
+1. Find the next ID: `glob: .agent-log/decisions/**/*.md` → max number `DEC-NNNN` → +1. If there are no files → `DEC-0001`.
 
-2. Slug из заголовка:
+2. Slug from the title:
    ```bash
-   python3 -c "import unicodedata,re,sys; s=unicodedata.normalize('NFKD',sys.argv[1]).encode('ascii','ignore').decode(); print(re.sub(r'[^a-z0-9]+','-',s.lower()).strip('-'))" "Заголовок решения"
+   python3 -c "import unicodedata,re,sys; s=unicodedata.normalize('NFKD',sys.argv[1]).encode('ascii','ignore').decode(); print(re.sub(r'[^a-z0-9]+','-',s.lower()).strip('-'))" "Decision title"
    ```
 
-3. Создать `.agent-log/decisions/YYYY/MM/DD/DEC-NNNN-slug.md`:
+3. Create `.agent-log/decisions/YYYY/MM/DD/DEC-NNNN-slug.md`:
 
    ```
    ---
    id: DEC-NNNN
    type: decision
-   title: Заголовок решения
-   summary: Одна строка — суть выбора
+   title: Decision title
+   summary: One line — the essence of the choice
    status: active
    created_at: YYYY-MM-DD
    updated_at: YYYY-MM-DD
-   tags: [тег1, тег2]
+   tags: [tag1, tag2]
    confidence: medium
    schema_version: 1
-   related_files: [только исходный код, без .agent-log/]
+   related_files: [source code only, no .agent-log/]
    origin: generated
    verification_state: unverified
    ---
 
-   ## Контекст
+   ## Context
 
-   Почему возник этот вопрос. Что за проблема. Понятно для нового разработчика.
+   Why this question came up. What the problem is. Clear to a new developer.
 
-   ## Решение
+   ## Decision
 
-   Что выбрали и почему именно это.
+   What was chosen and why exactly this.
 
-   ## Альтернативы
+   ## Alternatives
 
-   Что рассматривали и почему не выбрали. Даже плохие варианты — чтобы не предлагали снова.
+   What was considered and why it was not chosen. Even the bad options — so they don't get suggested again.
    ```
 
-   Запомнить ID (`DEC-NNNN`) — нужен в шаге 6.
+   Remember the ID (`DEC-NNNN`) — it's needed in step 6.
 
 ---
 
-## Шаг 4 — Обновить status.md
+## Step 4 — Update status.md
 
-Прочитать `.agent-log/status.md`.
+Read `.agent-log/status.md`.
 
-Определить: какая задача из "Текущего фокуса" решена этим коммитом?
+Determine: which task from "Current focus" did this commit resolve?
 
-- `- [ ] задача` → `- [x] задача` для выполненной
-- Если в "Ближайшем бэклоге" есть задачи — перенести первую в "Текущий фокус"
-  (убрать из бэклога, добавить как `- [ ]` в фокус)
-- Обновить `updated_at` во frontmatter: текущая дата и время (`YYYY-MM-DD HH:MM`)
+- `- [ ] task` → `- [x] task` for the completed one
+- If "Upcoming backlog" has tasks — move the first one into "Current focus"
+  (remove it from the backlog, add it as `- [ ]` in the focus)
+- Update `updated_at` in the frontmatter: current date and time (`YYYY-MM-DD HH:MM`)
 
-Если `status.md` не существует → создать пустой шаблон:
+If `status.md` does not exist → create an empty template:
 
 ```
 ---
@@ -126,72 +126,72 @@ updated_at: YYYY-MM-DD HH:MM
 current_goal: ""
 ---
 
-# Текущий фокус
-- [ ] Задача не определена
+# Current focus
+- [ ] Task not defined
 
-# Ближайший бэклог (Next Steps)
+# Upcoming backlog (Next Steps)
 
-# Известные проблемы / Технический долг
+# Known issues / Technical debt
 ```
 
 ---
 
-## Шаг 5 — Добавить файлы в staged
+## Step 5 — Stage the files
 
 ```bash
 git add .agent-log/status.md
 ```
 
-Если в шаге 3 создано решение:
+If a decision was created in step 3:
 ```bash
 git add .agent-log/decisions/
 ```
 
 ---
 
-## Шаг 6 — Сформировать commit message
+## Step 6 — Build the commit message
 
-### Формат (Conventional Commits)
+### Format (Conventional Commits)
 
 ```
-тип(область): короткое описание
+type(scope): short description
 
-Почему было сделано это изменение.
-Какая проблема решалась и почему именно так.
+Why this change was made.
+What problem was being solved and why this way.
 
 Related: DEC-NNNN
 ```
 
-### Как выбрать тип
+### How to choose the type
 
-| Тип | Когда |
+| Type | When |
 |---|---|
-| `feat` | Новая функциональность |
-| `fix` | Исправление бага |
-| `refactor` | Переработка без изменения поведения |
-| `docs` | Только документация |
-| `chore` | Конфиги, зависимости |
-| `test` | Тесты |
-| `perf` | Производительность |
-| `style` | Форматирование |
-| `build` | Сборка, CI/CD |
+| `feat` | New functionality |
+| `fix` | Bug fix |
+| `refactor` | Rework without changing behavior |
+| `docs` | Documentation only |
+| `chore` | Configs, dependencies |
+| `test` | Tests |
+| `perf` | Performance |
+| `style` | Formatting |
+| `build` | Build, CI/CD |
 
-### Правила первой строки
+### Rules for the first line
 
-- Императив: `add`, `fix`, `remove` (не `added`, не `adding`)
-- Строчная буква после двоеточия, без точки, ≤72 символа
-- **Всегда на английском**
+- Imperative: `add`, `fix`, `remove` (not `added`, not `adding`)
+- Lowercase after the colon, no period, ≤72 characters
+- **Always in English**
 
-### Тело — обязательно
+### Body — required
 
-WHY, не WHAT. Почему именно так. Отделить пустой строкой, перенос на 72 символах.
+WHY, not WHAT. Why this way exactly. Separate with a blank line, wrap at 72 characters.
 
 ### Footer
 
-- `Related: DEC-NNNN` — если в шаге 3 создано решение
-- `BREAKING CHANGE: описание` — если ломающее изменение
+- `Related: DEC-NNNN` — if a decision was created in step 3
+- `BREAKING CHANGE: description` — if it's a breaking change
 
-### Пример
+### Example
 
 ```
 feat(auth): add session invalidation via Redis
@@ -205,35 +205,35 @@ Related: DEC-0001
 
 ---
 
-## Шаг 7 — Выполнить коммит
+## Step 7 — Make the commit
 
 ```bash
-git commit -m "тип(область): описание
+git commit -m "type(scope): description
 
-WHY в теле.
+WHY in the body.
 
 Related: DEC-NNNN"
 ```
 
 ---
 
-## Шаг 8 — Вывод пользователю
+## Step 8 — Report to the user
 
 ```
-✅ Изменения зафиксированы
-Коммит: <sha7> — <описание>
-status.md обновлён.
-Решений записано: [N / нет]
+✅ Changes committed
+Commit: <sha7> — <description>
+status.md updated.
+Decisions recorded: [N / none]
 ```
 
 ---
 
-# Правила
+# Rules
 
-- **Секреты** → СТОП, показать строку, не коммитить
-- **Decision** — только при реальном архитектурном выборе, не каждый коммит
-- **Commit message** — английский, Conventional Commits
-- **WHY неясен** — инферировать из контекста сессии, не спрашивать повторно
-- **status.md** — обновлять всегда, минимум `updated_at`
-- **Язык в markdown-файлах** — просто и понятно, короткие предложения, без жаргона без объяснений
-- **Порядок**: проверить → записать файлы → git add → git commit
+- **Secrets** → STOP, show the line, do not commit
+- **Decision** — only for a real architectural choice, not every commit
+- **Commit message** — English, Conventional Commits
+- **WHY is unclear** — infer it from the session context, don't ask again
+- **status.md** — always update, at minimum `updated_at`
+- **Language in markdown files** — simple and clear, short sentences, no unexplained jargon
+- **Order**: check → write files → git add → git commit

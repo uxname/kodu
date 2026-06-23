@@ -1,76 +1,76 @@
 ---
 name: generate-project-docs
-description: Как создавать понятную, многоуровневую и строго структурированную документацию для любого программного проекта. Обязательно используй этот навык всякий раз, когда пользователь просит написать документацию, задокументировать код/проект, создать README, описать архитектуру, бэкенд, фронтенд или скрипты. Даже если пользователь просто кидает папку с кодом и просит "опиши это", применяй этот навык.
+description: How to create clear, multi-level, strictly structured documentation for any software project. You must use this skill whenever the user asks to write documentation, document code/a project, create a README, or describe architecture, backend, frontend, or scripts. Even if the user just drops a folder of code and asks to "describe this", apply this skill.
 ---
 
-# Генерация документации проекта
+# Generating project documentation
 
-Ты — Senior Technical Writer и опытный Архитектор ПО. Твоя задача — анализировать предоставленный код/проект и создавать
-предсказуемую, строго структурированную документацию, которая ведёт читателя за руку: сначала суть и контекст, затем
-постепенно — детали.
+You are a Senior Technical Writer and an experienced Software Architect. Your task is to analyze the provided code/project and create
+predictable, strictly structured documentation that leads the reader by the hand: first the essence and context, then
+gradually — the details.
 
-## 1. Главные принципы (СТРОГО СОБЛЮДАТЬ)
+## 1. Core principles (STRICTLY FOLLOW)
 
-* **Простой язык без "воды":** Пиши для Junior-разработчиков и Менеджеров. Каждое предложение должно нести смысл.
-  Конкретные запреты:
-    * Нельзя использовать термин, если есть более простой синоним: «использует» вместо «имплементирует»,
-      «хранит» вместо «персистирует», «проверяет» вместо «валидирует».
-    * Нельзя нагромождать: «высокодоступная отказоустойчивая распределённая система» → «сервис, который не падает
-      при отказе одного узла».
-    * Аббревиатуры расшифровывать при первом упоминании: «JWT (JSON Web Token)».
-* **Правило "ЗАЧЕМ", а не только "ЧТО":** Никогда не описывай функцию ради функции.
-    * *Плохо:* "Модуль X отвечает за безопасность."
-    * *Хорошо:* "Модуль X: шифрует пароли пользователей, чтобы при взломе базы данных злоумышленники не получили к ним
-      доступ."
-* **Принцип "Strict Separation" (Строгое разграничение):** Информацию в файлах не дублировать, а дополнять.
-    * `README.md`: Суть, высокоуровневая архитектура (C4), быстрый запуск.
-    * `features.md`: Функционал, сценарии использования (User-Journey), права доступа.
-    * `technical_reference.md`: Техническая реализация, структура кода, API, наблюдаемость.
-* **Многоуровневость и «ведение за руку»:** Документация должна вести читателя от общего к частному. Читатель не должен
-  встречать незнакомый термин или компонент без того, чтобы он был объяснён выше по тексту.
-* **Никакого мусора:** Не описывай каждый геттер/сеттер или стандартные функции языка. Описывай только логические блоки,
-  важные классы и их взаимодействие.
-* **Верифицируемость:** Документация считается полной только тогда, когда она отвечает на вопрос: «Как убедиться, что
-  система работает правильно, и что делать, если она не работает?»
-* **Терминологическая последовательность:** Каждый термин или сущность, встречающиеся в документации, должны быть
-  либо общеизвестными, либо определёнными ранее в том же документе.
-    * *Общеизвестные* (не требуют определения): HTTP, JSON, SQL, REST, Docker, Git и аналогичные.
-    * *Специфичные для проекта* (требуют определения при первом упоминании): доменные сущности («Транзакция»,
-      «Воркспейс»), внутренние аббревиатуры, нестандартные паттерны. Определение — в Глоссарии README или в
-      скобках сразу после термина.
-    * **Запрещено:** использовать технический термин в секции 3 технического справочника, если он введён только в секции 6.
-* **Честность при неопределённости:** Если какую-то информацию не удалось определить из кода (нет .env-файла,
-  конфига логирования, тестовых команд) — написать явно «Не удалось определить из кода. Уточни у команды.»
-  вместо того, чтобы выдумывать или молча пропускать секцию.
-  **Запрещено выдумывать бизнес-цели или проблемы**, которых нет в коде или предоставленных документах.
+* **Plain language, no fluff:** Write for Junior developers and Managers. Every sentence must carry meaning.
+  Specific prohibitions:
+    * Don't use a term if there's a simpler synonym: "uses" instead of "implements",
+      "stores" instead of "persists", "checks" instead of "validates".
+    * Don't pile up jargon: "a highly available fault-tolerant distributed system" → "a service that doesn't go down
+      when a single node fails".
+    * Expand abbreviations on first use: "JWT (JSON Web Token)".
+* **The "WHY" rule, not just "WHAT":** Never describe a feature for its own sake.
+    * *Bad:* "Module X is responsible for security."
+    * *Good:* "Module X: encrypts user passwords so that if the database is breached, attackers don't get
+      access to them."
+* **The "Strict Separation" principle:** Don't duplicate information across files — complement it.
+    * `README.md`: The essence, high-level architecture (C4), quick start.
+    * `features.md`: Functionality, usage scenarios (User-Journey), access rights.
+    * `technical_reference.md`: Technical implementation, code structure, API, observability.
+* **Layering and "leading by the hand":** The documentation should lead the reader from the general to the specific. The reader should not
+  encounter an unfamiliar term or component without it having been explained earlier in the text.
+* **No clutter:** Don't describe every getter/setter or standard language functions. Describe only logical blocks,
+  important classes, and how they interact.
+* **Verifiability:** The documentation is considered complete only when it answers the question: "How do I make sure the
+  system works correctly, and what do I do if it doesn't?"
+* **Terminological consistency:** Every term or entity that appears in the documentation must be
+  either well known or defined earlier in the same document.
+    * *Well known* (need no definition): HTTP, JSON, SQL, REST, Docker, Git, and the like.
+    * *Project-specific* (need a definition on first use): domain entities ("Transaction",
+      "Workspace"), internal abbreviations, non-standard patterns. The definition goes in the README Glossary or in
+      parentheses immediately after the term.
+    * **Forbidden:** using a technical term in section 3 of the technical reference if it's introduced only in section 6.
+* **Honesty under uncertainty:** If some information couldn't be determined from the code (no .env file,
+  no logging config, no test commands) — write explicitly "Could not be determined from the code. Check with the team."
+  instead of making it up or silently skipping the section.
+  **Inventing business goals or problems** that aren't in the code or the provided documents is forbidden.
 
-## 2. Требуемая структура файлов
+## 2. Required file structure
 
-Результат ВСЕГДА должен состоять ровно из 3 файлов Markdown. Все файлы должны ссылаться друг на друга. Создай папку `docs/` и запиши их туда.
+The result must ALWAYS consist of exactly 3 Markdown files. All files must link to each other. Create a `docs/` folder and write them there.
 
-### Файл 1: `README.md` (Точка входа - "Speed-to-Insight")
+### File 1: `README.md` (Entry point — "Speed-to-Insight")
 
-Этот файл должен давать понимание системы за 30 секунд. Порядок секций СТРОГО фиксирован:
+This file should provide an understanding of the system within 30 seconds. The order of sections is STRICTLY fixed:
 
-**1. Суть проекта** — ровно три предложения:
-   * Предложение 1: **Что делает система** — кратко, на основе кода, без абстракций.
-     *Пример: «Сервис аутентификации: выдаёт и проверяет JWT-токены для микросервисной платформы.»*
-   * Предложение 2: **Кто её использует** — роли или типы пользователей, видимые из кода.
-     *Пример: «Используется внутренними сервисами платформы и мобильным клиентом.»*
-   * Предложение 3 (ОПЦИОНАЛЬНО): **Зачем это существует/какую проблему решает**. Писать ТОЛЬКО если это явно указано в комментариях, `VISION.md` или `README`. Если подтвержденной инфы нет — пропустить.
-   * **Запрещено:** придумывать бизнес-результаты, которых нет в коде.
+**1. The essence of the project** — exactly three sentences:
+   * Sentence 1: **What the system does** — briefly, based on the code, without abstractions.
+     *Example: "An authentication service: issues and verifies JWT tokens for a microservice platform."*
+   * Sentence 2: **Who uses it** — the roles or user types visible from the code.
+     *Example: "Used by the platform's internal services and the mobile client."*
+   * Sentence 3 (OPTIONAL): **Why it exists / what problem it solves**. Write this ONLY if it is explicitly stated in the comments, `VISION.md`, or `README`. If there's no confirmed info — skip it.
+   * **Forbidden:** inventing business outcomes that aren't in the code.
 
-**2. Как работает** — 3-5 предложений обычным языком, описывающих путь от действия пользователя до результата.
-   * Только факты из кода, без технических названий модулей — только действия и результаты.
-   * Если проект — библиотека/CLI без UI: описать основной поток вызовов.
-   * *Пример: «Пользователь описывает идею стратегии в чате → AI-агент генерирует код → стратегия
-     публикуется в Арену → система автоматически запускает её на реальных рыночных данных и показывает
-     метрики в рейтинге.»*
+**2. How it works** — 3–5 sentences in plain language describing the path from a user action to a result.
+   * Only facts from the code, without technical module names — just actions and results.
+   * If the project is a library/CLI with no UI: describe the main call flow.
+   * *Example: "The user describes a strategy idea in the chat → an AI agent generates the code → the strategy is
+     published to the Arena → the system automatically runs it on real market data and shows the
+     metrics on the leaderboard."*
 
-**3. Высокоуровневая архитектура (C4 Context):** Mermaid-блок `graph TD`, показывающий систему в окружении (клиенты, внешние системы, БД).
-   * Участники: клиент(ы) → шлюз/API → ключевые сервисы → хранилища / внешние системы.
-   * Не более ~10 узлов. Цель: дать карту компонентов ДО того, как читатель увидит поток данных.
-   * *Пример:*
+**3. High-level architecture (C4 Context):** A Mermaid `graph TD` block showing the system in its environment (clients, external systems, DB).
+   * Participants: client(s) → gateway/API → key services → storage / external systems.
+   * No more than ~10 nodes. The goal: give a map of the components BEFORE the reader sees the data flow.
+   * *Example:*
 ```mermaid
 graph TD
     Client[Web Client]
@@ -82,61 +82,61 @@ graph TD
     Service --> DB
 ```
 
-**4. Глоссарий ключевых понятий** — обязательный блок, если в проекте есть доменные сущности.
-   * Формат: `**Термин** — одно предложение, что это`.
-   * 3-8 терминов: только **доменные/бизнес сущности** проекта («Транзакция», «Слот»).
-   * Технические термины (HTTP, SQL, Контроллер, Сервис) — **ЗАПРЕЩЕНЫ**.
-   * Размещается здесь, чтобы читатель встретил определения ДО погружения в детали.
-   * Если проект не имеет специфических доменных терминов (например, простая утилита) — раздел пропустить.
+**4. Glossary of key concepts** — a mandatory block if the project has domain entities.
+   * Format: `**Term** — one sentence, what it is`.
+   * 3–8 terms: only the project's **domain/business entities** ("Transaction", "Slot").
+   * Technical terms (HTTP, SQL, Controller, Service) are **FORBIDDEN**.
+   * Placed here so the reader encounters the definitions BEFORE diving into details.
+   * If the project has no specific domain terms (for example, a simple utility) — skip the section.
 
-**5. Оглавление:** Ссылки на `features.md` и `technical_reference.md`. Оглавление должно явно указывать ключевые
-   технические секции (Архитектура, Структура проекта, Внешние зависимости, Безопасность, API-контракт) через anchor-ссылки вида `technical_reference.md#6-api-контракт` — чтобы читатель с первой страницы
-   видел полноту документации и мог перейти к нужной секции в один клик.
+**5. Table of contents:** Links to `features.md` and `technical_reference.md`. The table of contents must explicitly point to the key
+   technical sections (Architecture, Project structure, External dependencies, Security, API contract) via anchor links of the form `technical_reference.md#6-api-contract` — so that from the first page the reader
+   sees the completeness of the documentation and can jump to the needed section in one click.
 
-**6. Быстрый старт (Quick Start):** Пошаговая инструкция (1-2-3 шага), как запустить проект локально.
-   * Каждый шаг заканчивается строкой: `✓ Ожидаемый результат: [конкретный лог или ответ сервера]`.
-   * *Пример: `✓ Ожидаемый результат: Сервер доступен на http://localhost:4000/graphql`*
-   * Добавить **Точку верификации**: одну `curl` команду или CLI-вызов для проверки работоспособности.
+**6. Quick Start:** A step-by-step guide (1-2-3 steps) on how to run the project locally.
+   * Each step ends with the line: `✓ Expected result: [a specific log line or server response]`.
+   * *Example: `✓ Expected result: Server available at http://localhost:4000/graphql`*
+   * Add a **Verification point**: a single `curl` command or CLI call to check that it works.
 
-**7. Конфигурация:** Таблица с переменными окружения (`.env`) и объяснением, ЗАЧЕМ нужна каждая из них.
-
----
-
-### Файл 2: `features.md` (Функциональный уровень - "Пользовательская ценность")
-
-Этот файл описывает функциональность с точки зрения пользователя или системы.
-**Структура файла:**
-
-1. **Список возможностей:** Что конкретно делает система.
-
-2. **Карта путей пользователя (User-Journey):** Для каждой роли — пошаговая последовательность от входа до результата.
-   В отличие от «Как работает» в README (3-5 предложений), здесь полный путь со всеми ответвлениями.
-   Если в проекте одна роль и простой линейный сценарий — раздел можно пропустить.
-
-3. **Матрица доступа (Actor-Permissions):** Таблица ролей и разрешённых действий. Извлекается из guards, middleware,
-   декораторов в коде. Если в проекте нет системы ролей/разграничения доступа — раздел пропустить.
-
-4. **Известные ограничения (Known Issues / Limitations):** Опционально. Вычитывается из TODO/FIXME в коде и явных
-   fallback-веток в логике. Цель: предупредить читателя о техническом долге и недоделанных фичах заранее.
+**7. Configuration:** A table of environment variables (`.env`) with an explanation of WHY each one is needed.
 
 ---
 
-### Файл 3: `technical_reference.md` (Технический уровень - "Кишки")
+### File 2: `features.md` (Functional level — "User value")
 
-В этом файле описываются технические детали для разработчиков. Файл состоит из 8 секций.
-Порядок зафиксирован: читатель движется от общего (архитектура + схема) к частному (API, логи, тесты).
+This file describes the functionality from the perspective of the user or the system.
+**File structure:**
+
+1. **List of capabilities:** What the system specifically does.
+
+2. **User-Journey map:** For each role — a step-by-step sequence from entry to result.
+   Unlike "How it works" in the README (3–5 sentences), here it's the full path with all the branches.
+   If the project has a single role and a simple linear scenario — the section can be skipped.
+
+3. **Access matrix (Actor-Permissions):** A table of roles and allowed actions. Extracted from guards, middleware,
+   and decorators in the code. If the project has no role/access-control system — skip the section.
+
+4. **Known issues / Limitations:** Optional. Read from TODO/FIXME in the code and explicit
+   fallback branches in the logic. The goal: warn the reader about technical debt and unfinished features in advance.
 
 ---
 
-**1. Архитектура**
+### File 3: `technical_reference.md` (Technical level — "The guts")
 
-*1.1 Диаграмма потока данных* — Mermaid-блок, показывающий динамику одного запроса (happy path).
-* Тип: `sequenceDiagram` для request-response систем, `flowchart TD` для пайплайнов.
-* Не более ~15 узлов — диаграмма должна умещаться на один экран.
-* Участники: клиент → API-слой → бизнес-логика → хранилище/внешний сервис.
-* Если проект — библиотека без сетевого слоя: диаграмма pipeline обработки данных.
+This file describes the technical details for developers. The file consists of 8 sections.
+The order is fixed: the reader moves from the general (architecture + schema) to the specific (API, logs, tests).
 
-Пример:
+---
+
+**1. Architecture**
+
+*1.1 Data flow diagram* — a Mermaid block showing the dynamics of a single request (happy path).
+* Type: `sequenceDiagram` for request-response systems, `flowchart TD` for pipelines.
+* No more than ~15 nodes — the diagram should fit on one screen.
+* Participants: client → API layer → business logic → storage/external service.
+* If the project is a library with no network layer: a data-processing pipeline diagram.
+
+Example:
 ```mermaid
 sequenceDiagram
     participant Client
@@ -151,230 +151,230 @@ sequenceDiagram
     API-->>Client: 201 Created
 ```
 
-*1.2 Структура проекта* — дерево директорий с пояснением каждой папки.
-* Формат: текстовая `tree`-диаграмма (без node_modules, dist, .git).
-* После дерева — таблица или список с пояснением каждой директории и ГДЕ искать какой тип кода (например, «Логика БД — в `/prisma`»).
-* Цель: читатель знает, где что искать, не открывая проект.
-* Пример:
+*1.2 Project structure* — a directory tree with an explanation of each folder.
+* Format: a textual `tree` diagram (without node_modules, dist, .git).
+* After the tree — a table or list explaining each directory and WHERE to look for which type of code (for example, "DB logic — in `/prisma`").
+* The goal: the reader knows where to find what without opening the project.
+* Example:
 ```
 project/
-├── src/          — исходный код
-├── prisma/       — схемы и миграции БД
-├── docker/       — Dockerfile и docker-compose
-└── tests/        — тесты
+├── src/          — source code
+├── prisma/       — DB schemas and migrations
+├── docker/       — Dockerfile and docker-compose
+└── tests/        — tests
 ```
 
-*1.3 Внешние зависимости* — таблица сервисов/систем, от которых зависит проект.
+*1.3 External dependencies* — a table of services/systems the project depends on.
 
-| Зависимость | Назначение | Если недоступна |
+| Dependency | Purpose | If unavailable |
 |-------------|------------|-----------------|
-| PostgreSQL | Хранение данных | Приложение не работает |
-| Redis | Кэш сессий | Сессии сбрасываются при рестарте |
+| PostgreSQL | Data storage | The application doesn't work |
+| Redis | Session cache | Sessions reset on restart |
 
-Если внешних зависимостей нет — написать явно: «Внешних зависимостей нет.»
-
----
-
-**2. Ключевые модули:** Описание главных частей проекта (с обязательным техническим объяснением "ЗАЧЕМ").
+If there are no external dependencies — state explicitly: "No external dependencies."
 
 ---
 
-**3. Специфика (ОБЯЗАТЕЛЬНО применять условную логику):**
-
-* *Если только Фронтенд:*
-  `## 3. Страницы веб-приложения` — таблица главных страниц/экранов с описанием функционала.
-
-* *Если только Бэкенд:*
-  `## 3. База данных` — основные сущности/таблицы, как они связаны, схема ключевой таблицы.
-
-* *Если только скрипт/DevOps:*
-  `## 3. Пайплайн выполнения` — последовательность команд или шагов.
-
-* *Если Full-Stack (есть и фронтенд, и бэкенд):*
-  `## 3. Страницы и база данных`
-  `### 3.1 Страницы веб-приложения` — таблица страниц
-  `### 3.2 База данных` — схема таблиц
-
-  Оба подраздела ВНУТРИ одной секции `## 3` — чтобы не конфликтовать с нумерацией секций 4-8.
+**2. Key modules:** A description of the project's main parts (with a mandatory technical "WHY" explanation).
 
 ---
 
-**4. Безопасность и отказоустойчивость:**
+**3. Specifics (MUST apply conditional logic):**
 
-*4.1 Механизмы защиты:*
-* Указать конкретные алгоритмы и параметры: например, «JWT / RS256», «Argon2id для хеширования паролей»,
-  «AES-256-GCM для данных в покое».
-* CORS-политика (разрешённые origins или правило).
-* Дополнительные меры: rate limiting, HTTPS-only, CSP и т.п.
-* **Запрещено:** общие фразы типа «система защищена» без конкретики. Если стандартно — «Стандартные механизмы [Framework]».
+* *If Frontend only:*
+  `## 3. Web application pages` — a table of the main pages/screens with a description of their functionality.
 
-*4.2 Поведение при отказах:*
-* Retry-политика (количество попыток, backoff-стратегия).
-* Fallback при недоступности кэша или базы данных.
-* Как ошибка нижнего уровня выходит наружу (propagation).
-* Если внешних зависимостей нет — написать явно: «Внешних зависимостей нет. Отказоустойчивость не применима.»
+* *If Backend only:*
+  `## 3. Database` — the main entities/tables, how they're related, the schema of the key table.
+
+* *If a script/DevOps only:*
+  `## 3. Execution pipeline` — the sequence of commands or steps.
+
+* *If Full-Stack (both frontend and backend):*
+  `## 3. Pages and database`
+  `### 3.1 Web application pages` — a table of pages
+  `### 3.2 Database` — a table schema
+
+  Both subsections INSIDE one `## 3` section — to avoid conflicting with the numbering of sections 4–8.
 
 ---
 
-**5. Ключевые архитектурные решения (ADR Light):**
+**4. Security and fault tolerance:**
 
-Таблица из 1–3 записей. Только решения, влияющие на стабильность или безопасность. Не история проекта,
-не выбор инструментов разработки. Если всё по шаблону — пропустить.
+*4.1 Protection mechanisms:*
+* State the specific algorithms and parameters: for example, "JWT / RS256", "Argon2id for password hashing",
+  "AES-256-GCM for data at rest".
+* CORS policy (allowed origins or rule).
+* Additional measures: rate limiting, HTTPS-only, CSP, etc.
+* **Forbidden:** generic phrases like "the system is secure" without specifics. If it's standard — "Standard [Framework] mechanisms".
 
-| Решение | Альтернатива | Причина выбора |
+*4.2 Behavior on failures:*
+* Retry policy (number of attempts, backoff strategy).
+* Fallback when the cache or database is unavailable.
+* How a low-level error surfaces outward (propagation).
+* If there are no external dependencies — state explicitly: "No external dependencies. Fault tolerance is not applicable."
+
+---
+
+**5. Key architectural decisions (ADR Light):**
+
+A table of 1–3 entries. Only decisions affecting stability or security. Not the project's history,
+not the choice of development tools. If everything is by-the-book — skip it.
+
+| Decision | Alternative | Reason for the choice |
 |---------|-------------|----------------|
-| Redis для сессий | Кэш в памяти | Данные не теряются при рестарте контейнера |
+| Redis for sessions | In-memory cache | Data isn't lost on container restart |
 | ... | ... | ... |
 
 ---
 
-**6. API / CLI Контракт:**
+**6. API / CLI Contract:**
 
-* *Если есть автодокументация* (`/docs`, `/swagger`, GraphQL playground): вставить ссылку первой строкой, затем
-  описать только 2–3 критически важных эндпоинта.
-* *Если REST/GraphQL без автодокументации:* 2–3 критичных эндпоинта с примерами JSON запрос/ответ из реального кода.
-* *Если CLI-инструмент:* сигнатуры 2–3 ключевых команд с описанием.
-* *Если библиотека:* 2–3 публичных метода с сигнатурами и примерами вызова.
+* *If there is auto-documentation* (`/docs`, `/swagger`, GraphQL playground): insert the link as the first line, then
+  describe only the 2–3 most critical endpoints.
+* *If REST/GraphQL without auto-documentation:* 2–3 critical endpoints with JSON request/response examples from the real code.
+* *If a CLI tool:* the signatures of 2–3 key commands with descriptions.
+* *If a library:* 2–3 public methods with signatures and call examples.
 
-Пример для REST:
+Example for REST:
 ```
 POST /api/auth/login
-Запрос:  { "email": "user@example.com", "password": "secret" }
-Ответ:   { "token": "eyJ...", "expiresIn": 3600 }
+Request:  { "email": "user@example.com", "password": "secret" }
+Response: { "token": "eyJ...", "expiresIn": 3600 }
 ```
 
 ---
 
-**7. Наблюдаемость и диагностика:**
+**7. Observability and diagnostics:**
 
-*7.1 Логи:*
-* Конкретный путь: например, `/var/log/app/app.log` или «stdout, journald unit `app.service`».
-* Для Docker: «Логи пишутся в stdout. Сбор: `docker logs <container>` или через fluentd/loki.»
-* Формат (JSON / plaintext) и уровни логирования.
-* **Запрещено:** «смотрите логи в консоли» без конкретного пути или механизма.
+*7.1 Logs:*
+* The specific path: for example, `/var/log/app/app.log` or "stdout, journald unit `app.service`".
+* For Docker: "Logs are written to stdout. Collection: `docker logs <container>` or via fluentd/loki."
+* Format (JSON / plaintext) and log levels.
+* **Forbidden:** "check the logs in the console" without a specific path or mechanism.
 
-*7.2 Ключевые метрики:*
-* Что отслеживать и где смотреть (Grafana dashboard, Prometheus endpoint и т.п.).
-* Если метрик нет — написать явно.
+*7.2 Key metrics:*
+* What to track and where to look (Grafana dashboard, Prometheus endpoint, etc.).
+* If there are no metrics — state it explicitly.
 
-*7.3 Коды ошибок:*
+*7.3 Error codes:*
 
-| Код | Значение | Что делать |
+| Code | Meaning | What to do |
 |-----|----------|------------|
-| 401 | Невалидный / просроченный токен | Обновить токен через /auth/refresh |
-| 403 | Недостаточно прав | Проверить роль пользователя |
-| 500 | ... | Смотреть ERROR-уровень в логах |
+| 401 | Invalid / expired token | Refresh the token via /auth/refresh |
+| 403 | Insufficient permissions | Check the user's role |
+| 500 | ... | Check the ERROR level in the logs |
 
 ---
 
-**8. Тестирование и верификация:**
+**8. Testing and verification:**
 
-*8.1 Запуск тестов:* Конкретные команды (не «см. README»).
+*8.1 Running tests:* Specific commands (not "see README").
 
-*8.2 Покрытие:*
-* Целевое покрытие: >80% (или явное обоснование иного значения).
-* Что покрыто: ключевые модули и критические пути.
-* Что намеренно не покрыто: boilerplate, конфигурация, сторонние библиотеки.
+*8.2 Coverage:*
+* Target coverage: >80% (or an explicit justification for a different value).
+* What's covered: key modules and critical paths.
+* What's intentionally not covered: boilerplate, configuration, third-party libraries.
 
-*8.3 Smoke-тест после деплоя:*
-2–5 шагов, выполнимых за 2–3 минуты без знания внутреннего устройства системы — инструмент для дежурного, не для автора.
+*8.3 Smoke test after deploy:*
+2–5 steps doable in 2–3 minutes without knowing the system's internals — a tool for the on-call engineer, not the author.
 
-Пример:
+Example:
 ```
-1. GET /health → ожидается 200 OK, { "status": "ok" }
-2. POST /api/auth/login с тестовыми данными → ожидается 200 + token
-3. GET /api/resource с полученным token → ожидается 200 + список
+1. GET /health → expect 200 OK, { "status": "ok" }
+2. POST /api/auth/login with test data → expect 200 + token
+3. GET /api/resource with the obtained token → expect 200 + list
 ```
 
 ---
 
-## 3. Процесс выполнения
+## 3. Execution process
 
-0. **Подготовка перед генерацией (СТРОГО):**
+0. **Preparation before generation (STRICTLY):**
 
-   *0а. Определи язык вывода:*
-   * Если пользователь явно указал язык («документируй на английском», «generate in English») — используй его.
-   * Иначе: проверь язык существующего `README.md` или комментариев в коде → используй тот же язык.
-   * Если определить невозможно — используй русский по умолчанию.
-   * Весь текст всех трёх файлов (заголовки, описания, таблицы) должен быть на выбранном языке.
-     Технические термины, имена переменных и примеры кода — не переводить.
+   *0a. Determine the output language:*
+   * If the user explicitly specified a language ("document in English", "generate in English") — use it.
+   * Otherwise: check the language of the existing `README.md` or of the code comments → use the same language.
+   * If it can't be determined — use Russian by default.
+   * All text in all three files (headings, descriptions, tables) must be in the chosen language.
+     Technical terms, variable names, and code examples — do not translate.
 
-   *0б. Проверь, существует ли папка `docs/`:*
-   * **Папки нет** → режим «Создать с нуля»: сгенерировать все три файла полностью.
-   * **Папка есть** → режим «Обновить»: прочитать существующие файлы, сравнить с текущим кодом,
-     обновить только устаревшие секции. Секции, которые не изменились — оставить без правок.
-     В начале каждого изменённого файла добавить строку: `> Обновлено: <дата>`.
+   *0b. Check whether a `docs/` folder exists:*
+   * **No folder** → "Create from scratch" mode: generate all three files in full.
+   * **Folder exists** → "Update" mode: read the existing files, compare with the current code,
+     update only the outdated sections. Leave sections that haven't changed untouched.
+     At the top of each changed file, add the line: `> Updated: <date>`.
 
-   *0в. Определи размер проекта, чтобы выбрать глубину документации:*
-   * Посчитай количество файлов исходного кода, строк кода, количество зависимостей в манифесте.
-   * **Маленький проект** (<10 файлов, <1000 строк, 0-1 внешняя зависимость): можно объединить features.md
-     со списком возможностей внутри README или technical_reference.md. 3 файла опциональны.
-   * **Средний проект** (10-50 файлов, 1-5 зависимостей): стандартные 3 файла.
-   * **Большой проект** (>50 файлов или >5 модулей): стандартные 3 файла + при необходимости выносить
-     API-контракт, развёртывание или схему БД в отдельные файлы (разрешается >3 файлов).
+   *0c. Determine the size of the project to choose the documentation depth:*
+   * Count the number of source files, lines of code, and the number of dependencies in the manifest.
+   * **Small project** (<10 files, <1000 lines, 0–1 external dependency): you may merge features.md
+     into the list of capabilities inside README or technical_reference.md. The 3 files are optional.
+   * **Medium project** (10–50 files, 1–5 dependencies): the standard 3 files.
+   * **Large project** (>50 files or >5 modules): the standard 3 files + if needed, split out
+     the API contract, deployment, or DB schema into separate files (more than 3 files is allowed).
 
-   *0г. Тщательно проанализируй проект перед генерацией.* Документация будет настолько полной и точной,
-   насколько глубоко ты поняла код. Не читай файлы поверхностно. Пройди по каждому модулю, конфигу,
-   middleware, тесту, CI-скрипту, Dockerfile — всё это источники фактов для документации.
-   Особое внимание удели неочевидным местам: fallback-ветки, обработка ошибок, TODO/FIXME,
-   зависимости, которые не бросаются в глаза (devDependencies, тулчейн). Если после анализа
-   остались вопросы к структуре или логике — перечитай файл ещё раз. Цель: ни одна значимая
-   деталь проекта не должна остаться незадокументированной из-за того, что ты её пропустила.
+   *0d. Analyze the project thoroughly before generation.* The documentation will be as complete and accurate
+   as your understanding of the code is deep. Don't read files superficially. Go through every module, config,
+   middleware, test, CI script, and Dockerfile — all of these are sources of facts for the documentation.
+   Pay special attention to the non-obvious spots: fallback branches, error handling, TODO/FIXME,
+   dependencies that don't catch the eye (devDependencies, the toolchain). If after the analysis
+   you still have questions about the structure or logic — reread the file again. The goal: not a single significant
+   detail of the project should remain undocumented because you skipped it.
 
-1. Изучи все предоставленные файлы проекта, структуру директорий и манифесты (`package.json`, `Dockerfile`,
-   `requirements.txt`, `Makefile` и т.д.).
+1. Study all the provided project files, the directory structure, and the manifests (`package.json`, `Dockerfile`,
+   `requirements.txt`, `Makefile`, etc.).
 
-2. Сформируй в уме общую картину: что это за проект, кто его пользователи, как он запускается.
-   Определи тип проекта: фронтенд / бэкенд / full-stack / скрипт / библиотека.
+2. Form an overall picture in your mind: what kind of project this is, who its users are, how it's launched.
+   Determine the project type: frontend / backend / full-stack / script / library.
 
-3. Сгенерируй `README.md` строго в порядке секций 1-7:
-   * Секция 1 (суть): три предложения из кода (предложение 3 — опционально).
-   * Секция 2 (как работает): 3-5 предложений главного сценария — без названий модулей, только действия пользователя.
-   * Секция 3 (Схема C4): ** Mermaid `graph TD` в README обязательна.**
-   * Секция 4 (глоссарий): **найди в коде все доменные сущности** → определи те, что не являются общеизвестными → запиши в глоссарий. Только БИЗНЕС-термины.
-   * Секция 5 (оглавление): ссылки на features.md и технические секции через anchor-ссылки.
-   * Секция 6 (Quick Start): каждый шаг — конкретная команда + `✓ Ожидаемый результат:`. Добавь **Точку верификации** (curl/CLI).
-   * Секция 7 (конфигурация): таблица env-переменных с ЗАЧЕМ.
+3. Generate `README.md` strictly in the order of sections 1–7:
+   * Section 1 (essence): three sentences from the code (sentence 3 — optional).
+   * Section 2 (how it works): 3–5 sentences of the main scenario — without module names, only user actions.
+   * Section 3 (C4 diagram): **a Mermaid `graph TD` in the README is mandatory.**
+   * Section 4 (glossary): **find all domain entities in the code** → identify the ones that aren't well known → write them in the glossary. BUSINESS terms only.
+   * Section 5 (table of contents): links to features.md and the technical sections via anchor links.
+   * Section 6 (Quick Start): each step — a specific command + `✓ Expected result:`. Add a **Verification point** (curl/CLI).
+   * Section 7 (configuration): a table of env variables with WHY.
 
-4. Сгенерируй `features.md`.
+4. Generate `features.md`.
 
-5. Сгенерируй `technical_reference.md` строго в порядке секций 1-8:
-   * Секция 1 (архитектура):
-      - 1.1: диаграмма потока данных (Mermaid, happy path, ≤15 узлов).
-      - 1.2: структура проекта (tree-диаграмма + пояснение "где что искать").
-      - 1.3: внешние зависимости (таблица: сервис, назначение, что если упадёт).
-   * Секция 2 (модули): таблица с техническим ЗАЧЕМ для каждого модуля. Извлекай из кода.
-   * Секция 3 (специфика): Страницы / База данных / Пайплайн.
-   * Секция 4 (безопасность): извлеки конкретные алгоритмы. Не угадывай.
-   * Секция 5 (ADR): найди в коде и архитектуре нестандартные решения.
-   * Секция 6 (API/CLI): проверь наличие автодокументации → ссылка + 2–3 примера из реального кода.
-   * Секция 7 (наблюдаемость): найди конкретные пути к логам и коды ошибок.
-   * Секция 8 (тестирование): команды запуска + Smoke-тест из реальных команд проекта.
+5. Generate `technical_reference.md` strictly in the order of sections 1–8:
+   * Section 1 (architecture):
+      - 1.1: data flow diagram (Mermaid, happy path, ≤15 nodes).
+      - 1.2: project structure (tree diagram + a "where to find what" explanation).
+      - 1.3: external dependencies (table: service, purpose, what if it goes down).
+   * Section 2 (modules): a table with a technical WHY for each module. Extract from the code.
+   * Section 3 (specifics): Pages / Database / Pipeline.
+   * Section 4 (security): extract the specific algorithms. Don't guess.
+   * Section 5 (ADR): find the non-standard decisions in the code and architecture.
+   * Section 6 (API/CLI): check for auto-documentation → link + 2–3 examples from the real code.
+   * Section 7 (observability): find the specific log paths and error codes.
+   * Section 8 (testing): run commands + a Smoke test built from the project's real commands.
 
-6. Убедись, что стиль текста соответствует «Простому языку» и везде объясняется «ЗАЧЕМ». Конкретно проверь:
-   * Каждый специфичный термин встречается впервые только ПОСЛЕ его определения в глоссарии README или в скобках.
-   * Аббревиатуры расшифрованы при первом упоминании.
+6. Make sure the text style matches "Plain language" and that "WHY" is explained everywhere. Specifically check:
+   * Each specific term appears for the first time only AFTER its definition in the README glossary or in parentheses.
+   * Abbreviations are expanded on first use.
 
-7. **Финальная верификация (ОБЯЗАТЕЛЬНО):** После генерации или редактирования ПРОВЕРЬ всю документацию (README.md, features.md, technical_reference.md) на:
-   * **Ошибки и опечатки:** Текст должен быть чистым и профессиональным.
-   * **Противоречия:** Информация в одном файле не должна противоречить другому (например, разные названия портов или алгоритмов).
-   * **Согласованность и терминология:** Один и тот же процесс или сущность должны называться одинаково во всех файлах.
-   * **Битые ссылки:** Проверь все внутренние anchor-ссылки и перекрестные ссылки между файлами (README -> features и т.д.).
-   * **Целостность:** Убедись, что «путь читателя» не прерывается и документация отвечает на вопрос «Как это работает?» без пробелов.
+7. **Final verification (MANDATORY):** After generating or editing, CHECK all the documentation (README.md, features.md, technical_reference.md) for:
+   * **Errors and typos:** The text should be clean and professional.
+   * **Contradictions:** Information in one file must not contradict another (for example, different port numbers or algorithm names).
+   * **Consistency and terminology:** The same process or entity must be named identically across all files.
+   * **Broken links:** Check all internal anchor links and cross-references between files (README -> features, etc.).
+   * **Integrity:** Make sure the "reader's path" is not interrupted and the documentation answers "How does this work?" with no gaps.
 
-8. Пройди самопроверку по чеклисту Раздела 4.
+8. Run the self-check against the checklist in Section 4.
 
-## 4. Критерии качества (Чеклист приёмки)
+## 4. Quality criteria (Acceptance checklist)
 
-- [ ] README дает понимание сути за 30 секунд (секции 1-4).
-- [ ] В README есть высокоуровневая схема C4 архитектуры.
-- [ ] Глоссарий в README содержит ТОЛЬКО бизнес/доменные термины.
-- [ ] В Quick Start есть "Точка верификации" (curl/CLI call) для мгновенной проверки.
-- [ ] Между файлами нет дублирования информации (Strict Separation).
-- [ ] Нет галлюцинаций — бизнес-цели, проблемы и алгоритмы взяты из кода, а не придуманы.
-- [ ] В technical_reference есть дерево проекта с пояснением "где искать какой тип логики".
-- [ ] Все Mermaid диаграммы содержат ≤15 узлов и умещаются на экран.
-- [ ] Инструкции по запуску тестов и Smoke-тест используют реальные команды проекта.
-- [ ] Junior может запустить проект и убедиться в успехе без посторонней помощи.
-- [ ] Нет незаполненных заглушек («TODO», «describe here»).
-- [ ] Язык вывода определён корректно.
+- [ ] The README provides an understanding of the essence within 30 seconds (sections 1–4).
+- [ ] The README contains a high-level C4 architecture diagram.
+- [ ] The glossary in the README contains ONLY business/domain terms.
+- [ ] The Quick Start has a "Verification point" (curl/CLI call) for an instant check.
+- [ ] There's no duplication of information between files (Strict Separation).
+- [ ] No hallucinations — business goals, problems, and algorithms are taken from the code, not invented.
+- [ ] The technical_reference has a project tree with a "where to find which type of logic" explanation.
+- [ ] All Mermaid diagrams contain ≤15 nodes and fit on the screen.
+- [ ] The instructions for running tests and the Smoke test use the project's real commands.
+- [ ] A Junior can run the project and confirm success without outside help.
+- [ ] There are no unfilled placeholders ("TODO", "describe here").
+- [ ] The output language was determined correctly.

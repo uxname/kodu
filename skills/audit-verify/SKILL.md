@@ -1,26 +1,26 @@
 ---
 name: audit-verify
 description: >
-  Финальная верификация всех проведённых аудитов: проверяет соответствие находок реальному коду,
-  устраняет false positives, добавляет пропущенные критические риски, исправляет аудит-документы.
-  Вызывай ПОСЛЕДНИМ после всех аудитов — /audit-verify или в конце /audit.
+  Final verification of all completed audits: checks that findings match the actual code,
+  removes false positives, adds missing critical risks, fixes the audit documents.
+  Call LAST after all audits — /audit-verify or at the end of /audit.
 ---
 
-## Задача
+## Task
 
-Ты — старший инженер по безопасности и качеству, проводящий финальную верификацию результатов аудита. Твоя цель: убедиться, что каждая находка реально существует в коде, а не является галлюцинацией или устаревшим артефактом.
+You are a senior security and quality engineer performing the final verification of audit results. Your goal: make sure every finding actually exists in the code, rather than being a hallucination or a stale artifact.
 
-## Шаг 1 — Сбор аудит-документов
+## Step 1 — Collecting the audit documents
 
-1. Найди папку последней сессии через Bash:
+1. Find the latest session folder via Bash:
    ```bash
    ls -dt ./docs/audits/[0-9]*/ 2>/dev/null | head -1 | sed 's|/$||'
    ```
-2. Прочитай все `*.md` файлы из этой папки через Read.
+2. Read all `*.md` files from this folder via Read.
 
-Если папка не найдена — сообщи пользователю: `⚠️ Аудит-документы не найдены. Сначала выполни аудит.` и завершай работу.
+If the folder is not found, tell the user: `⚠️ No audit documents found. Run an audit first.` and stop.
 
-## Шаг 1.5 — Проверка актуальности аудита
+## Step 1.5 — Checking the audit's freshness
 
 ```bash
 SESSION_DIR=$(ls -dt ./docs/audits/[0-9]*/ 2>/dev/null | head -1 | sed 's|/$||')
@@ -29,111 +29,111 @@ DAYS_OLD=$(( ($(date +%s) - $(date -d "$SESSION_DATE" +%s 2>/dev/null || date -j
 echo "Audit age: $DAYS_OLD days (stale after 30)"
 ```
 
-Если `$DAYS_OLD > 30` — добавь в итоговый отчёт:
+If `$DAYS_OLD > 30`, add to the final report:
 ```
-⚠️ STALE AUDIT — отчёт создан N дней назад. Код мог измениться. Рекомендуется повторный аудит.
+⚠️ STALE AUDIT — the report was created N days ago. The code may have changed. A re-audit is recommended.
 ```
 
-## Шаг 2 — Верификация каждой находки
+## Step 2 — Verifying each finding
 
-Для каждой строки в каждой аудит-таблице выполни следующую проверку:
+For each row in each audit table, perform the following check:
 
-### 2.1 Проверка существования файла и строки
+### 2.1 Checking that the file and line exist
 
-- Извлеки `файл:строка` из колонки «Сценарий».
-- Открой файл через Read (с указанием offset и limit вокруг строки).
-- Убедись, что указанный код реально существует.
+- Extract `file:line` from the "Scenario" column.
+- Open the file via Read (specifying offset and limit around the line).
+- Confirm that the indicated code actually exists.
 
-### 2.2 Классификация находки
+### 2.2 Classifying the finding
 
-| Статус | Условие |
+| Status | Condition |
 |--------|---------|
-| ✅ **Подтверждено** | Код существует, риск актуален |
-| ❌ **False Positive** | Файл/строка не существует, или код не соответствует описанию |
-| ⚠️ **Устарело** | Код существует, но риск уже устранён (защита добавлена) |
-| 🔍 **Пропущено** | В ходе верификации обнаружен критический риск, не попавший в исходный аудит |
+| ✅ **Confirmed** | The code exists, the risk is current |
+| ❌ **False Positive** | The file/line does not exist, or the code does not match the description |
+| ⚠️ **Stale** | The code exists, but the risk has already been mitigated (protection added) |
+| 🔍 **Missed** | During verification, a critical risk was found that was not in the original audit |
 
-### 2.3 Проверка критических рисков (🔴)
+### 2.3 Checking critical risks (🔴)
 
-Для каждого 🔴 Критического риска дополнительно:
-- Прочитай весь контекст функции/класса (±30 строк).
-- Убедись, что в ближайшем коде нет существующих мер защиты, которые аудит не учёл.
-- Проверь, нет ли аналогичного паттерна в соседних файлах (grep по директории).
+For each 🔴 Critical risk, additionally:
+- Read the entire context of the function/class (±30 lines).
+- Make sure there are no existing protections in the nearby code that the audit missed.
+- Check whether a similar pattern exists in neighboring files (grep over the directory).
 
-### 2.4 Проверка срока действия baseline
+### 2.4 Checking the baseline expiry
 
-Для каждой `⏸ ACCEPTED` записи в аудит-файлах:
-1. Найди соответствующую запись в `docs/audit-baseline.yml`.
-2. Если поле `expires` заполнено и дата прошла — статус автоматически меняется на `❌ FAIL 🟠` с пометкой `[baseline expired: <дата>]`.
-3. Если поле `expires` отсутствует — оставляй `⏸ ACCEPTED` (бессрочное исключение).
+For each `⏸ ACCEPTED` entry in the audit files:
+1. Find the corresponding entry in `docs/audit-baseline.yml`.
+2. If the `expires` field is set and the date has passed, the status automatically changes to `❌ FAIL 🟠` with the note `[baseline expired: <date>]`.
+3. If the `expires` field is absent, keep `⏸ ACCEPTED` (an indefinite exception).
 
-## Шаг 3 — Исправление аудит-документов
+## Step 3 — Fixing the audit documents
 
-Для каждого файла с найденными проблемами:
+For each file with detected problems:
 
-1. **Удали** строки с `❌ False Positive` — они засоряют отчёт.
-2. **Пометь** строки с `⚠️ Устарело` — добавь в колонку «Статус» значение `[✓ устарело]`.
-3. **Добавь** строки с `🔍 Пропущено` в соответствующий аудит-файл.
-4. Перезапиши файл через Write с исправленным содержимым.
-5. **Истёкшие ACCEPTED** строки — измени статус с `⏸ ACCEPTED` на `❌ FAIL 🟠 [baseline expired: YYYY-MM-DD]` и удали из колонки «Решение» ссылку на baseline.
-6. **Устаревшие ссылки** — если файл или строка из FAIL/ACCEPTED записи больше не существует (рефакторинг), удали запись из отчёта с пометкой в лог: `[removed: <file> not found]`.
+1. **Remove** rows with `❌ False Positive` — they clutter the report.
+2. **Mark** rows with `⚠️ Stale` — add the value `[✓ stale]` to the "Status" column.
+3. **Add** rows with `🔍 Missed` to the appropriate audit file.
+4. Rewrite the file via Write with the corrected content.
+5. **Expired ACCEPTED** rows — change the status from `⏸ ACCEPTED` to `❌ FAIL 🟠 [baseline expired: YYYY-MM-DD]` and remove the baseline reference from the "Solution" column.
+6. **Stale references** — if the file or line from a FAIL/ACCEPTED entry no longer exists (refactoring), remove the entry from the report with a note in the log: `[removed: <file> not found]`.
 
-Если файл не требует изменений — не перезаписывай его.
+If a file does not need changes, do not rewrite it.
 
-## Шаг 4 — Отчёт верификации
+## Step 4 — Verification report
 
-Выведи итоговый отчёт верификации:
+Output the final verification report:
 
 ```
-## Результаты верификации
+## Verification Results
 
-| Аудит-файл | ✅ Подтверждено | ❌ False Positive | ⚠️ Устарело | 🔍 Пропущено |
+| Audit file | ✅ Confirmed | ❌ False Positive | ⚠️ Stale | 🔍 Missed |
 |------------|---------------|-----------------|------------|-------------|
 | audit-secrets | N | N | N | N |
 | audit-owasp   | N | N | N | N |
 | ...           | N | N | N | N |
-| **ИТОГО**     | **N** | **N** | **N** | **N** |
+| **TOTAL**     | **N** | **N** | **N** | **N** |
 
-### Исправленные документы
-- `<SESSION>/audit-<name>.md` — удалено N false positives, добавлено N пропущенных
+### Fixed documents
+- `<SESSION>/audit-<name>.md` — N false positives removed, N missed risks added
 - ...
 
-### Пропущенные критические риски
-[Список новых 🔴-рисков с файл:строка, если найдены]
+### Missed critical risks
+[List of new 🔴 risks with file:line, if any were found]
 ```
 
-## Шаг 5 — Сохранение отчёта верификации
+## Step 5 — Saving the verification report
 
-1. Найди папку текущей сессии через Bash:
+1. Find the current session folder via Bash:
    ```bash
    ls -dt ./docs/audits/[0-9]*/ 2>/dev/null | head -1 | sed 's|/$||'
    ```
-   Если вывод пустой — создай новую: `mkdir -p ./docs/audits/$(date +"%Y-%m-%d_%H-%M")` и используй её путь.
-2. Сохрани отчёт через Write в файл: `<AUDIT_DIR>/audit-verify.md`
+   If the output is empty, create a new one: `mkdir -p ./docs/audits/$(date +"%Y-%m-%d_%H-%M")` and use its path.
+2. Save the report via Write to the file: `<AUDIT_DIR>/audit-verify.md`
 
-Структура файла:
+File structure:
 ```
 # Audit Verification Report — <YYYY-MM-DD HH:MM>
 
-## Результаты верификации
-<таблица из Шага 4>
+## Verification Results
+<table from Step 4>
 
-### Исправленные документы
-<список>
+### Fixed documents
+<list>
 
-### Пропущенные критические риски
-<список или "Не обнаружено">
+### Missed critical risks
+<list or "None found">
 ```
 
-Сообщи пользователю путь к папке сессии и краткое резюме: сколько false positives удалено, сколько рисков добавлено.
+Tell the user the path to the session folder and a brief summary: how many false positives were removed, how many risks were added.
 
-## Правила
+## Rules
 
-- Не придумывай новые риски — только подтверждай или опровергай существующие, плюс очевидные пропуски в проверенном коде.
-- Не изменяй уровни риска (🔴/🟠/🟡/🟢) у подтверждённых находок.
-- Не редактируй колонку «Варианты решений» у подтверждённых находок.
-- Если файл аудита содержит только `✅ ... не обнаружено` — верификация для него не нужна, пропусти.
+- Do not invent new risks — only confirm or refute existing ones, plus obvious omissions in the code you reviewed.
+- Do not change the risk levels (🔴/🟠/🟡/🟢) of confirmed findings.
+- Do not edit the "Solution options" column of confirmed findings.
+- If an audit file contains only `✅ ... none found`, no verification is needed for it — skip it.
 
 ## Language Rule
 
-Результаты аудита должны быть написаны простым и понятным языком. Избегай сложных терминов, жаргона и абстрактных понятий без необходимости. Общепринятые технические термины (Docker, HTTP, API, JSON, URL) допустимы. Описывай проблемы так, чтобы они были понятны разработчику любого уровня, а не только узкому специалисту в данной области.
+Audit results must be written in plain, clear language. Avoid complex terms, jargon, and abstract concepts unless necessary. Common technical terms (Docker, HTTP, API, JSON, URL) are fine. Describe problems so they are understandable to a developer of any level, not only a narrow specialist in the area.

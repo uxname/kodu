@@ -1,44 +1,44 @@
 # Stack Profile: Rust   (id: rust)
 Tier: general
 
-Профиль уровня general: нейтральные идиомы + ориентиры по инструментам без
-гарантий их наличия. Стек-специфичные находки без однозначного evidence
-помечай `🔍 UNVERIFIED`.
+A general-tier profile: neutral idioms + tooling pointers without
+guarantees they are present. Mark stack-specific findings without unambiguous evidence
+as `🔍 UNVERIFIED`.
 
 ## 1. Detection signals
 - `Cargo.toml`
-- доп.: `Cargo.lock`, `rust-toolchain.toml`
+- additional: `Cargo.lock`, `rust-toolchain.toml`
 
 ## 2. Tooling by category
-| Категория | Команда | Как читать вывод |
+| Category | Command | How to read the output |
 |-----------|---------|------------------|
-| unused-code | `cargo +nightly udeps 2>/dev/null \|\| true`; warnings `cargo build` | неиспользуемое → YAGNI-02 |
-| clone-detection | — (нет стандартного инструмента) | grep повторов → `🔍 UNVERIFIED` |
-| dep-audit | `cargo audit 2>/dev/null \|\| true` | CVE в crates |
-| env-extraction | `grep -rEoh '(std::)?env::var\(?"[A-Z0-9_]+"' . 2>/dev/null \| sort -u` | env из кода → DOC-02 |
-| arch-lint | — | ручной разбор слоёв → `🔍 UNVERIFIED` |
+| unused-code | `cargo +nightly udeps 2>/dev/null \|\| true`; `cargo build` warnings | unused → YAGNI-02 |
+| clone-detection | — (no standard tool) | grep for duplicates → `🔍 UNVERIFIED` |
+| dep-audit | `cargo audit 2>/dev/null \|\| true` | CVEs in crates |
+| env-extraction | `grep -rEoh '(std::)?env::var\(?"[A-Z0-9_]+"' . 2>/dev/null \| sort -u` | env from code → DOC-02 |
+| arch-lint | — | manual layer analysis → `🔍 UNVERIFIED` |
 | lint/format | `cargo clippy 2>/dev/null \|\| true`; `cargo fmt --check 2>/dev/null` | — |
-| type-check | `cargo check 2>/dev/null \|\| true` | компиляция = проверка типов |
+| type-check | `cargo check 2>/dev/null \|\| true` | compilation = type check |
 | test-run | `cargo test 2>/dev/null \|\| true` | — |
-| secret-scan | `gitleaks detect --no-banner 2>/dev/null \|\| true` | стек-нейтрально |
+| secret-scan | `gitleaks detect --no-banner 2>/dev/null \|\| true` | stack-neutral |
 
 ## 3. Idioms
-- **Errors:** `Result<T, E>` + `?`; `thiserror`/`anyhow`; нет `.unwrap()`/`.expect()` в production-путях.
-- **Concurrency:** `tokio`/`async`; отмена через drop/`CancellationToken`; shared state через `Arc<Mutex<...>>`/каналы.
-- **Env/config:** `std::env::var` с обработкой `Result`; централизованный config (`serde`/`config`).
-- **Logging:** `tracing`/`log` со структурой; нет `println!` в production.
-- **Null-safety:** `Option<T>` + сопоставление с образцом; компилятор гарантирует отсутствие null.
-- **Deps:** crates экосистемы (`serde`, `itertools`, `tokio`); stdlib-итераторы.
+- **Errors:** `Result<T, E>` + `?`; `thiserror`/`anyhow`; no `.unwrap()`/`.expect()` on production paths.
+- **Concurrency:** `tokio`/`async`; cancellation via drop/`CancellationToken`; shared state via `Arc<Mutex<...>>`/channels.
+- **Env/config:** `std::env::var` with `Result` handling; centralized config (`serde`/`config`).
+- **Logging:** `tracing`/`log` with structure; no `println!` in production.
+- **Null-safety:** `Option<T>` + pattern matching; the compiler guarantees the absence of null.
+- **Deps:** ecosystem crates (`serde`, `itertools`, `tokio`); stdlib iterators.
 
 ## 4. Anti-patterns
-- `.unwrap()`/`.expect()` на пути, где ошибка возможна.
-- `println!`/`eprintln!` для логирования в production.
-- `unsafe` без обоснования.
-- Игнор `Result` (`let _ = ...`) там, где ошибку нужно обработать.
+- `.unwrap()`/`.expect()` on a path where an error is possible.
+- `println!`/`eprintln!` for logging in production.
+- `unsafe` without justification.
+- Ignoring `Result` (`let _ = ...`) where the error needs handling.
 
 ## 5. Check-ID hints
-- `LOG-01` → `println!`/`eprintln!` вместо `tracing`/`log`.
-- `ERR-01` → `.unwrap()`/`.expect()`/проигнорированный `Result`.
-- `BUG-03` → в основном **N/A** (нет null; `Option` проверяется компилятором).
-- `BUG-10` → ReDoS обычно **N/A** (crate `regex` без catastrophic backtracking).
-- Прочие стек-специфичные → при нехватке evidence `🔍 UNVERIFIED`.
+- `LOG-01` → `println!`/`eprintln!` instead of `tracing`/`log`.
+- `ERR-01` → `.unwrap()`/`.expect()`/an ignored `Result`.
+- `BUG-03` → mostly **N/A** (no null; `Option` is checked by the compiler).
+- `BUG-10` → ReDoS is usually **N/A** (the `regex` crate has no catastrophic backtracking).
+- Other stack-specific → when evidence is lacking, `🔍 UNVERIFIED`.

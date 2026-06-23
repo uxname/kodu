@@ -13,7 +13,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26"
-      - name: Build (CGO для tree-sitter)
+      - name: Build (CGO for tree-sitter)
         env:
           CGO_ENABLED: "1"
         run: go build ./...
@@ -22,8 +22,8 @@ jobs:
           CGO_ENABLED: "1"
         run: go test ./...
       - name: Lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@v7
         with:
-          version: latest
+          version: v2.12.2
         env:
           CGO_ENABLED: "1"

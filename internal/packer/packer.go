@@ -1,4 +1,4 @@
-// Package packer форматирует собранный контекст (паритет pack.command.ts).
+// Package packer formats the collected context (parity with pack.command.ts).
 package packer
 
 import (
@@ -6,22 +6,22 @@ import (
 	"strings"
 )
 
-// Format — формат вывода контекста.
+// Format — the context output format.
 type Format string
 
-// Поддерживаемые форматы вывода.
+// Supported output formats.
 const (
 	FormatXML  Format = "xml"
 	FormatText Format = "text"
 )
 
-// File — путь и содержимое одного файла.
+// File — the path and contents of a single file.
 type File struct {
 	Path    string
 	Content string
 }
 
-// BuildContext собирает контекст в выбранном формате.
+// BuildContext assembles the context in the chosen format.
 //
 //	xml:  <files>\n<file path="P">\n{content}\n</file>\n\n...\n</files>
 //	text: // file: P\n{content}\n\n...
@@ -41,7 +41,7 @@ func BuildContext(files []File, format Format) string {
 	return joined
 }
 
-// TemplateContext — данные для подстановки в шаблон промпта.
+// TemplateContext — the data substituted into the prompt template.
 type TemplateContext struct {
 	Context     string
 	FileList    string
@@ -49,8 +49,8 @@ type TemplateContext struct {
 	USDEstimate float64
 }
 
-// FillTemplate подставляет плейсхолдеры. Если в шаблоне нет {{context}},
-// контекст дописывается в конец (паритет pack.command.ts:341).
+// FillTemplate substitutes the placeholders. If the template has no {{context}},
+// the context is appended to the end (parity with pack.command.ts:341).
 func FillTemplate(tmpl string, ctx TemplateContext) string {
 	r := strings.NewReplacer(
 		"{{context}}", ctx.Context,

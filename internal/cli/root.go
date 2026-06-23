@@ -8,7 +8,7 @@ import (
 	"github.com/uxname/kodu/internal/ui"
 )
 
-// Execute строит корневую команду со всеми подкомандами и запускает её.
+// Execute builds the root command with all its subcommands and runs it.
 func Execute() error {
 	return newRootCommand().Execute()
 }
@@ -25,8 +25,8 @@ func newRootCommand() *cobra.Command {
 		Version:       buildinfo.Version,
 		SilenceUsage:  true,
 		SilenceErrors: true,
-		// Цвет зависит от флага --no-color, который виден только после парсинга,
-		// поэтому UI создаётся здесь, до запуска RunE подкоманды.
+		// Color depends on the --no-color flag, which is only visible after parsing,
+		// so the UI is created here, before the subcommand's RunE runs.
 		PersistentPreRun: func(_ *cobra.Command, _ []string) {
 			app.UI = ui.New(ui.Options{NoColor: noColor})
 		},
@@ -38,13 +38,13 @@ func newRootCommand() *cobra.Command {
 		buildinfo.Version, buildinfo.Commit, buildinfo.Date,
 	))
 
-	// Подкоманды регистрируются по мере реализации (init, pack, clean, ops).
+	// Subcommands are registered as they are implemented (init, pack, clean, ops).
 	registerCommands(root, app)
 
 	return root
 }
 
-// registerCommands добавляет все подкоманды к корню.
+// registerCommands adds all subcommands to the root.
 func registerCommands(root *cobra.Command, app *App) {
 	root.AddCommand(newInitCommand(app))
 	root.AddCommand(newPackCommand(app))

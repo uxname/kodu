@@ -11,7 +11,7 @@ import (
 func gitInit(t *testing.T) string {
 	t.Helper()
 	if _, err := exec.LookPath("git"); err != nil {
-		t.Skip("git не установлен")
+		t.Skip("git is not installed")
 	}
 	dir := t.TempDir()
 	for _, args := range [][]string{
@@ -47,10 +47,10 @@ func gitRun(t *testing.T, dir string, args ...string) {
 func TestEnsureRepo(t *testing.T) {
 	g := New(gitInit(t))
 	if err := g.EnsureRepo(); err != nil {
-		t.Fatalf("EnsureRepo на git-репо вернул ошибку: %v", err)
+		t.Fatalf("EnsureRepo on a git repo returned an error: %v", err)
 	}
 	if err := New(t.TempDir()).EnsureRepo(); err == nil {
-		t.Fatal("EnsureRepo вне репо должен вернуть ошибку")
+		t.Fatal("EnsureRepo outside a repo should return an error")
 	}
 }
 

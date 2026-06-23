@@ -12,17 +12,18 @@ linters:
   settings:
     revive:
       rules:
-        # Ошибки здесь — локализованные сообщения для пользователя (паритет с
-        # TS-версией), поэтому правило о капитализации/пунктуации не применяем.
+        # These errors are user-facing messages (now in English, for parity with
+        # the TS version) and are intentionally capitalized, so we don't apply
+        # the capitalization/punctuation rule to them.
         - name: error-strings
           disabled: true
     staticcheck:
       checks:
         - all
-        - -ST1005 # error strings should not be capitalized — см. выше
+        - -ST1005 # error strings should not be capitalized — see above
   exclusions:
     rules:
-      # В тестах допускаем непроверенные ошибки вспомогательных вызовов.
+      # In tests we allow unchecked errors from helper calls.
       - path: _test\.go
         linters:
           - errcheck

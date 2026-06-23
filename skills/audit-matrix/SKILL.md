@@ -1,44 +1,44 @@
 ---
 name: audit-matrix
 description: >
-   Строит архитектурную модель системы и анализирует сценарии сбоев
-   для обнаруженных компонентов и их связей. Запускается при /audit-matrix.
+   Builds an architectural model of the system and analyzes failure scenarios
+   for the discovered components and their connections. Runs on /audit-matrix.
 ---
 
-## Задача
+## Task
 
-Верхнеуровневый архитектурный аудит: найти крупные компоненты системы, их связи
-и системные риски (каскадные сбои, узкие места, отсутствие защиты на уровне архитектуры).
-Не ищи мелкие баги — это задача других аудитов.
+A high-level architecture audit: find the system's major components, their connections,
+and systemic risks (cascading failures, bottlenecks, lack of protection at the architectural level).
+Do not look for small bugs — that is the job of other audits.
 
-Не полагайся на предопределённые списки технологий. Адаптируйся к любому стеку.
+Do not rely on predefined lists of technologies. Adapt to any stack.
 
-**Группируй похожие сущности.** Несколько однотипных сервисов, реплик, воркеров — один компонент.
-Пример: 3 реплики payment-worker → компонент «Payment Workers». Не плоди строки ради детализации.
-
----
-
-## Язык
-
-Пиши так, чтобы понял джун на первой неделе работы.
-Короткие фразы, без канцелярита, без умных терминов.
-
-**Объяснение риска** — как будто рассказываешь коллеге за обедом:
-✅ «Если БД тормозит, сайт ляжет для всех через 5 секунд»
-❌ «Исчерпание пула соединений в условиях конкурентной нагрузки приводит к деградации»
-❌ «Всё сломается»
-
-**Решение** — что сделать и зачем:
-✅ «Ждать ответа от БД не больше 5 секунд (`timeout: 5000` в конфиге)»
-❌ «Сконфигурировать connectionTimeoutMillis»
-❌ «Внедрить service mesh»
-
-Если нужен термин — сразу расшифруй:
-«Circuit breaker (предохранитель: если внешний сервис падает, перестаём его дёргать)».
+**Group similar entities.** Several services, replicas, or workers of the same kind — one component.
+Example: 3 replicas of payment-worker → the "Payment Workers" component. Do not multiply rows for the sake of detail.
 
 ---
 
-## Шаг 1 — Сессия
+## Language
+
+Write so a junior in their first week on the job would understand.
+Short phrases, no bureaucratese, no fancy terms.
+
+**Explaining a risk** — as if telling a colleague over lunch:
+✅ "If the DB is slow, the site goes down for everyone in 5 seconds"
+❌ "Connection pool exhaustion under concurrent load leads to degradation"
+❌ "Everything breaks"
+
+**A solution** — what to do and why:
+✅ "Wait no more than 5 seconds for a response from the DB (`timeout: 5000` in the config)"
+❌ "Configure connectionTimeoutMillis"
+❌ "Adopt a service mesh"
+
+If a term is needed, explain it right away:
+"Circuit breaker (a fuse: if an external service is failing, we stop calling it)".
+
+---
+
+## Step 1 — Session
 
 ```bash
 LATEST=$(ls -dt ./docs/audits/[0-9]*/ 2>/dev/null | head -1)
@@ -48,177 +48,177 @@ mkdir -p "$SESSION" && echo "Session: $SESSION"
 
 ---
 
-## Шаг 2 — Обнаружение компонентов
+## Step 2 — Component discovery
 
-Для каждого зафиксируй: название, роль, размещение (Docker/облако/SaaS),
-как обнаружен (`файл:строка`).
+For each one, record: name, role, placement (Docker/cloud/SaaS),
+how it was discovered (`file:line`).
 
-**Правило группировки.** Объединяй в один компонент:
-- реплики одного сервиса
-- воркеры одной очереди
-- микросервисы одной области, если риски у них одинаковые
-- несколько таблиц/коллекций одной БД → компонент «Database», а не «Users DB», «Orders DB»
+**Grouping rule.** Merge into one component:
+- replicas of the same service
+- workers of the same queue
+- microservices of the same area, if their risks are the same
+- several tables/collections of one DB → the "Database" component, not "Users DB", "Orders DB"
 
-Если после группировки осталось >12 компонентов — объединяй ещё смелее.
+If more than 12 components remain after grouping, merge even more boldly.
 
 ---
 
-## Шаг 3 — Граф компонентов
+## Step 3 — Component graph
 
-Не ищи адреса через grep — **проследи жизненный цикл конфигурации**.
+Do not search for addresses via grep — **trace the lifecycle of the configuration**.
 
-Построй матрицу: строки — кто вызывает, столбцы — кого вызывают.
-В ячейке — **зачем** они связаны, а не протокол. Глагол + объект, до 5 слов.
+Build a matrix: rows are who calls, columns are who is called.
+In the cell, put **why** they are connected, not the protocol. Verb + object, up to 5 words.
 
-Пустая ячейка = связи нет.
+An empty cell = no connection.
 
 ```
-| Кто \ Кого   | Frontend | Backend | База | Редиска | Платежи |
+| Who \ Whom   | Frontend | Backend | DB | Redis | Payments |
 |--------------|----------|---------|------|---------|---------|
-| Frontend     |          | шлёт заказы |   |         |         |
-| Backend      |          |         | хранит заказы | кэш сессий | списывает деньги |
-| Воркер       |          |         | читает задачи |      |         |
-| Платежи      |          | шлёт статус |   |         |         |
+| Frontend     |          | sends orders |   |         |         |
+| Backend      |          |         | stores orders | session cache | charges money |
+| Worker       |          |         | reads tasks |      |         |
+| Payments     |          | sends status |   |         |         |
 ```
 
-Если в ячейке не помещается — упрощай. Не «асинхронно публикует событие оплаты в очередь» → «шлёт статус оплаты».
+If it does not fit in the cell, simplify. Not "asynchronously publishes a payment event to the queue" → "sends payment status".
 
 ---
 
-## Шаг 4 — Анализ рисков
+## Step 4 — Risk analysis
 
-Сопоставляй **компоненты и их клиенты** (Шаг 2)
-с настройками подключения (Шаг 3).
-Если библиотека умеет таймауты и повторы, а код их не выставляет — это риск.
+Match **components and their clients** (Step 2)
+against the connection settings (Step 3).
+If a library supports timeouts and retries but the code does not set them, that is a risk.
 
-Подходи как «злой гений»: не доверяй компонентам внутри сети, ищи редкие, но разрушительные сценарии.
-Находи **реальные** риски. Если компонент надёжен — так и напиши:
-«Рисков нет: облачный сервис с авто-восстановлением».
-Не выдумывай проблемы ради количества.
+Approach it like an "evil genius": do not trust components inside the network, look for rare but destructive scenarios.
+Find **real** risks. If a component is reliable, say so:
+"No risks: a cloud service with auto-recovery".
+Do not invent problems for the sake of count.
 
-### Как описывать опасность
+### How to describe the danger
 
-Столбец **«В чём опасность»** — главная часть таблицы. В одной фразе:
-1. Что ломается (причина)
-2. Что из-за этого происходит (механика)
-3. Что видит пользователь или бизнес (последствие)
+The **"What's the danger"** column is the main part of the table. In a single phrase:
+1. What breaks (cause)
+2. What happens because of it (mechanics)
+3. What the user or business sees (consequence)
 
-✅ «Внешний API тупит → запросы копятся → через 5 секунд сайт падает для всех»
-✅ «Две транзакции одновременно списали деньги → баланс ушёл в минус, найдём только в конце месяца»
-❌ «Отказ сервиса приводит к каскадной деградации» (джун не поймёт)
-❌ «Race condition в биллинге» (термин без расшифровки)
+✅ "An external API stalls → requests pile up → in 5 seconds the site goes down for everyone"
+✅ "Two transactions charged money at the same time → the balance went negative, we'll only find out at month's end"
+❌ "A service failure leads to cascading degradation" (a junior won't get it)
+❌ "Race condition in billing" (a term without explanation)
 
-### Как описывать решение
+### How to describe the solution
 
-Принцип Парето: одно действие, которое закроет 80% проблемы.
-Формула: **что сделать + зачем + конкретный параметр в скобках**.
+The Pareto principle: one action that closes 80% of the problem.
+Formula: **what to do + why + the specific parameter in parentheses**.
 
-✅ «Ждать ответа от БД не больше 5 секунд, чтобы зависшие запросы не копились (`timeout: 5000`)»
-✅ «Добавить предохранитель: если Платежи не отвечают 3 раза подряд, перестать их дёргать на минуту (библиотека opossum)»
-✅ «Завернуть списание и обновление баланса в одну транзакцию (`BEGIN` … `COMMIT`)»
+✅ "Wait no more than 5 seconds for a response from the DB so that stuck requests don't pile up (`timeout: 5000`)"
+✅ "Add a fuse: if Payments don't respond 3 times in a row, stop calling them for a minute (the opossum library)"
+✅ "Wrap the charge and balance update in a single transaction (`BEGIN` … `COMMIT`)"
 
-❌ «Переписать сервис на event-sourcing» (рефакторинг, не фикс)
-❌ «Внедрить service mesh» (огромная задача)
-❌ `connectionTimeoutMillis: 5000` (без объяснения, зачем)
+❌ "Rewrite the service to event-sourcing" (a refactor, not a fix)
+❌ "Adopt a service mesh" (a huge task)
+❌ `connectionTimeoutMillis: 5000` (without explaining why)
 
-Если проблема не чинится точечно — пиши `⚠ нужен рефакторинг` и одну строку, в какую сторону.
+If the problem cannot be fixed locally, write `⚠ refactor needed` and one line on which direction.
 
-### Каскадные сценарии
+### Cascading scenarios
 
-Описывай отдельно **только** если сценарий:
-- затрагивает **≥3 компонентов**, И
-- имеет свою механику (не сводится к одному риску компонента).
+Describe one separately **only** if the scenario:
+- involves **≥3 components**, AND
+- has its own mechanics (does not reduce to a single component's risk).
 
 ```
 X1: Frontend → Backend → Payments
-В чём опасность: Платежи тупят → бэкенд ждёт → через 10 секунд весь сайт отдаёт 503, хотя сама база и фронт живы
-Решение: ждать ответа от Платежей не больше 3 секунд + предохранитель
-Подтверждение: `src/payment.ts:15` — Stripe без таймаута
+What's the danger: Payments stall → the backend waits → in 10 seconds the whole site returns 503, even though the DB and frontend themselves are alive
+Solution: wait no more than 3 seconds for a response from Payments + a fuse
+Confirmation: `src/payment.ts:15` — Stripe without a timeout
 ```
 
 ---
 
-## Шаг 5 — Вывод
+## Step 5 — Output
 
-Сохрани `{SESSION}/audit-matrix.md`:
+Save `{SESSION}/audit-matrix.md`:
 
 ```markdown
-# Матрица — {project} — {date}
+# Matrix — {project} — {date}
 
 ## TL;DR
-- **Архитектура:** [монолит / микросервисы / serverless / монорепо]
-- **Компонентов:** N
-- **Критических рисков (🔴/🟠):** N
-- **Главный риск:** [одно предложение]
+- **Architecture:** [monolith / microservices / serverless / monorepo]
+- **Components:** N
+- **Critical risks (🔴/🟠):** N
+- **Top risk:** [one sentence]
 
-## Граф компонентов
+## Component graph
 
-| Кто \ Кого | Frontend | Backend | База | Редиска | Платежи |
+| Who \ Whom | Frontend | Backend | DB | Redis | Payments |
 |------------|----------|---------|------|---------|---------|
-| Frontend   |          | шлёт заказы |   |         |         |
-| Backend    |          |         | хранит заказы | кэш сессий | списывает деньги |
-| Воркер     |          |         | читает задачи |      |         |
+| Frontend   |          | sends orders |   |         |         |
+| Backend    |          |         | stores orders | session cache | charges money |
+| Worker     |          |         | reads tasks |      |         |
 
-Связей: N. Синхронных (ждут ответа): N — это главный источник каскадных падений.
+Connections: N. Synchronous (waiting for a response): N — this is the main source of cascading failures.
 
-## Критические задачи
+## Critical tasks
 
-Сводка всех 🔴/🟠 — и по компонентам, и каскадных.
+A summary of all 🔴/🟠 — both per component and cascading.
 
-| # | В чём опасность | Компонент | Риск | Решение | Файл |
+| # | What's the danger | Component | Risk | Solution | File |
 |---|----------------|-----------|------|---------|------|
-| 1 | БД тупит → запросы копятся → через 5 секунд сайт падает для всех | База | 🔴 | Ждать БД не больше 5 секунд, увеличить пул соединений (`timeout: 5000`, `max: 20`) | `src/db.ts:12` ❌ |
-| 2 | Платежи тупят → бэкенд ждёт → весь сайт отдаёт 503 | Платежи | 🔴 | Таймаут 3 секунды + предохранитель | `src/payment.ts:15` ❌ |
+| 1 | DB stalls → requests pile up → in 5 seconds the site goes down for everyone | DB | 🔴 | Wait no more than 5 seconds for the DB, increase the connection pool (`timeout: 5000`, `max: 20`) | `src/db.ts:12` ❌ |
+| 2 | Payments stall → the backend waits → the whole site returns 503 | Payments | 🔴 | 3-second timeout + a fuse | `src/payment.ts:15` ❌ |
 
-## {Компонент}
+## {Component}
 
-**Роль:** … • **Где:** Docker • **Найден:** `file:line`
+**Role:** … • **Where:** Docker • **Found:** `file:line`
 
-| # | Сценарий | В чём опасность | Риск | Решение | Файл |
+| # | Scenario | What's the danger | Risk | Solution | File |
 |---|----------|-----------------|------|---------|------|
-| A1 | БД недоступна | БД тупит → запросы копятся → через 5 секунд сайт падает для всех при 100 запросах/сек | 🔴 | Ждать БД не больше 5 секунд, повторять 3 раза (`timeout: 5000`, `maxRetries: 3`) | `src/db.ts:12` ❌ |
-| Z1 | Обрыв транзакции | Списание и обновление баланса не обёрнуты в транзакцию → деньги списались, баланс не обновился. Найдём только при сверке | 🔴 | Завернуть в одну транзакцию (`BEGIN` … `COMMIT`) | `src/billing.ts:44` ❌ |
-| N1 | Редиска падает | Кэш отваливается → бэкенд идёт напрямую в БД. Медленнее, но работает | 🟡 | Защита уже есть, ничего делать не надо | `src/cache.ts:8` ✅ |
+| A1 | DB unavailable | DB stalls → requests pile up → in 5 seconds the site goes down for everyone at 100 requests/sec | 🔴 | Wait no more than 5 seconds for the DB, retry 3 times (`timeout: 5000`, `maxRetries: 3`) | `src/db.ts:12` ❌ |
+| Z1 | Transaction interrupted | The charge and balance update are not wrapped in a transaction → money was charged, the balance was not updated. We'll only find out during reconciliation | 🔴 | Wrap in a single transaction (`BEGIN` … `COMMIT`) | `src/billing.ts:44` ❌ |
+| N1 | Redis goes down | The cache drops out → the backend goes straight to the DB. Slower, but it works | 🟡 | Protection is already in place, nothing to do | `src/cache.ts:8` ✅ |
 
-Если рисков нет — пиши одной строкой: «Рисков нет: облачный сервис с авто-восстановлением».
+If there are no risks, write one line: "No risks: a cloud service with auto-recovery".
 
-## Каскадные сценарии
+## Cascading scenarios
 
-| # | Цепочка | В чём опасность | Риск | Решение | Файл |
+| # | Chain | What's the danger | Risk | Solution | File |
 |---|---------|-----------------|------|---------|------|
-| X1 | Frontend → Backend → Платежи | Платежи тупят → бэкенд ждёт → через 10 секунд весь сайт отдаёт 503, хотя база и фронт живы | 🔴 | Таймаут 3 секунды + предохранитель (opossum) | `src/payment.ts:15` ❌ |
+| X1 | Frontend → Backend → Payments | Payments stall → the backend waits → in 10 seconds the whole site returns 503, even though the DB and frontend are alive | 🔴 | 3-second timeout + a fuse (opossum) | `src/payment.ts:15` ❌ |
 ```
 
 ---
 
-## Правила
+## Rules
 
-1. **Одна проблема = одна строка.** В сводку идут только 🔴/🟠, в таблицу компонента — все.
-2. **Только крупные компоненты.** Не классы, не функции, не отдельные таблицы.
-3. **Похожие сущности — в один компонент.** Реплики, воркеры, таблицы одной БД.
-4. **Каждый сценарий = `файл:строка`.** Иначе `⚠ не проверено — причина`.
-5. **«В чём опасность» самодостаточно.** Причина + механика + последствие в одной фразе, без терминов.
-6. **Нет реального риска — не выдумывай.** Пиши «Рисков нет».
-7. **Решение — по Парето и простыми словами.** Что сделать + зачем + параметр в скобках. Если нужен рефакторинг — `⚠ нужен рефакторинг`.
-8. **Каскад — только при ≥3 компонентах** и уникальной механике.
-9. **Baseline** — помечай `⏸ ACCEPTED` риски, принятые по baseline.
+1. **One problem = one row.** Only 🔴/🟠 go into the summary; all of them go into the component table.
+2. **Only major components.** Not classes, not functions, not individual tables.
+3. **Similar entities — into one component.** Replicas, workers, tables of one DB.
+4. **Every scenario = `file:line`.** Otherwise `⚠ not verified — reason`.
+5. **"What's the danger" is self-contained.** Cause + mechanics + consequence in one phrase, without terms.
+6. **No real risk — don't invent one.** Write "No risks".
+7. **The solution — by Pareto and in plain words.** What to do + why + the parameter in parentheses. If a refactor is needed — `⚠ refactor needed`.
+8. **A cascade — only with ≥3 components** and unique mechanics.
+9. **Baseline** — mark risks accepted via baseline as `⏸ ACCEPTED`.
 
 ---
 
 ## Severity
 
-| 🔴 Критический | Потеря данных, дыра в безопасности, полный отказ без авто-восстановления |
-| 🟠 Высокий | Сайт тормозит или отказ под нагрузкой, второстепенные функции не работают |
-| 🟡 Средний | Редкие ошибки, лечатся перезапуском |
-| 🟢 Низкий | Техдолг, нет мониторинга в некритичных местах |
+| 🔴 Critical | Data loss, security hole, complete failure without auto-recovery |
+| 🟠 High | The site slows down or fails under load, secondary features do not work |
+| 🟡 Medium | Rare errors, fixed by a restart |
+| 🟢 Low | Tech debt, no monitoring in non-critical places |
 
 ---
 
 ## Bash
 
-Bash — только для навигации. Нашёл файл — открой и читай.
-Нет результата — проверь негативный сценарий (другие имена, закомментировано, другое расширение).
-Не копируй слепо — адаптируй под структуру проекта.
+Bash is for navigation only. Found a file — open and read it.
+No result — check the negative scenario (other names, commented out, a different extension).
+Do not copy blindly — adapt to the project's structure.
 
 ---
 
@@ -230,16 +230,16 @@ cat ./docs/audit-baseline.yml 2>/dev/null
 
 ---
 
-В конце сообщения одной строкой:
-**Парадигма:** … · **Компонентов:** N · **Сценариев:** N · **🔴/🟠:** N
+At the end of the message, one line:
+**Paradigm:** … · **Components:** N · **Scenarios:** N · **🔴/🟠:** N
 
-## Шаг 6 — Верификация
+## Step 6 — Verification
 
 `Skill("audit-verify")`
 
-# Девиз: Найди одну настоящую дыру, а не сто придуманных.
-Четыре принципа аудитора:
-1. Ищи катастрофу, а не опечатку — тебя интересуют каскадные сбои и потеря данных, а не стиль кода
-2. Думай как злой гений — не верь внутренней сети, облакам и «стабильным» API
-3. Пиши как для джуна — если нельзя объяснить простыми словами, ты сам не понял риск
-4. Подтверждай строкой кода — каждое «возможно» = файл:строка, иначе это галлюцинация
+# Motto: Find one real hole, not a hundred imagined ones.
+The auditor's four principles:
+1. Look for a catastrophe, not a typo — you care about cascading failures and data loss, not code style
+2. Think like an evil genius — do not trust the internal network, clouds, or "stable" APIs
+3. Write as if for a junior — if you can't explain it in plain words, you didn't understand the risk yourself
+4. Confirm with a line of code — every "maybe" = file:line, otherwise it's a hallucination

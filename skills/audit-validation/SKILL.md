@@ -1,23 +1,23 @@
 ---
 name: audit-validation
 description: >
-  Аудит валидации граничных данных: проверка входящих данных на границах системы,
-  отсутствие sanitization, trust boundary нарушения. Запускай при /audit-validation.
+  Audit of boundary data validation: checking incoming data at the system boundaries,
+  missing sanitization, trust boundary violations. Run on /audit-validation.
 ---
 
-## Правило применимости (Relevance Rule)
+## Relevance Rule
 
-Применим к коду, принимающему внешние данные: HTTP handlers, WebSocket, CLI args, file parsers, event consumers, gRPC endpoints. Для чисто внутреннего кода без внешних входов — верни пустой ответ.
+Applicable to code that accepts external data: HTTP handlers, WebSocket, CLI args, file parsers, event consumers, gRPC endpoints. For purely internal code with no external inputs, return an empty response.
 
 ## Runtime Detection & Stack Profile
 
-Этот аудит стек-агностичен: проверки сформулированы нейтрально, а конкретика
-(инструменты, идиомы, анти-паттерны, примеры) берётся из профиля стека.
+This audit is stack-agnostic: the checks are framed neutrally, and the specifics
+(tools, idioms, anti-patterns, examples) come from the stack profile.
 
-1. **Профиль передан контекстом?** Если оркестратор `/audit` передал
-   `runtime=<id>` и/или содержимое профиля — используй его, шаги 2–3 пропусти.
+1. **Profile passed in context?** If the `/audit` orchestrator passed
+   `runtime=<id>` and/or the profile contents, use it and skip steps 2–3.
 
-2. **Иначе определи РОВНО ОДИН рантайм** этого каталога:
+2. **Otherwise, detect EXACTLY ONE runtime** for this directory:
    ```bash
    if   [ -f package.json ]; then echo "runtime=node"
    elif [ -f go.mod ]; then echo "runtime=go"
@@ -26,75 +26,75 @@ description: >
    elif [ -f pom.xml ] || ls build.gradle* settings.gradle* >/dev/null 2>&1; then echo "runtime=java"
    else echo "runtime=generic"; fi
    ```
-   Один запуск = один рантайм; не миксуй backend и frontend. Если найдено
-   несколько маркеров (монорепо) — выбери соответствующий текущему scope/анализируемым
-   файлам и зафиксируй выбор в разделе Audit Coverage.
+   One run = one runtime; do not mix backend and frontend. If several markers
+   are found (monorepo), pick the one matching the current scope / files under
+   analysis and record the choice in the Audit Coverage section.
 
-3. **Загрузи профиль** через Read: `./skills/audit/stacks/<runtime>.md`
-   (fallback `./skills/audit/stacks/_generic.md`, если файл не найден).
+3. **Load the profile** via Read: `./skills/audit/stacks/<runtime>.md`
+   (fallback `./skills/audit/stacks/_generic.md` if the file is not found).
 
-Дальше используй профиль:
-- **Инструменты** — из секции «Tooling by category» профиля (раздел
-  «Инструментальная поддержка» ниже ссылается на категории, а не на команды).
-- **Ожидания PASS** — из «Idioms»; **формулировки FAIL** — из «Anti-patterns».
-- **Точечные подсказки** — из «Check-ID hints» по префиксу `VAL-`.
-- Если профиль `tier: general` или `runtime=generic` → стек-специфичные находки
-  без однозначного evidence помечай `🔍 UNVERIFIED`, а не `❌ FAIL`. Проверки,
-  чей механизм в рантайме отсутствует, помечай `N/A`.
+Then use the profile:
+- **Tools** — from the profile's "Tooling by category" section (the
+  "Tooling Support" section below references categories, not commands).
+- **PASS expectations** — from "Idioms"; **FAIL wording** — from "Anti-patterns".
+- **Targeted hints** — from "Check-ID hints" by the `VAL-` prefix.
+- If the profile is `tier: general` or `runtime=generic`, mark stack-specific
+  findings without unambiguous evidence as `🔍 UNVERIFIED` rather than `❌ FAIL`.
+  Mark checks whose mechanism is absent in the runtime as `N/A`.
 
 ## Severity Guide
 
-| Severity | Критерий назначения |
+| Severity | Assignment criterion |
 |----------|---------------------|
-| 🔴 Critical | RCE, auth bypass, data corruption, необратимый финансовый риск |
-| 🟠 High | Падение production, privilege escalation, утечка данных |
-| 🟡 Medium | Деградация производительности или поддерживаемости без immediate outage |
-| 🟢 Low | Стиль, читаемость, слабое нарушение конвенции |
+| 🔴 Critical | RCE, auth bypass, data corruption, irreversible financial risk |
+| 🟠 High | production outage, privilege escalation, data leak |
+| 🟡 Medium | performance or maintainability degradation without an immediate outage |
+| 🟢 Low | style, readability, minor convention violation |
 
-Правило: severity = impact × exploitability × blast radius. Одинаковый паттерн → одинаковый severity между аудитами.
+Rule: severity = impact × exploitability × blast radius. The same pattern → the same severity across audits.
 
-## Чеклист
+## Checklist
 
-| Check ID | Проверка |
+| Check ID | Check |
 |----------|----------|
-| VAL-01 | Все входящие данные (body, params, query) проходят schema-валидацию |
-| VAL-02 | Строки имеют maxLength, числа — диапазон, enum-значения — whitelist |
-| VAL-03 | Парсинг недоверенного ввода обрабатывает ошибки и валидирует структуру результата |
-| VAL-04 | Identity данные берутся из аутентифицированного контекста (не из user input) |
-| VAL-05 | Вложенные структуры и массивы ограничены (глубина, minItems/maxItems) |
-| VAL-06 | Валидатор не выполняет неявный coercion (строка "false" → boolean true) [⚡ dynamic] |
-| VAL-07 | Prototype pollution: merge/assign с user input фильтрует `__proto__`, `constructor`, `prototype` |
-| VAL-08 | Загрузка файлов: MIME тип проверяется по содержимому, имя файла санитизировано, размер ограничен |
+| VAL-01 | All incoming data (body, params, query) passes schema validation |
+| VAL-02 | Strings have a maxLength, numbers have a range, enum values use a whitelist |
+| VAL-03 | Parsing untrusted input handles errors and validates the structure of the result |
+| VAL-04 | Identity data is taken from the authenticated context (not from user input) |
+| VAL-05 | Nested structures and arrays are bounded (depth, minItems/maxItems) |
+| VAL-06 | The validator does not perform implicit coercion (string "false" → boolean true) [⚡ dynamic] |
+| VAL-07 | Prototype pollution: merge/assign with user input filters out `__proto__`, `constructor`, `prototype` |
+| VAL-08 | File uploads: the MIME type is checked by content, the filename is sanitized, the size is limited |
 
-## Правила верификации
+## Verification Rules
 
-1. **Только чеклист**: оценивай ТОЛЬКО проверки выше. Не добавляй новые.
-2. **Явная верификация = PASS**: ставь `✅ PASS` только если явно проверил механизм (нашёл схему, конфиг, guard) и подтвердил отсутствие нарушения — укажи что именно проверено.
-3. **Нет доказательства = UNVERIFIED**: не можешь указать `файл:строка` ни для нарушения, ни для подтверждения — ставь `🔍 UNVERIFIED`.
-   - Проверки с `[⚡ dynamic]` нельзя статически подтвердить — только `🔍 UNVERIFIED` или `❌ FAIL` (при явном evidence), но не `✅ PASS`
-4. **Baseline приоритетен**: check_id есть в `docs/audit-baseline.yml` → `⏸ ACCEPTED`.
-5. **Только 🔴/🟠 FAIL требуют решения**: 🟡/🟢 — решение необязательно.
+1. **Checklist only**: evaluate ONLY the checks above. Do not add new ones.
+2. **Explicit verification = PASS**: assign `✅ PASS` only if you explicitly verified the mechanism (found the schema, config, guard) and confirmed there is no violation — state exactly what was checked.
+3. **No evidence = UNVERIFIED**: if you cannot point to a `file:line` for either a violation or a confirmation, assign `🔍 UNVERIFIED`.
+   - Checks marked `[⚡ dynamic]` cannot be confirmed statically — only `🔍 UNVERIFIED` or `❌ FAIL` (with explicit evidence), never `✅ PASS`
+4. **Baseline takes priority**: if the check_id is in `docs/audit-baseline.yml` → `⏸ ACCEPTED`.
+5. **Only 🔴/🟠 FAILs require a solution**: 🟡/🟢 — a solution is optional.
 
 ## Evidence Quality Rules
 
-Любой `❌ FAIL` обязан содержать:
-- Точный `file:line`
-- Минимальный код-фрагмент (1–3 строки)
-- Causal chain: почему именно это нарушение → какой риск возникает
+Every `❌ FAIL` must include:
+- An exact `file:line`
+- A minimal code snippet (1–3 lines)
+- Causal chain: why this specific violation → what risk it creates
 
-Запрещено:
-- Предполагать runtime behavior без evidence в коде
-- Предполагать prod-конфигурацию по dev-конфигу
-- Предполагать отсутствие middleware без проверки всей router chain
-- Если вывод основан на предположении — только `🔍 UNVERIFIED`
+Not allowed:
+- Assuming runtime behavior without evidence in the code
+- Inferring the prod configuration from the dev configuration
+- Assuming middleware is absent without checking the entire router chain
+- If a conclusion rests on an assumption — only `🔍 UNVERIFIED`
 
 ## Language Rule
 
-Результаты аудита должны быть написаны простым и понятным языком. Избегай сложных терминов, жаргона и абстрактных понятий без необходимости. Общепринятые технические термины (Docker, HTTP, API, JSON, URL) допустимы. Описывай проблемы так, чтобы они были понятны разработчику любого уровня, а не только узкому специалисту в данной области.
+Audit results must be written in plain, clear language. Avoid complex terms, jargon, and abstract concepts unless necessary. Common technical terms (Docker, HTTP, API, JSON, URL) are fine. Describe problems so they are understandable to a developer of any level, not only a narrow specialist in the area.
 
 ## Baseline
 
-До анализа:
+Before analysis:
 ```bash
 if [ ! -f ./docs/audit-baseline.yml ]; then
   mkdir -p ./docs
@@ -104,103 +104,103 @@ fi
 cat ./docs/audit-baseline.yml
 ```
 
-## Контекст анализа
+## Analysis Context
 
-**VAL-01 — Все входящие данные проходят schema-валидацию:**
-- HTTP request body используется напрямую без schema-валидации (Node: zod/joi/yup/etc; Go: проверка в resolver/handler — go-playground/validator или ручная проверка; gqlgen типизирует вход на уровне схемы, но прикладные инварианты всё равно проверяй)
-- Query params / path params используются без типизации и проверки
-- Отсутствие проверки обязательных полей
-- Нет валидации типов (строка может прийти вместо числа)
-- WebSocket, CLI args, event payloads без валидации входных данных
+**VAL-01 — All incoming data passes schema validation:**
+- The HTTP request body is used directly without schema validation (Node: zod/joi/yup/etc; Go: validation in the resolver/handler — go-playground/validator or manual checks; gqlgen types the input at the schema level, but application invariants must still be checked)
+- Query params / path params are used without typing and validation
+- No check for required fields
+- No type validation (a string may arrive instead of a number)
+- WebSocket, CLI args, event payloads without input validation
 
-**VAL-02 — Строки, числа, enum ограничены:**
-- Отсутствие maxLength для строк (DoS через огромную строку)
-- Нет проверки диапазонов чисел (отрицательные ID, огромные offset, NaN)
-- Отсутствие whitelist для enum-полей (принимается любое строковое значение)
-- Нет проверки формата (email, UUID, дата) там где она применима
+**VAL-02 — Strings, numbers, enums are bounded:**
+- No maxLength for strings (DoS via a huge string)
+- No range checks for numbers (negative IDs, huge offsets, NaN)
+- No whitelist for enum fields (any string value is accepted)
+- No format check (email, UUID, date) where applicable
 
-**VAL-03 — Парсинг недоверенного ввода с защитой:**
-- Node: `JSON.parse` без try/catch — выбросит SyntaxError при невалидном input
-- Go: `json.Unmarshal` / парсинг без проверки возвращаемой ошибки (err проигнорирован)
-- Парсинг без последующей валидации структуры (тип полей не проверен)
-- Доверие структуре распарсенного результата без schema-проверки
+**VAL-03 — Parsing untrusted input with protection:**
+- Node: `JSON.parse` without try/catch — throws a SyntaxError on invalid input
+- Go: `json.Unmarshal` / parsing without checking the returned error (err ignored)
+- Parsing without subsequent structure validation (field types not checked)
+- Trusting the structure of the parsed result without a schema check
 
-**VAL-04 — Identity из аутентифицированного контекста:**
-- JWT claims используются без верификации подписи
-- User ID берётся из тела запроса вместо `req.user` / аутентифицированного контекста
-- Данные о ролях/правах берутся из user-controlled input
-- Массовое присваивание: объект из body напрямую сохраняется в БД без whitelist полей
+**VAL-04 — Identity from the authenticated context:**
+- JWT claims used without signature verification
+- The user ID is taken from the request body instead of `req.user` / the authenticated context
+- Role/permission data is taken from user-controlled input
+- Mass assignment: an object from the body is saved directly to the DB without a field whitelist
 
-**Вложенность и коллекции:**
-- Рекурсивные/глубоко вложенные схемы без ограничения глубины → ReDoS / stack overflow
-- Массивы без maxItems → неограниченный рост payload
-- Вложенные объекты без maxProperties
+**Nesting and collections:**
+- Recursive / deeply nested schemas without a depth limit → ReDoS / stack overflow
+- Arrays without maxItems → unbounded payload growth
+- Nested objects without maxProperties
 
 **Coercion:**
-- Zod: `.coerce.boolean()` принимает строку "false" как true
-- Joi: без `.options({ convert: false })` неявно кастует типы
-- express-validator: без explicit type checks принимает "1" как число 1
+- Zod: `.coerce.boolean()` accepts the string "false" as true
+- Joi: without `.options({ convert: false })` it implicitly casts types
+- express-validator: without explicit type checks it accepts "1" as the number 1
 
 **VAL-07 — Prototype pollution:**
-- Преимущественно JS-специфично (`__proto__`/`constructor`/`prototype`). В Go prototype pollution неприменим (нет прототипной модели объектов) → для Go-рантайма помечай VAL-07 как `N/A`. Концепт ниже актуален для Node:
-- `Object.assign(target, userInput)` без проверки — ключ `__proto__` загрязняет Object.prototype
-- `_.merge(obj, userInput)` в lodash < 4.17.21 — уязвим к prototype pollution
-- Deep merge из user input без sanitize ключей (`constructor`, `prototype`, `__proto__`)
-- Последствие: `({}).isAdmin === true` для всех объектов после атаки
+- Mostly JS-specific (`__proto__`/`constructor`/`prototype`). In Go prototype pollution does not apply (there is no prototype-based object model) → for the Go runtime mark VAL-07 as `N/A`. The concept below is relevant for Node:
+- `Object.assign(target, userInput)` without a check — the `__proto__` key pollutes Object.prototype
+- `_.merge(obj, userInput)` in lodash < 4.17.21 — vulnerable to prototype pollution
+- Deep merge from user input without sanitizing keys (`constructor`, `prototype`, `__proto__`)
+- Consequence: `({}).isAdmin === true` for all objects after the attack
 
-**VAL-08 — Безопасная загрузка файлов:**
-- Проверка типа только через `file.mimetype` — значение подставлено клиентом, не верифицировано
-- `path.join(uploadDir, file.originalname)` — `originalname` может содержать path traversal (`../../../etc/passwd`)
-- Нет ограничения `maxFileSize` — DoS через огромный файл
-- Разрешённые расширения не ограничены — возможна загрузка исполняемых файлов (.sh, .exe, .php)
+**VAL-08 — Secure file uploads:**
+- Type check only via `file.mimetype` — the value is supplied by the client, not verified
+- `path.join(uploadDir, file.originalname)` — `originalname` may contain path traversal (`../../../etc/passwd`)
+- No `maxFileSize` limit — DoS via a huge file
+- Allowed extensions are not restricted — executable files (.sh, .exe, .php) can be uploaded
 
-## Граница с другими аудитами
+## Boundary With Other Audits
 
-- **Validation** — этот скилл первичный. `audit-owasp` и `audit-bugs` ссылаются сюда при находках типа "missing input check".
-- **User ID из auth контекста** — VAL-04 первичный. `audit-owasp` (IDOR) — вторичный.
+- **Validation** — this skill is primary. `audit-owasp` and `audit-bugs` defer here for findings like "missing input check".
+- **User ID from the auth context** — VAL-04 is primary. `audit-owasp` (IDOR) is secondary.
 
-## Формат вывода
+## Output Format
 
-| Check ID | Проверка | Статус | Уверенность | Доказательство | Решение | Исправлено |
+| Check ID | Check | Status | Confidence | Evidence | Solution | Fixed |
 |----------|----------|--------|-------------|----------------|---------|------------|
-| VAL-01 | Все входящие данные (body, params, query) проходят schema-валидацию | ✅ PASS | High | `handlers/` — все routes используют zod-схемы | — | — |
-| VAL-02 | Строки имеют maxLength, числа — диапазон, enum-значения — whitelist | ❌ FAIL 🟠 | High | `handlers/user.ts:22` | **1. Добавить maxLength в zod-схему** \\ 2. Ручная проверка длины в handler \\ 3. Ограничение на уровне БД | Нет |
-| VAL-04 | Identity данные берутся из аутентифицированного контекста (не из user input) | ⏸ ACCEPTED | Medium | `routes/order.ts:9` | В baseline: legacy endpoint, запланирован рефактор | — |
+| VAL-01 | All incoming data (body, params, query) passes schema validation | ✅ PASS | High | `handlers/` — all routes use zod schemas | — | — |
+| VAL-02 | Strings have a maxLength, numbers have a range, enum values use a whitelist | ❌ FAIL 🟠 | High | `handlers/user.ts:22` | **1. Add maxLength to the zod schema** \\ 2. Manual length check in the handler \\ 3. Constraint at the DB level | No |
+| VAL-04 | Identity data is taken from the authenticated context (not from user input) | ⏸ ACCEPTED | Medium | `routes/order.ts:9` | In baseline: legacy endpoint, refactor planned | — |
 
-Статусы: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED` / `🔍 UNVERIFIED`
+Statuses: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED` / `🔍 UNVERIFIED`
 
-Уверенность: `High` — проверил несколько ключевых файлов, паттерн очевиден / `Medium` — проверил выборочно, паттерн вероятен / `Low` — ограниченный контекст, полная уверенность невозможна
+Confidence: `High` — checked several key files, the pattern is obvious / `Medium` — checked selectively, the pattern is likely / `Low` — limited context, full certainty is impossible
 
-Для `❌ FAIL`: ровно 3 варианта решения, разделитель `\\`, вариант 1 жирным.
+For `❌ FAIL`: exactly 3 solution options, separated by `\\`, with option 1 in bold.
 
-`Исправлено`: FAIL → `Нет` (разработчик меняет на `✅ Да` вручную после фикса). PASS / ACCEPTED / UNVERIFIED → `—`.
+`Fixed`: FAIL → `No` (the developer changes it to `✅ Yes` manually after the fix). PASS / ACCEPTED / UNVERIFIED → `—`.
 
-Требования к решениям:
-- Взаимно исключающие (не перефразировки одного и того же)
-- Соответствуют текущему стеку проекта (не предлагать смену фреймворка)
-- Не требуют переписать всю систему — realistic migration cost
-- Вариант 3 может быть «оставить, задокументировать причину» при наличии обоснования
+Solution requirements:
+- Mutually exclusive (not rephrasings of the same thing)
+- Match the project's current stack (do not propose switching frameworks)
+- Do not require rewriting the whole system — realistic migration cost
+- Option 3 may be "keep it, document the reason" if there is justification
 
-В конце отчёта добавь раздел покрытия:
+At the end of the report, add a coverage section:
 ```
 ## Audit Coverage
-Проверено: src/module1/**, src/module2/**
-Пропущено: scripts/**, migrations/**, tests/**
-Файлов проверено: N | Пропущено: N
+Checked: src/module1/**, src/module2/**
+Skipped: scripts/**, migrations/**, tests/**
+Files checked: N | Skipped: N
 ```
 
-Если все PASS — выведи: `✅ Валидация граничных данных реализована корректно.`
+If everything is PASS, output: `✅ Boundary data validation is implemented correctly.`
 
-## Сохранение результатов
+## Saving Results
 
-1. Найди папку сессии:
+1. Find the session folder:
    ```bash
    ls -dt ./docs/audits/[0-9]*/ 2>/dev/null | head -1 | sed 's|/$||'
    ```
-   Если пусто — создай: `mkdir -p ./docs/audits/$(date +"%Y-%m-%d_%H-%M")`
-2. Сохрани через Write: `<AUDIT_DIR>/audit-validation.md`
+   If empty, create it: `mkdir -p ./docs/audits/$(date +"%Y-%m-%d_%H-%M")`
+2. Save via Write: `<AUDIT_DIR>/audit-validation.md`
 
 ```
 # Audit Report: Boundary Data Validation — <YYYY-MM-DD HH:MM>
-<таблица>
+<table>
 ```

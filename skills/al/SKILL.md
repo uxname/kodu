@@ -1,98 +1,98 @@
 ---
 name: al
-description: "Загружает рабочий контекст из .agent-log/ и git log в начале сессии."
+description: "Loads working context from .agent-log/ and the git log at the start of a session."
 compatibility: opencode
 metadata:
   level: single
   output: context summary
 ---
 
-# Что делает этот скилл
+# What this skill does
 
-Даёт агенту актуальный рабочий контекст перед началом работы:
-- что делаем прямо сейчас (из `status.md`)
-- что уже было сделано (из `git log`)
-- какие архитектурные решения приняты (из `decisions/`)
+Gives the agent up-to-date working context before starting work:
+- what we're doing right now (from `status.md`)
+- what has already been done (from `git log`)
+- which architectural decisions have been made (from `decisions/`)
 
-Запускается **автоматически** в начале каждой сессии. Пользователь может вызвать вручную: `/al`.
+Runs **automatically** at the start of every session. The user can invoke it manually: `/al`.
 
 ---
 
-# Шаги
+# Steps
 
-**Шаг 1 — Проверить базу знаний**
+**Step 1 — Check the knowledge base**
 
 ```bash
 ls .agent-log/
 ```
 
-> ⚠️ Никогда не использовать инструмент `read` для директории — вернёт "File not found". Всегда через `bash`.
+> ⚠️ Never use the `read` tool on a directory — it will return "File not found". Always go through `bash`.
 
-- Директория есть → перейти к шагу 2
-- Директории нет → сообщить: _"AKMS не инициализирован. Запустить `akms init`?"_ — остановиться
-
----
-
-**Шаг 2 — Прочитать текущий фокус**
-
-Прочитать `.agent-log/status.md` целиком — файл всегда короткий.
-
-Запомнить:
-- `current_goal` из frontmatter — глобальная цель проекта
-- первый незакрытый пункт `- [ ]` из раздела "Текущий фокус"
-
-Если `status.md` не существует → пропустить, продолжить без фокуса.
+- Directory exists → go to step 2
+- Directory missing → report: _"AKMS is not initialized. Run `akms init`?"_ — stop
 
 ---
 
-**Шаг 3 — Загрузить активные решения**
+**Step 2 — Read the current focus**
+
+Read `.agent-log/status.md` in full — the file is always short.
+
+Remember:
+- `current_goal` from the frontmatter — the project's overall goal
+- the first open `- [ ]` item from the "Current focus" section
+
+If `status.md` does not exist → skip, continue without a focus.
+
+---
+
+**Step 3 — Load active decisions**
 
 ```bash
 glob: .agent-log/decisions/**/*.md
 ```
 
-Для каждого читать **только первые 15 строк** — frontmatter достаточно.
+For each, read **only the first 15 lines** — the frontmatter is enough.
 
-Оставить только: `status: active` или `status: needs_review`. Максимум **7 записей**.
+Keep only: `status: active` or `status: needs_review`. Maximum **7 entries**.
 
-Если решений нет → пропустить.
+If there are no decisions → skip.
 
 ---
 
-**Шаг 4 — Прочитать историю из Git**
+**Step 4 — Read history from Git**
 
 ```bash
 git log -n 5 --pretty=format:"* %h — %s (%ar)"
 ```
 
-Последние 5 коммитов в одну строку каждый. Быстро, не читает файловую систему.
+The last 5 commits, one line each. Fast, doesn't touch the filesystem.
 
-Если git не инициализирован или репозиторий пустой → пропустить.
+If git is not initialized or the repository is empty → skip.
 
 ---
 
-**Шаг 5 — Вывести контекст пользователю**
+**Step 5 — Print the context to the user**
 
 ```
-📚 AKMS контекст загружен
-Текущая цель: [current_goal из status.md / "не задана"]
-Активная задача: [первый - [ ] пункт / "нет открытых задач"]
-Последние коммиты:
+📚 AKMS context loaded
+Current goal: [current_goal from status.md / "not set"]
+Active task: [first - [ ] item / "no open tasks"]
+Recent commits:
   * a1b2c3d — feat(auth): add redis support (2 hours ago)
   * ...
-Активные решения: [DEC-0001: заголовок, ...] / нет
+Active decisions: [DEC-0001: title, ...] / none
 
-Работаем.
+Let's get to work.
 ```
 
-После вывода — сразу переходить к задаче пользователя.
+After printing — go straight to the user's task.
 
 ---
 
-# Правила
+# Rules
 
-- **status.md читать целиком** — он специально короткий, это не расточительство
-- **decisions** — только первые 15 строк (frontmatter), тело не нужно
-- **git log вместо файлов коммитов** — быстрее и всегда актуально
-- **Директорию проверять через `bash ls`** — не через `read`
-- **Не задавать вопросов** — только читать, ничего не менять
+- **Read status.md in full** — it's deliberately short, this is not wasteful
+- **decisions** — only the first 15 lines (frontmatter), the body isn't needed
+- **git log instead of commit files** — faster and always current
+- **Check the directory via `bash ls`** — not via `read`
+- **Don't ask questions** — only read, change nothing

@@ -16,7 +16,7 @@ import (
 func newOpsCommand(app *App) *cobra.Command {
 	ops := &cobra.Command{
 		Use:   "ops",
-		Short: "Работа с проектами и стендами (local/dev/stage/prod) из любого места",
+		Short: "Manage projects and stands (local/dev/stage/prod) from anywhere",
 	}
 	ops.AddCommand(
 		newOpsInitCommand(app),
@@ -30,7 +30,7 @@ func newOpsCommand(app *App) *cobra.Command {
 	return ops
 }
 
-// completeProjectNames предлагает имена проектов из реестра для автодополнения.
+// completeProjectNames offers project names from the registry for shell completion.
 func completeProjectNames(toComplete string) ([]string, cobra.ShellCompDirective) {
 	projects, err := registry.New().List()
 	if err != nil {
@@ -46,7 +46,7 @@ func completeProjectNames(toComplete string) ([]string, cobra.ShellCompDirective
 	return names, cobra.ShellCompDirectiveNoFileComp
 }
 
-// completeFirstArgProjects дополняет имя проекта только для первого аргумента.
+// completeFirstArgProjects completes the project name only for the first argument.
 func completeFirstArgProjects(_ *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	if len(args) != 0 {
 		return nil, cobra.ShellCompDirectiveNoFileComp
@@ -54,14 +54,14 @@ func completeFirstArgProjects(_ *cobra.Command, args []string, toComplete string
 	return completeProjectNames(toComplete)
 }
 
-// resolveProjectRoot возвращает путь репозитория проекта по имени.
+// resolveProjectRoot returns the project's repository path by name.
 func resolveProjectRoot(reg *registry.Service, name string) (string, error) {
 	entry, ok, err := reg.Get(name)
 	if err != nil {
 		return "", err
 	}
 	if !ok {
-		return "", fmt.Errorf("Проект %q не найден в реестре. Список проектов: kodu ops list", name)
+		return "", fmt.Errorf("project %q not found in the registry. List projects: kodu ops list", name)
 	}
 	return entry.Path, nil
 }
@@ -78,7 +78,7 @@ func newOpsInitCommand(app *App) *cobra.Command {
 	var stand []string
 	cmd := &cobra.Command{
 		Use:   "init",
-		Short: "Настроить стенды в текущем проекте: создать .runbook/, .gitignore и зарегистрировать проект",
+		Short: "Set up stands in the current project: create .runbook/, .gitignore and register the project",
 		RunE: func(_ *cobra.Command, _ []string) error {
 			cwd, _ := os.Getwd()
 			reg, rb := registry.New(), runbook.New()
@@ -102,9 +102,9 @@ func newOpsInitCommand(app *App) *cobra.Command {
 			if err := rb.Scaffold(projectName, stands, activeStand, cwd); err != nil {
 				fail(app, err.Error())
 			}
-			app.UI.Success(fmt.Sprintf("Создан .runbook/ для проекта %q.", projectName))
-			app.UI.Info("Активный стенд: " + activeStand)
-			app.UI.Info("Заполни шаги деплоя в " + rb.RunbookPath(cwd))
+			app.UI.Success(fmt.Sprintf("Created .runbook/ for project %q.", projectName))
+			app.UI.Info("Active stand: " + activeStand)
+			app.UI.Info("Fill in the deploy steps in " + rb.RunbookPath(cwd))
 
 			res, err := rb.EnsureGitignore(cwd)
 			if err != nil {
@@ -116,22 +116,22 @@ func newOpsInitCommand(app *App) *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().StringVarP(&name, "name", "n", "", "Уникальное имя проекта (по умолчанию — имя папки)")
-	cmd.Flags().StringVarP(&active, "active", "a", "", "Активный стенд по умолчанию (по умолчанию local)")
-	cmd.Flags().StringArrayVarP(&stand, "stand", "s", nil, "Стенд проекта (можно повторять)")
+	cmd.Flags().StringVarP(&name, "name", "n", "", "Unique project name (defaults to the folder name)")
+	cmd.Flags().StringVarP(&active, "active", "a", "", "Default active stand (defaults to local)")
+	cmd.Flags().StringArrayVarP(&stand, "stand", "s", nil, "Project stand (repeatable)")
 	return cmd
 }
 
 func reportGitignore(app *App, res runbook.GitignoreResult) {
 	switch res {
 	case runbook.GitignoreCreated:
-		app.UI.Success("Создан .gitignore с записью /.runbook/")
+		app.UI.Success("Created .gitignore with a /.runbook/ entry")
 	case runbook.GitignoreAdded:
-		app.UI.Success("Добавил /.runbook/ в .gitignore")
+		app.UI.Success("Added /.runbook/ to .gitignore")
 	case runbook.GitignorePresent:
-		app.UI.Info("/.runbook/ уже в .gitignore")
+		app.UI.Info("/.runbook/ already in .gitignore")
 	case runbook.GitignoreNoGit:
-		app.UI.Warn("Это не git-репозиторий — .gitignore не настроен. Не коммить .runbook/ вручную.")
+		app.UI.Warn("This is not a git repository — .gitignore was not configured. Don't commit .runbook/ manually.")
 	}
 }
 
@@ -144,14 +144,14 @@ func registerProject(app *App, reg *registry.Service, name, root string, stands 
 		if err := reg.Add(name, registry.ProjectEntry{Path: root, Stands: stands}, false); err != nil {
 			fail(app, err.Error())
 		}
-		app.UI.Success(fmt.Sprintf("Проект %q добавлен в реестр.", name))
+		app.UI.Success(fmt.Sprintf("Project %q added to the registry.", name))
 		return
 	}
 	if existing.Path == root {
-		app.UI.Info(fmt.Sprintf("Проект %q уже в реестре.", name))
+		app.UI.Info(fmt.Sprintf("Project %q is already in the registry.", name))
 		return
 	}
-	app.UI.Warn(fmt.Sprintf("Имя %q уже занято другим путём (%s). Запусти заново с другим именем: kodu ops init --name <другое-имя>", name, existing.Path))
+	app.UI.Warn(fmt.Sprintf("Name %q is already taken by a different path (%s). Re-run with a different name: kodu ops init --name <other-name>", name, existing.Path))
 }
 
 // --- ops list ---
@@ -160,7 +160,7 @@ func newOpsListCommand(app *App) *cobra.Command {
 	return &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"ls"},
-		Short:   "Показать все проекты из реестра и их активные стенды",
+		Short:   "List all projects in the registry and their active stands",
 		RunE: func(_ *cobra.Command, _ []string) error {
 			reg, rb := registry.New(), runbook.New()
 			projects, err := reg.List()
@@ -174,19 +174,19 @@ func newOpsListCommand(app *App) *cobra.Command {
 			sortx.LocaleStrings(names)
 
 			if len(names) == 0 {
-				app.UI.Info("Реестр пуст. Добавь проект: kodu ops add <name> --path <dir>")
-				app.UI.Info("Файл реестра: " + reg.FilePath())
+				app.UI.Info("The registry is empty. Add a project: kodu ops add <name> --path <dir>")
+				app.UI.Info("Registry file: " + reg.FilePath())
 				return nil
 			}
 			for _, n := range names {
 				entry := projects[n]
 				label := ""
 				if active := readActiveStand(rb, entry.Path); active != "" {
-					label = " [активный: " + active + "]"
+					label = " [active: " + active + "]"
 				}
 				app.UI.Info(n + label)
-				app.UI.Info("  путь:   " + entry.Path)
-				app.UI.Info("  стенды: " + strings.Join(entry.Stands, ", "))
+				app.UI.Info("  path:   " + entry.Path)
+				app.UI.Info("  stands: " + strings.Join(entry.Stands, ", "))
 			}
 			return nil
 		},
@@ -211,10 +211,10 @@ func newOpsAddCommand(app *App) *cobra.Command {
 	var stand []string
 	cmd := &cobra.Command{
 		Use:   "add <name>",
-		Short: "Зарегистрировать проект в глобальном реестре по уникальному имени",
+		Short: "Register a project in the global registry under a unique name",
 		RunE: func(_ *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				fail(app, "Укажи имя проекта: kodu ops add <name> [--path <dir>]")
+				fail(app, "Specify a project name: kodu ops add <name> [--path <dir>]")
 			}
 			name := args[0]
 			reg := registry.New()
@@ -231,15 +231,15 @@ func newOpsAddCommand(app *App) *cobra.Command {
 			if err := reg.Add(name, registry.ProjectEntry{Path: projectPath, Repo: repo, Stands: stands}, false); err != nil {
 				fail(app, err.Error())
 			}
-			app.UI.Success(fmt.Sprintf("Проект %q добавлен в реестр.", name))
-			app.UI.Info("Путь: " + projectPath)
-			app.UI.Info("Стенды: " + strings.Join(stands, ", "))
+			app.UI.Success(fmt.Sprintf("Project %q added to the registry.", name))
+			app.UI.Info("Path: " + projectPath)
+			app.UI.Info("Stands: " + strings.Join(stands, ", "))
 			return nil
 		},
 	}
-	cmd.Flags().StringVarP(&path, "path", "p", "", "Путь к репозиторию (по умолчанию текущая директория)")
-	cmd.Flags().StringVarP(&repo, "repo", "r", "", "URL репозитория (git clone)")
-	cmd.Flags().StringArrayVarP(&stand, "stand", "s", nil, "Стенд проекта (можно повторять)")
+	cmd.Flags().StringVarP(&path, "path", "p", "", "Path to the repository (defaults to the current directory)")
+	cmd.Flags().StringVarP(&repo, "repo", "r", "", "Repository URL (git clone)")
+	cmd.Flags().StringArrayVarP(&stand, "stand", "s", nil, "Project stand (repeatable)")
 	return cmd
 }
 
@@ -248,7 +248,7 @@ func newOpsAddCommand(app *App) *cobra.Command {
 func newOpsStatusCommand(app *App) *cobra.Command {
 	return &cobra.Command{
 		Use:               "status [name]",
-		Short:             "Показать активный стенд и стенды проекта (по имени или в текущей папке)",
+		Short:             "Show the active stand and the project's stands (by name or in the current folder)",
 		ValidArgsFunction: completeFirstArgProjects,
 		RunE: func(_ *cobra.Command, args []string) error {
 			reg, rb := registry.New(), runbook.New()
@@ -261,17 +261,17 @@ func newOpsStatusCommand(app *App) *cobra.Command {
 				root = r
 			}
 			if !rb.Exists(root) {
-				app.UI.Warn(fmt.Sprintf("В %s нет .runbook/. Инициализируй проект: kodu ops init", root))
+				app.UI.Warn(fmt.Sprintf("%s has no .runbook/. Initialize the project: kodu ops init", root))
 				os.Exit(1)
 			}
 			cfg, err := rb.ReadConfig(root)
 			if err != nil {
 				fail(app, err.Error())
 			}
-			app.UI.Info("Проект:        " + cfg.Project)
-			app.UI.Info("Активный стенд: " + cfg.ActiveStand)
-			app.UI.Info("Стенды:        " + strings.Join(cfg.Stands, ", "))
-			app.UI.Info("Путь:          " + root)
+			app.UI.Info("Project:      " + cfg.Project)
+			app.UI.Info("Active stand: " + cfg.ActiveStand)
+			app.UI.Info("Stands:       " + strings.Join(cfg.Stands, ", "))
+			app.UI.Info("Path:         " + root)
 			return nil
 		},
 	}
@@ -283,7 +283,7 @@ func newOpsUseCommand(app *App) *cobra.Command {
 	return &cobra.Command{
 		Use:               "use <args...>",
 		Aliases:           []string{"switch"},
-		Short:             "Переключить активный стенд: kodu ops use <stand> или kodu ops use <name> <stand>",
+		Short:             "Switch the active stand: kodu ops use <stand> or kodu ops use <name> <stand>",
 		ValidArgsFunction: completeFirstArgProjects,
 		RunE: func(_ *cobra.Command, args []string) error {
 			reg, rb := registry.New(), runbook.New()
@@ -300,10 +300,10 @@ func newOpsUseCommand(app *App) *cobra.Command {
 			}
 
 			if stand == "" {
-				fail(app, "Укажи стенд: kodu ops use <stand> или kodu ops use <name> <stand>")
+				fail(app, "Specify a stand: kodu ops use <stand> or kodu ops use <name> <stand>")
 			}
 			if !rb.Exists(root) {
-				app.UI.Warn(fmt.Sprintf("В %s нет .runbook/. Инициализируй проект: kodu ops init", root))
+				app.UI.Warn(fmt.Sprintf("%s has no .runbook/. Initialize the project: kodu ops init", root))
 				os.Exit(1)
 			}
 			cfg, err := rb.ReadConfig(root)
@@ -312,13 +312,13 @@ func newOpsUseCommand(app *App) *cobra.Command {
 			}
 			if !contains(cfg.Stands, stand) {
 				cfg.Stands = append(cfg.Stands, stand)
-				app.UI.Info(fmt.Sprintf("Стенд %q добавлен в список стендов проекта.", stand))
+				app.UI.Info(fmt.Sprintf("Stand %q added to the project's list of stands.", stand))
 			}
 			cfg.ActiveStand = stand
 			if err := rb.WriteConfig(cfg, root); err != nil {
 				fail(app, err.Error())
 			}
-			app.UI.Success(fmt.Sprintf("Активный стенд проекта %q → %s", cfg.Project, stand))
+			app.UI.Success(fmt.Sprintf("Active stand for project %q → %s", cfg.Project, stand))
 			return nil
 		},
 	}
@@ -329,18 +329,18 @@ func newOpsUseCommand(app *App) *cobra.Command {
 func newOpsPathCommand(app *App) *cobra.Command {
 	return &cobra.Command{
 		Use:               "path <name>",
-		Short:             "Напечатать путь к репозиторию проекта (удобно для cd $(kodu ops path <name>))",
+		Short:             "Print the project's repository path (handy for cd $(kodu ops path <name>))",
 		ValidArgsFunction: completeFirstArgProjects,
 		RunE: func(_ *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				fail(app, "Укажи имя проекта: kodu ops path <name>")
+				fail(app, "Specify a project name: kodu ops path <name>")
 			}
 			reg := registry.New()
 			root, err := resolveProjectRoot(reg, args[0])
 			if err != nil {
 				fail(app, err.Error())
 			}
-			app.UI.Println(root) // чистый stdout для подстановки команд
+			app.UI.Println(root) // clean stdout for command substitution
 			return nil
 		},
 	}
@@ -351,11 +351,11 @@ func newOpsPathCommand(app *App) *cobra.Command {
 func newOpsRunbookCommand(app *App) *cobra.Command {
 	return &cobra.Command{
 		Use:               "runbook <name> [stand]",
-		Short:             "Напечатать runbook проекта (или секцию конкретного стенда)",
+		Short:             "Print the project's runbook (or a specific stand's section)",
 		ValidArgsFunction: completeFirstArgProjects,
 		RunE: func(_ *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				fail(app, "Укажи имя проекта: kodu ops runbook <name> [stand]")
+				fail(app, "Specify a project name: kodu ops runbook <name> [stand]")
 			}
 			name := args[0]
 			var stand string
@@ -368,7 +368,7 @@ func newOpsRunbookCommand(app *App) *cobra.Command {
 				fail(app, err.Error())
 			}
 			if !rb.Exists(root) {
-				app.UI.Warn(fmt.Sprintf("В проекте %q нет .runbook/. Запусти: kodu ops init", name))
+				app.UI.Warn(fmt.Sprintf("Project %q has no .runbook/. Run: kodu ops init", name))
 				os.Exit(1)
 			}
 			md, err := rb.ReadRunbook(root)
@@ -379,7 +379,7 @@ func newOpsRunbookCommand(app *App) *cobra.Command {
 			if stand != "" {
 				output = extractStand(md, stand)
 				if output == "" {
-					app.UI.Warn(fmt.Sprintf("Секция для стенда %q не найдена в runbook.", stand))
+					app.UI.Warn(fmt.Sprintf("No section for stand %q found in the runbook.", stand))
 					os.Exit(1)
 				}
 			}
@@ -389,10 +389,10 @@ func newOpsRunbookCommand(app *App) *cobra.Command {
 	}
 }
 
-// extractStand возвращает блок `## Стенд: <stand> ...` до следующего `## `.
+// extractStand returns the `## Stand: <stand> ...` block up to the next `## `.
 func extractStand(md, stand string) string {
 	lines := strings.Split(md, "\n")
-	prefix := "## Стенд: " + stand
+	prefix := "## Stand: " + stand
 	start := -1
 	for i, line := range lines {
 		if strings.HasPrefix(line, prefix) {

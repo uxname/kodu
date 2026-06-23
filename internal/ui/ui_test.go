@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// Логи и данные должны идти в разные потоки: статус — в stderr, данные — в stdout.
+// Logs and data must go to separate streams: status to stderr, data to stdout.
 func TestStreamSeparation(t *testing.T) {
 	var out, errw bytes.Buffer
 	u := newWith(&out, &errw, Options{NoColor: true})
@@ -16,29 +16,29 @@ func TestStreamSeparation(t *testing.T) {
 	u.Success("done")
 
 	if got := out.String(); got != "data-line\n" {
-		t.Fatalf("stdout = %q, хотел только данные", got)
+		t.Fatalf("stdout = %q, wanted only data", got)
 	}
 	if errStr := errw.String(); !strings.Contains(errStr, "status-line") || !strings.Contains(errStr, "done") {
-		t.Fatalf("stderr = %q, хотел статус-сообщения", errStr)
+		t.Fatalf("stderr = %q, wanted status messages", errStr)
 	}
 	if strings.Contains(out.String(), "status-line") {
-		t.Fatalf("статус-сообщение протекло в stdout")
+		t.Fatalf("status message leaked into stdout")
 	}
 }
 
-// На не-TTY цвет отключается, а спиннер становится no-op.
+// On a non-TTY, color is disabled and the spinner becomes a no-op.
 func TestNoColorAndNoSpinnerOffTTY(t *testing.T) {
 	var out, errw bytes.Buffer
 	u := newWith(&out, &errw, Options{})
 	if u.color {
-		t.Fatal("цвет должен быть выключен на не-TTY writer")
+		t.Fatal("color must be disabled on a non-TTY writer")
 	}
 	sp := u.NewSpinner("work").Start()
 	if sp.s != nil {
-		t.Fatal("спиннер должен быть no-op на не-TTY")
+		t.Fatal("spinner must be a no-op on a non-TTY")
 	}
-	sp.Success("ok") // должно уйти в stderr как обычный статус
+	sp.Success("ok") // should go to stderr as a regular status
 	if !strings.Contains(errw.String(), "ok") {
-		t.Fatalf("ожидал фолбэк спиннера в stderr, получил %q", errw.String())
+		t.Fatalf("expected spinner fallback in stderr, got %q", errw.String())
 	}
 }

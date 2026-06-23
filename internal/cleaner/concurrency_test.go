@@ -5,13 +5,13 @@ import (
 	"testing"
 )
 
-// Воспроизводит сценарий pack --clean: много параллельных Clean.
-// tree-sitter через CGO может быть небезопасен при конкурентном парсинге —
-// этот тест ловит порчу результата.
+// Reproduces the pack --clean scenario: many concurrent Clean calls.
+// tree-sitter via CGO may be unsafe under concurrent parsing —
+// this test catches result corruption.
 func TestConcurrentCleanStable(t *testing.T) {
 	c := New([]string{"//!"})
 	const in = "export const B = () => <div>{/* jsx */}</div>; // tail\n"
-	want := c.Clean("b.tsx", in, true).Content // эталон single-thread
+	want := c.Clean("b.tsx", in, true).Content // single-thread reference
 
 	var wg sync.WaitGroup
 	errs := make(chan string, 200)
@@ -28,7 +28,7 @@ func TestConcurrentCleanStable(t *testing.T) {
 	wg.Wait()
 	close(errs)
 	if len(errs) > 0 {
-		t.Fatalf("конкурентная очистка нестабильна: %d расхождений, пример: %q (эталон %q)", len(errs), <-errs, want)
+		t.Fatalf("concurrent cleaning is unstable: %d discrepancies, example: %q (reference %q)", len(errs), <-errs, want)
 	}
-	t.Logf("эталон: %q", want)
+	t.Logf("reference: %q", want)
 }

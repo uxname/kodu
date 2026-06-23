@@ -1,23 +1,23 @@
 ---
 name: audit-yagni
 description: >
-  Аудит over-engineering и YAGNI: лишние абстракции, преждевременная оптимизация,
-  неиспользуемый код. Запускай при /audit-yagni или запросе найти переусложнения.
+  Audit of over-engineering and YAGNI: unnecessary abstractions, premature optimization,
+  unused code. Run on /audit-yagni or a request to find over-engineering.
 ---
 
-## Правило применимости (Relevance Rule)
+## Relevance Rule
 
-Применим к любому production-коду с классами, паттернами проектирования или абстракциями. Для простых скриптов-утилит без архитектуры — применяй только к явным over-engineering паттернам.
+Applicable to any production code with classes, design patterns, or abstractions. For simple utility scripts without architecture, apply only to clear over-engineering patterns.
 
 ## Runtime Detection & Stack Profile
 
-Этот аудит стек-агностичен: проверки сформулированы нейтрально, а конкретика
-(инструменты, идиомы, анти-паттерны, примеры) берётся из профиля стека.
+This audit is stack-agnostic: the checks are framed neutrally, and the specifics
+(tools, idioms, anti-patterns, examples) come from the stack profile.
 
-1. **Профиль передан контекстом?** Если оркестратор `/audit` передал
-   `runtime=<id>` и/или содержимое профиля — используй его, шаги 2–3 пропусти.
+1. **Profile passed in context?** If the `/audit` orchestrator passed
+   `runtime=<id>` and/or the profile contents, use it and skip steps 2–3.
 
-2. **Иначе определи РОВНО ОДИН рантайм** этого каталога:
+2. **Otherwise, detect EXACTLY ONE runtime** for this directory:
    ```bash
    if   [ -f package.json ]; then echo "runtime=node"
    elif [ -f go.mod ]; then echo "runtime=go"
@@ -26,71 +26,71 @@ description: >
    elif [ -f pom.xml ] || ls build.gradle* settings.gradle* >/dev/null 2>&1; then echo "runtime=java"
    else echo "runtime=generic"; fi
    ```
-   Один запуск = один рантайм; не миксуй backend и frontend. Если найдено
-   несколько маркеров (монорепо) — выбери соответствующий текущему scope/анализируемым
-   файлам и зафиксируй выбор в разделе Audit Coverage.
+   One run = one runtime; do not mix backend and frontend. If several markers
+   are found (monorepo), pick the one matching the current scope / files under
+   analysis and record the choice in the Audit Coverage section.
 
-3. **Загрузи профиль** через Read: `./skills/audit/stacks/<runtime>.md`
-   (fallback `./skills/audit/stacks/_generic.md`, если файл не найден).
+3. **Load the profile** via Read: `./skills/audit/stacks/<runtime>.md`
+   (fallback `./skills/audit/stacks/_generic.md` if the file is not found).
 
-Дальше используй профиль:
-- **Инструменты** — из секции «Tooling by category» профиля (раздел
-  «Инструментальная поддержка» ниже ссылается на категории, а не на команды).
-- **Ожидания PASS** — из «Idioms»; **формулировки FAIL** — из «Anti-patterns».
-- **Точечные подсказки** — из «Check-ID hints» по префиксу `YAGNI-`.
-- Если профиль `tier: general` или `runtime=generic` → стек-специфичные находки
-  без однозначного evidence помечай `🔍 UNVERIFIED`, а не `❌ FAIL`. Проверки,
-  чей механизм в рантайме отсутствует, помечай `N/A`.
+Then use the profile:
+- **Tools** — from the profile's "Tooling by category" section (the
+  "Tooling Support" section below references categories, not commands).
+- **PASS expectations** — from "Idioms"; **FAIL wording** — from "Anti-patterns".
+- **Targeted hints** — from "Check-ID hints" by the `YAGNI-` prefix.
+- If the profile is `tier: general` or `runtime=generic`, mark stack-specific
+  findings without unambiguous evidence as `🔍 UNVERIFIED` rather than `❌ FAIL`.
+  Mark checks whose mechanism is absent in the runtime as `N/A`.
 
 ## Severity Guide
 
-| Severity | Критерий назначения |
+| Severity | Assignment criterion |
 |----------|---------------------|
-| 🔴 Critical | RCE, auth bypass, data corruption, необратимый финансовый риск |
-| 🟠 High | Падение production, privilege escalation, утечка данных |
-| 🟡 Medium | Деградация производительности или поддерживаемости без immediate outage |
-| 🟢 Low | Стиль, читаемость, слабое нарушение конвенции |
+| 🔴 Critical | RCE, auth bypass, data corruption, irreversible financial risk |
+| 🟠 High | production outage, privilege escalation, data leak |
+| 🟡 Medium | performance or maintainability degradation without an immediate outage |
+| 🟢 Low | style, readability, minor convention violation |
 
-Правило: severity = impact × exploitability × blast radius. Одинаковый паттерн → одинаковый severity между аудитами.
+Rule: severity = impact × exploitability × blast radius. The same pattern → the same severity across audits.
 
-## Чеклист
+## Checklist
 
-| Check ID | Проверка |
+| Check ID | Check |
 |----------|----------|
-| YAGNI-01 | Нет закомментированного кода |
-| YAGNI-02 | Нет dead code — неиспользуемых экспортов, функций, переменных |
-| YAGNI-03 | Абстракции оправданы: интерфейс/фабрика имеет >1 реализации или требуется тестами |
-| YAGNI-04 | Feature flags не зафиксированы в одном значении |
-| YAGNI-05 | Технический долг актуален — нет заброшенных TODO/FIXME без даты или прогресса |
+| YAGNI-01 | No commented-out code |
+| YAGNI-02 | No dead code — unused exports, functions, variables |
+| YAGNI-03 | Abstractions are justified: an interface/factory has >1 implementation or is required by tests |
+| YAGNI-04 | Feature flags are not pinned to a single value |
+| YAGNI-05 | Technical debt is current — no abandoned TODO/FIXME without a date or progress |
 
-## Правила верификации
+## Verification Rules
 
-1. **Только чеклист**: оценивай ТОЛЬКО проверки выше. Не добавляй новые.
-2. **Явная верификация = PASS**: ставь `✅ PASS` только если явно проверил механизм (нашёл схему, конфиг, guard) и подтвердил отсутствие нарушения — укажи что именно проверено.
-3. **Нет доказательства = UNVERIFIED**: не можешь указать `файл:строка` ни для нарушения, ни для подтверждения — ставь `🔍 UNVERIFIED`.
-4. **Baseline приоритетен**: check_id есть в `docs/audit-baseline.yml` → `⏸ ACCEPTED`.
-5. **Только 🔴/🟠 FAIL требуют решения**: 🟡/🟢 — решение необязательно.
+1. **Checklist only**: evaluate ONLY the checks above. Do not add new ones.
+2. **Explicit verification = PASS**: assign `✅ PASS` only if you explicitly verified the mechanism (found the schema, config, guard) and confirmed there is no violation — state exactly what was checked.
+3. **No evidence = UNVERIFIED**: if you cannot point to a `file:line` for either a violation or a confirmation, assign `🔍 UNVERIFIED`.
+4. **Baseline takes priority**: if the check_id is in `docs/audit-baseline.yml` → `⏸ ACCEPTED`.
+5. **Only 🔴/🟠 FAILs require a solution**: 🟡/🟢 — a solution is optional.
 
 ## Evidence Quality Rules
 
-Любой `❌ FAIL` обязан содержать:
-- Точный `file:line`
-- Минимальный код-фрагмент (1–3 строки)
-- Causal chain: почему именно это нарушение → какой риск возникает
+Every `❌ FAIL` must include:
+- An exact `file:line`
+- A minimal code snippet (1–3 lines)
+- Causal chain: why this specific violation → what risk it creates
 
-Запрещено:
-- Предполагать runtime behavior без evidence в коде
-- Предполагать prod-конфигурацию по dev-конфигу
-- Предполагать отсутствие middleware без проверки всей router chain
-- Если вывод основан на предположении — только `🔍 UNVERIFIED`
+Not allowed:
+- Assuming runtime behavior without evidence in the code
+- Inferring the prod configuration from the dev configuration
+- Assuming middleware is absent without checking the entire router chain
+- If a conclusion rests on an assumption — only `🔍 UNVERIFIED`
 
 ## Language Rule
 
-Результаты аудита должны быть написаны простым и понятным языком. Избегай сложных терминов, жаргона и абстрактных понятий без необходимости. Общепринятые технические термины (Docker, HTTP, API, JSON, URL) допустимы. Описывай проблемы так, чтобы они были понятны разработчику любого уровня, а не только узкому специалисту в данной области.
+Audit results must be written in plain, clear language. Avoid complex terms, jargon, and abstract concepts unless necessary. Common technical terms (Docker, HTTP, API, JSON, URL) are fine. Describe problems so they are understandable to a developer of any level, not only a narrow specialist in the area.
 
 ## Baseline
 
-До анализа:
+Before analysis:
 ```bash
 if [ ! -f ./docs/audit-baseline.yml ]; then
   mkdir -p ./docs
@@ -100,89 +100,89 @@ fi
 cat ./docs/audit-baseline.yml
 ```
 
-## Контекст анализа
+## Analysis Context
 
-> Примеры иллюстративны (Node); анти-паттерны рантайма — в профиле (Anti-patterns).
+> The examples are illustrative (Node); runtime anti-patterns are in the profile (Anti-patterns).
 
-**YAGNI-01 — Нет закомментированного кода:**
-- Блоки кода закомментированы вместо удаления (git history сохраняет историю)
-- Закомментированные альтернативные реализации без объяснения
+**YAGNI-01 — No commented-out code:**
+- Blocks of code are commented out instead of deleted (git history preserves the history)
+- Commented-out alternative implementations without explanation
 
-**YAGNI-02 — Нет dead code:**
-- Экспортируемые функции/классы/константы без единого импорта
-- Переменные объявлены, но не используются
-- Функции определены, но никогда не вызываются
-- Импорты без использования
+**YAGNI-02 — No dead code:**
+- Exported functions/classes/constants without a single import
+- Variables declared but unused
+- Functions defined but never called
+- Unused imports
 
-**YAGNI-03 — Абстракции оправданы:**
-- Интерфейс/абстрактный класс с единственной реализацией (без тестов, где mock нужен)
-- Factory/Builder/Strategy для объекта с 1-2 вариантами создания
-- Generic-типы с одним конкретным использованием
-- Event bus/pub-sub для прямых вызовов между 2 модулями
-- Repository pattern поверх ORM без необходимости абстракции
-- Service layer, просто проксирующий вызовы без логики
-- DTO для объектов, идентичных entity
+**YAGNI-03 — Abstractions are justified:**
+- An interface/abstract class with a single implementation (without tests where a mock is needed)
+- Factory/Builder/Strategy for an object with 1–2 creation variants
+- Generic types with a single concrete use
+- An event bus/pub-sub for direct calls between 2 modules
+- A repository pattern over an ORM without a need for the abstraction
+- A service layer that merely proxies calls without logic
+- A DTO for objects identical to the entity
 
-**YAGNI-04 — Feature flags не зафиксированы:**
-- Feature flag всегда `true` или всегда `false` в коде (не читается из конфига/env)
-- Конфигурируемость параметров, которые никогда не меняются
-- Опциональные параметры, всегда передаваемые с одним значением
+**YAGNI-04 — Feature flags are not pinned:**
+- A feature flag is always `true` or always `false` in the code (not read from config/env)
+- Configurability of parameters that never change
+- Optional parameters always passed with a single value
 
-**YAGNI-05 — Технический долг актуален:**
-- TODO/FIXME без даты создания или имени автора
-- TODO/FIXME старше 6 месяцев без признаков прогресса
-- TODO без ссылки на issue/ticket (нет трекинга)
+**YAGNI-05 — Technical debt is current:**
+- TODO/FIXME without a creation date or author name
+- TODO/FIXME older than 6 months with no sign of progress
+- TODO without a link to an issue/ticket (no tracking)
 
-## Инструментальная поддержка
+## Tooling Support
 
-Для YAGNI-02 используй инструмент категории **unused-code** из профиля стека
-(секция «Tooling by category»): он находит неиспользуемые экспорты, функции,
-зависимости и файлы. Используй вывод как подсказку для YAGNI-02 и верифицируй
-каждую находку вручную (`file:line`) перед занесением в FAIL. Если ячейка пустая
-(tier general/generic) — проверяй вручную и помечай находки `🔍 UNVERIFIED`.
+For YAGNI-02 use the **unused-code** category tool from the stack profile
+(the "Tooling by category" section): it finds unused exports, functions,
+dependencies, and files. Use its output as a hint for YAGNI-02 and verify
+each finding manually (`file:line`) before recording it as a FAIL. If the cell is empty
+(tier general/generic), check manually and mark findings as `🔍 UNVERIFIED`.
 
-## Формат вывода
+## Output Format
 
-| Check ID | Проверка | Статус | Уверенность | Доказательство | Решение | Исправлено |
+| Check ID | Check | Status | Confidence | Evidence | Solution | Fixed |
 |----------|----------|--------|-------------|----------------|---------|------------|
-| YAGNI-01 | Нет закомментированного кода | ✅ PASS | High | `src/` — закомментированного кода не найдено | — | — |
-| YAGNI-02 | Нет dead code — неиспользуемых экспортов, функций, переменных | ❌ FAIL 🟡 | High | `lib/formatters.ts:89` | **1. Удалить неиспользуемые экспорты** \\ 2. Добавить ts-prune в CI для автоматического обнаружения \\ 3. Пометить @deprecated и удалить в следующем релизе | Нет |
-| YAGNI-05 | Технический долг актуален — нет заброшенных TODO/FIXME без даты или прогресса | ⏸ ACCEPTED | Medium | `src/auth.ts:34` | В baseline: known tech debt, трекается в Jira PROJ-123 | — |
+| YAGNI-01 | No commented-out code | ✅ PASS | High | `src/` — no commented-out code found | — | — |
+| YAGNI-02 | No dead code — unused exports, functions, variables | ❌ FAIL 🟡 | High | `lib/formatters.ts:89` | **1. Remove the unused exports** \\ 2. Add ts-prune to CI for automatic detection \\ 3. Mark @deprecated and remove in the next release | No |
+| YAGNI-05 | Technical debt is current — no abandoned TODO/FIXME without a date or progress | ⏸ ACCEPTED | Medium | `src/auth.ts:34` | In baseline: known tech debt, tracked in Jira PROJ-123 | — |
 
-Статусы: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED` / `🔍 UNVERIFIED`
+Statuses: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED` / `🔍 UNVERIFIED`
 
-Уверенность: `High` — проверил несколько ключевых файлов, паттерн очевиден / `Medium` — проверил выборочно, паттерн вероятен / `Low` — ограниченный контекст, полная уверенность невозможна
+Confidence: `High` — checked several key files, the pattern is obvious / `Medium` — checked selectively, the pattern is likely / `Low` — limited context, full certainty is impossible
 
-Для `❌ FAIL`: ровно 3 варианта решения, разделитель `\\`, вариант 1 жирным.
+For `❌ FAIL`: exactly 3 solution options, separated by `\\`, with option 1 in bold.
 
-`Исправлено`: FAIL → `Нет` (разработчик меняет на `✅ Да` вручную после фикса). PASS / ACCEPTED / UNVERIFIED → `—`.
+`Fixed`: FAIL → `No` (the developer changes it to `✅ Yes` manually after the fix). PASS / ACCEPTED / UNVERIFIED → `—`.
 
-Требования к решениям:
-- Взаимно исключающие (не перефразировки одного и того же)
-- Соответствуют текущему стеку проекта (не предлагать смену фреймворка)
-- Не требуют переписать всю систему — realistic migration cost
-- Вариант 3 может быть «оставить, задокументировать причину» при наличии обоснования
+Solution requirements:
+- Mutually exclusive (not rephrasings of the same thing)
+- Match the project's current stack (do not propose switching frameworks)
+- Do not require rewriting the whole system — realistic migration cost
+- Option 3 may be "keep it, document the reason" if there is justification
 
-В конце отчёта добавь раздел покрытия:
+At the end of the report, add a coverage section:
 ```
 ## Audit Coverage
-Проверено: src/module1/**, src/module2/**
-Пропущено: scripts/**, migrations/**, tests/**
-Файлов проверено: N | Пропущено: N
+Checked: src/module1/**, src/module2/**
+Skipped: scripts/**, migrations/**, tests/**
+Files checked: N | Skipped: N
 ```
 
-Если все PASS — выведи: `✅ Over-engineering не обнаружен.`
+If everything is PASS, output: `✅ No over-engineering found.`
 
-## Сохранение результатов
+## Saving Results
 
-1. Найди папку сессии:
+1. Find the session folder:
    ```bash
    ls -dt ./docs/audits/[0-9]*/ 2>/dev/null | head -1 | sed 's|/$||'
    ```
-   Если пусто — создай: `mkdir -p ./docs/audits/$(date +"%Y-%m-%d_%H-%M")`
-2. Сохрани через Write: `<AUDIT_DIR>/audit-yagni.md`
+   If empty, create it: `mkdir -p ./docs/audits/$(date +"%Y-%m-%d_%H-%M")`
+2. Save via Write: `<AUDIT_DIR>/audit-yagni.md`
 
 ```
 # Audit Report: Over-engineering & YAGNI — <YYYY-MM-DD HH:MM>
-<таблица>
+<table>
 ```

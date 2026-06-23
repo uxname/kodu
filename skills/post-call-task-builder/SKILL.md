@@ -3,417 +3,417 @@ name: post-call-task-builder
 description: Create structured technical specifications and development tasks from meeting transcripts OR refine and organize user-provided task lists (optionally enriched with transcript context). Use after team meetings, planning sessions, architecture discussions, or when user provides a raw task list that needs structuring, prioritization, and validation against the codebase.
 ---
 
-# SKILL: Создание и доработка задач
+# SKILL: Creating and refining tasks
 
 ## PURPOSE
 
-Этот скилл работает в двух режимах:
+This skill works in two modes:
 
-**Режим A — Из созвона:**
+**Mode A — From a call:**
 
-- прочитать транскрипцию разговора;
-- понять решения, проблемы и договорённости;
-- изучить кодовую базу текущего проекта;
-- задать уточняющие вопросы;
-- предложить Парето-оптимальное решение;
-- подготовить понятное ТЗ и список задач.
+- read the conversation transcript;
+- understand the decisions, problems, and agreements;
+- study the current project's codebase;
+- ask clarifying questions;
+- propose a Pareto-optimal solution;
+- prepare a clear spec and task list.
 
-**Режим B — Из готового списка (с возможным контекстом из созвона):**
+**Mode B — From a ready list (with possible context from a call):**
 
-- принять список задач от пользователя;
-- если пользователь также дал транскрипцию — извлечь из неё контекст, причины, приоритеты;
-- изучить кодовую базу;
-- проверить реалистичность, полноту и связность задач;
-- доработать: добавить контекст, критерии готовности, порядок выполнения;
-- указать риски, зависимости и скрытую сложность.
+- accept a task list from the user;
+- if the user also provided a transcript — extract context, reasons, and priorities from it;
+- study the codebase;
+- check the tasks for realism, completeness, and coherence;
+- refine them: add context, definitions of done, execution order;
+- point out risks, dependencies, and hidden complexity.
 
-Главная цель — превратить входные данные (разговор или список) в практичный план работ, написанный простым языком, как
-для джуна.
+The main goal is to turn the input (a conversation or a list) into a practical work plan, written in plain language, as
+for a junior.
 
-## CRITICAL CONSTRAINTS (НАРУШИТЬ НЕЛЬЗЯ)
+## CRITICAL CONSTRAINTS (MUST NOT BE BROKEN)
 
-**1. Полное исследование кодовой базы — ОБЯЗАТЕЛЬНО перед любыми формулировками задач.**
+**1. Full codebase research is MANDATORY before formulating any tasks.**
 
-- Прежде чем писать хоть одну задачу, ТЗ или пункт плана — ты ОБЯЗАН провести полное исследование текущего проекта.
-- Исследование включает: структуру проекта, стек, архитектуру, ключевые модули, точки входа, зависимости, тесты, конфиги, README.
-- Никаких исключений. Нет исследования → нет задач.
+- Before writing even a single task, spec, or plan item — you MUST conduct full research of the current project.
+- The research includes: project structure, stack, architecture, key modules, entry points, dependencies, tests, configs, README.
+- No exceptions. No research → no tasks.
 
-**2. НЕ СПРАШИВАЙ у пользователя «что анализировать?» или «какие модули смотреть?».**
+**2. DO NOT ASK the user "what should I analyze?" or "which modules should I look at?".**
 
-- Ты сам определяешь область исследования и проводишь его автоматически.
-- Твоя задача — изучить весь проект досконально. Пользователь не должен подсказывать, куда смотреть.
-- Если проект большой — начинай с корня (package.json, tsconfig, README, структура src/), затем углубляйся в модули, связанные с темой задач.
+- You determine the scope of research yourself and conduct it automatically.
+- Your job is to study the entire project thoroughly. The user shouldn't have to point you where to look.
+- If the project is large — start from the root (package.json, tsconfig, README, the structure of src/), then go deeper into the modules related to the task topic.
 
-**3. Формулировка задач — ТОЛЬКО после завершения исследования.**
+**3. Formulating tasks — ONLY after the research is complete.**
 
-- Начинай формулировать задачи только когда у тебя есть полная картина проекта.
-- Каждая задача должна опираться на конкретные файлы, модули и архитектурные решения, которые ты видел в коде.
-- Если ты не изучил проект — вернись к исследованию, а не придумывай задачи «от балды».
+- Start formulating tasks only when you have a full picture of the project.
+- Each task must be grounded in the specific files, modules, and architectural decisions you saw in the code.
+- If you haven't studied the project — go back to research, don't make up tasks "out of thin air".
 
 ## ACTIVATION
 
-Используй этот скилл, если пользователь:
+Use this skill if the user:
 
-- прислал транскрипцию созвона или указал файл с ней;
-- просит разобрать итоги созвона;
-- просит составить задачи, ТЗ, план реализации или backlog по результатам обсуждения;
-- предоставил свой список задач и просит его доработать, структурировать или проверить;
-- предоставил и список задач, и транскрипцию — чтобы задачи были составлены с учётом контекста разговора;
-- хочет, чтобы ты сначала изучил кодовую базу проекта, а потом оформил задачи.
+- sent a call transcript or pointed to a file with one;
+- asks you to go over the outcomes of a call;
+- asks you to compile tasks, a spec, an implementation plan, or a backlog from the results of a discussion;
+- provided their own task list and asks you to refine, structure, or check it;
+- provided both a task list and a transcript — so the tasks are compiled with the conversation's context in mind;
+- wants you to first study the project's codebase and then write up the tasks.
 
 ## DO NOT USE WHEN
 
-Не используй этот скилл, если:
+Don't use this skill if:
 
-- пользователь не хочет задач или ТЗ;
-- нужно просто кратко пересказать созвон без анализа проекта;
-- пользователь просит игнорировать кодовую базу;
-- пользователь уже дал готовое ТЗ, и нужно только отредактировать текст (без проверки по коду).
+- the user doesn't want tasks or a spec;
+- you just need to briefly summarize a call without analyzing the project;
+- the user asks you to ignore the codebase;
+- the user already provided a finished spec and only needs the text edited (without checking against the code).
 
 ## INPUTS
 
-**Обязательные (без них не начинай):**
+**Required (don't start without them):**
 
-- **доступ к кодовой базе проекта** — ты должен исследовать проект ПЕРЕД формулировкой задач. Если путь не указан — определи его по контексту рабочей директории. Если проект недоступен — скажи об этом и не продолжай.
-- место, куда нужно записать результат.
+- **access to the project's codebase** — you must research the project BEFORE formulating tasks. If the path isn't given — determine it from the working directory context. If the project is unavailable — say so and don't continue.
+- the place where the result should be written.
 
-**Для режима A дополнительно:**
+**Additionally for mode A:**
 
-- путь к файлу с транскрипцией или её текст.
+- the path to the transcript file or its text.
 
-**Для режима B дополнительно:**
+**Additionally for mode B:**
 
-- список задач от пользователя (текст, файл, сообщение);
-- опционально: транскрипция или ссылка на созвон для контекста (помогает понять причины, приоритеты, скрытые требования).
+- the task list from the user (text, file, message);
+- optionally: a transcript or a link to the call for context (helps understand the reasons, priorities, hidden requirements).
 
-**Чего НЕ НУЖНО спрашивать у пользователя:**
+**What you DON'T NEED to ask the user:**
 
-- «Какие модули мне посмотреть?» — сам определи по структуре проекта.
-- «Какие файлы важны для этой задачи?» — сам найди через исследование.
-- «Где находится нужный функционал?» — сам отследи по кодовой базе.
-- «Что именно анализировать?» — анализируй ВСЁ, что относится к теме задач.
+- "Which modules should I look at?" — determine it yourself from the project structure.
+- "Which files are important for this task?" — find them yourself through research.
+- "Where is the relevant functionality?" — trace it yourself through the codebase.
+- "What exactly should I analyze?" — analyze EVERYTHING relevant to the task topic.
 
-Если не хватает только транскрипции (режим A) или списка задач (режим B) — задай короткий уточняющий вопрос. Но кодовую базу исследуй в любом случае.
+If you're only missing the transcript (mode A) or the task list (mode B) — ask a short clarifying question. But research the codebase in any case.
 
 ## PROCESS
 
-### Шаг 0. Определи режим работы и исследуй проект
+### Step 0. Determine the mode and research the project
 
-**Этот шаг ОБЯЗАТЕЛЕН. Без него не переходи к формулировке задач.**
+**This step is MANDATORY. Don't move on to formulating tasks without it.**
 
-#### 0.1. Определи режим
+#### 0.1. Determine the mode
 
-- Если пользователь дал только транскрипцию (без списка задач) → режим A.
-- Если пользователь дал готовый список задач (с транскрипцией или без) → режим B.
-- Транскрипция в режиме B используется как дополнительный контекст — чтобы точнее понять причины задач, приоритеты и ожидания.
-- Если дана только транскрипция, но пользователь явно просит «составь задачи» → режим A.
+- If the user gave only a transcript (no task list) → mode A.
+- If the user gave a ready task list (with or without a transcript) → mode B.
+- The transcript in mode B is used as additional context — to understand the reasons behind the tasks, their priorities, and expectations more precisely.
+- If only a transcript is given but the user explicitly asks "compile tasks" → mode A.
 
-#### 0.2. Проведи полное исследование кодовой базы (ОБЯЗАТЕЛЬНО)
+#### 0.2. Conduct full codebase research (MANDATORY)
 
-**Не спрашивай у пользователя «что анализировать?» — исследуй проект сам.**
+**Don't ask the user "what should I analyze?" — research the project yourself.**
 
-Порядок исследования:
+Research order:
 
-1. **Корень проекта** — прочитай package.json (или аналог), README, конфиги (tsconfig, biome, eslint, etc.), .env.example.
-2. **Структура** — определи организацию src/ (или другую основную директорию), ключевые директории и их назначение.
-3. **Точка входа** — найди main entry point, пойми как приложение запускается.
-4. **Архитектура** — определи паттерн (MVC, модульный, сервисный слой, etc.), зависимости между частями.
-5. **Ключевые модули** — изучи основные модули/сервисы, их ответственность и связи.
-6. **Зависимости** — посмотри какие библиотеки используются и зачем.
-7. **Тесты** — есть ли тесты, какой фреймворк, какого покрытия не хватает.
-8. **Связь с темой** — углубись в те части кода, которые напрямую связаны с задачами из транскрипции или списка пользователя.
+1. **Project root** — read package.json (or equivalent), README, configs (tsconfig, biome, eslint, etc.), .env.example.
+2. **Structure** — determine the organization of src/ (or another main directory), the key directories and their purpose.
+3. **Entry point** — find the main entry point, understand how the application starts.
+4. **Architecture** — determine the pattern (MVC, modular, service layer, etc.), the dependencies between parts.
+5. **Key modules** — study the main modules/services, their responsibilities and connections.
+6. **Dependencies** — look at which libraries are used and why.
+7. **Tests** — whether there are tests, which framework, what coverage is lacking.
+8. **Relation to the topic** — go deeper into the parts of the code directly related to the tasks from the transcript or the user's list.
 
-Если проект большой — начинай с наиболее вероятных точек изменения, затем расширяй обзор. Но в итоге ты должен получить полную картину.
+If the project is large — start from the most likely points of change, then broaden the survey. But in the end you must have a full picture.
 
-**Результат исследования** — ты должен ответить себе на вопросы:
-- Как устроен проект в целом?
-- Какие модули/сервисы relevant к задачам?
-- Какие ограничения есть в текущей архитектуре?
-- Где уже есть нужный функционал, а чего не хватает?
-- Что может сломаться при изменениях?
+**The result of the research** — you should be able to answer these questions for yourself:
+- How is the project structured overall?
+- Which modules/services are relevant to the tasks?
+- What constraints exist in the current architecture?
+- Where the needed functionality already exists, and what is missing?
+- What could break when changes are made?
 
-Только после этого переходи к формулировке задач.
-
----
-
-### Режим A: Из созвона
-
-#### A1. Прочитай транскрипцию
-
-Извлеки из неё:
-
-- цели созвона;
-- проблемы;
-- решения;
-- спорные моменты;
-- зависимости;
-- риски;
-- упомянутые файлы, модули, сервисы, эндпоинты, таблицы, очереди, интеграции.
-
-#### A2. Сопоставь транскрипцию с результатами исследования
-
-Ты уже исследовал проект на шаге 0.2. Теперь сопоставь увиденное в коде с тем, что обсуждалось на созвоне:
-
-- что именно уже есть в проекте по теме созвона;
-- чего не хватает;
-- какие пункты из созвона реально внедрить быстро;
-- какие требуют более крупной переработки;
-- где есть технические риски или скрытая сложность.
-
-#### A3. Предложи Парето-оптимальное решение
-
-Перед уточняющими вопросами обязательно покажи рекомендованный вариант.
-
-Парето-оптимальное решение — это решение, которое:
-
-- даёт максимальную пользу при минимальной сложности;
-- закрывает большую часть ценности задачи;
-- не требует лишней архитектурной перестройки;
-- может быть реализовано быстрее и безопаснее, чем «идеальный» вариант.
-
-Оформи его так:
-
-- что предлагается сделать;
-- почему это лучший баланс между ценой и пользой;
-- какие ограничения у такого подхода;
-- что останется на следующий этап.
-
-#### A4. Задай уточняющие вопросы
-
-После анализа задай только те вопросы, без которых нельзя качественно составить задачи.
-
-Требования к вопросам:
-
-- задавай только действительно важные вопросы;
-- не больше 3–7 вопросов за один раз, если возможно;
-- вопросы должны быть конкретными;
-- рядом с каждым вопросом укажи свой рекомендуемый ответ, если он очевиден.
-
-Формат вопросов:
-
-- вопрос;
-- зачем он нужен;
-- рекомендуемый вариант, если он очевиден.
-
-#### A5. Составь ТЗ и задачи
-
-Когда пользователь ответит, подготовь результат и запиши его туда, куда он указал.
+Only after this should you move on to formulating tasks.
 
 ---
 
-### Режим B: Из готового списка задач
+### Mode A: From a call
 
-#### B0. Если есть транскрипция — прочитай её для контекста
+#### A1. Read the transcript
 
-Извлеки из неё:
+Extract from it:
 
-- цели обсуждения — почему эти задачи вообще понадобились;
-- проблемы, которые задачи должны решить;
-- приоритеты и ожидания;
-- упомянутые файлы, модули, сервисы;
-- спорные моменты — чтобы знать, где возможны разногласия.
+- the call's goals;
+- problems;
+- decisions;
+- points of contention;
+- dependencies;
+- risks;
+- mentioned files, modules, services, endpoints, tables, queues, integrations.
 
-Этот контекст понадобится на шаге B3 при доработке каждой задачи.
+#### A2. Match the transcript against the research results
 
-#### B1. Изучи список задач
+You already researched the project in step 0.2. Now match what you saw in the code against what was discussed on the call:
 
-Прочитай и классифицируй каждую задачу:
+- what already exists in the project on the call's topic;
+- what is missing;
+- which items from the call can realistically be implemented quickly;
+- which require a larger rework;
+- where there are technical risks or hidden complexity.
 
-- насколько конкретна формулировка;
-- есть ли критерий готовности;
-- указано ли место изменения;
-- есть ли скрытые зависимости;
-- есть ли дубликаты или пересечения.
+#### A3. Propose a Pareto-optimal solution
 
-#### B2. Верифицируй задачи по результатам исследования
+Before the clarifying questions, always present the recommended option.
 
-Ты уже исследовал проект на шаге 0.2. Теперь проверь каждую задачу из списка по коду:
+A Pareto-optimal solution is one that:
 
-- реалистична ли задача в текущей архитектуре;
-- есть ли уже готовые решения или аналоги;
-- какие файлы/модули нужно будет менять;
-- какие есть технические ограничения;
-- какие побочные эффекты могут возникнуть.
+- gives maximum benefit for minimum complexity;
+- captures most of the task's value;
+- doesn't require unnecessary architectural restructuring;
+- can be implemented faster and more safely than the "ideal" option.
 
-#### B3. Доработай каждую задачу
+Present it like this:
 
-Для каждой задачи:
+- what is proposed to do;
+- why this is the best balance between cost and benefit;
+- what limitations this approach has;
+- what will be left for the next stage.
 
-- конкретизируй формулировку;
-- добавь контекст (почему это нужно);
-- укажи, где именно нужно вносить изменения;
-- добавь критерий готовности;
-- укажи зависимости от других задач;
-- отметь риски.
+#### A4. Ask clarifying questions
 
-Если задача нереалистична или противоречит коду — явно укажи это и предложи альтернативу.
+After the analysis, ask only the questions without which the tasks can't be compiled well.
 
-#### B4. Собери итоговый план
+Requirements for the questions:
 
-- отсортируй задачи в порядке выполнения;
-- сгруппируй по этапам (подготовка, backend, frontend, тесты, docs, выкладка);
-- добавь общий контекст и цель;
-- укажи, что не входит в объём работ.
+- ask only the genuinely important questions;
+- no more than 3–7 questions at a time if possible;
+- the questions must be specific;
+- next to each question, give your recommended answer if it's obvious.
 
-Уточняющие вопросы задавай только если данных критически не хватает (неясна цель, нет приоритетов, непонятен стек).
+Question format:
+
+- the question;
+- why it's needed;
+- the recommended option, if it's obvious.
+
+#### A5. Compile the spec and tasks
+
+Once the user answers, prepare the result and write it where they specified.
+
+---
+
+### Mode B: From a ready task list
+
+#### B0. If there's a transcript — read it for context
+
+Extract from it:
+
+- the discussion's goals — why these tasks were needed in the first place;
+- the problems the tasks should solve;
+- priorities and expectations;
+- mentioned files, modules, services;
+- points of contention — to know where disagreements are possible.
+
+This context will be needed in step B3 when refining each task.
+
+#### B1. Study the task list
+
+Read and classify each task:
+
+- how specific the wording is;
+- whether there's a definition of done;
+- whether the place to change is specified;
+- whether there are hidden dependencies;
+- whether there are duplicates or overlaps.
+
+#### B2. Verify the tasks against the research results
+
+You already researched the project in step 0.2. Now check each task from the list against the code:
+
+- whether the task is realistic in the current architecture;
+- whether there are already ready-made solutions or analogs;
+- which files/modules will need to change;
+- what technical constraints exist;
+- what side effects might arise.
+
+#### B3. Refine each task
+
+For each task:
+
+- make the wording concrete;
+- add context (why it's needed);
+- specify exactly where the changes should be made;
+- add a definition of done;
+- specify dependencies on other tasks;
+- note the risks.
+
+If a task is unrealistic or contradicts the code — point this out explicitly and propose an alternative.
+
+#### B4. Assemble the final plan
+
+- sort the tasks in execution order;
+- group them by stage (preparation, backend, frontend, tests, docs, deployment);
+- add the overall context and goal;
+- specify what's out of scope.
+
+Ask clarifying questions only if data is critically lacking (the goal is unclear, there are no priorities, the stack is unclear).
 
 ## DECISION RULES
 
-**PRIORITY 0: Обязательное исследование (ВЫШЕ ВСЕГО)**
+**PRIORITY 0: Mandatory research (ABOVE EVERYTHING)**
 
-- Никогда не формулируй задачи без полного исследования кодовой базы.
-- Никогда не спрашивай у пользователя «что анализировать?» — делай это сам.
-- Если ты сомневаешься, достаточно ли ты изучил проект — вернись и дочитай ещё.
+- Never formulate tasks without full codebase research.
+- Never ask the user "what should I analyze?" — do it yourself.
+- If you doubt whether you've studied the project enough — go back and read more.
 
-**PRIORITY 1: Точность**
+**PRIORITY 1: Accuracy**
 
-- не выдумывай детали;
-- все выводы опираются на транскрипцию или код;
-- если в транскрипции есть противоречия — укажи их и предложи наиболее вероятную интерпретацию;
-- в режиме B транскрипция используется только для контекста — не переписывай задачи пользователя на основе транскрипции, если он этого не просил; дорабатывай исходный список, а не заменяй его.
+- don't make up details;
+- all conclusions rest on the transcript or the code;
+- if the transcript has contradictions — point them out and propose the most likely interpretation;
+- in mode B the transcript is used only for context — don't rewrite the user's tasks based on the transcript unless they asked for it; refine the original list, don't replace it.
 
-**PRIORITY 2: Практичность**
+**PRIORITY 2: Practicality**
 
-- предлагай минимальное изменение, которое даёт максимальный эффект;
-- не предлагай решение, которое ломает текущий стиль проекта без необходимости;
-- если есть несколько путей — выбери тот, который проще внедрить, легче поддерживать и меньше рискует сломать текущий
-  функционал.
+- propose the minimal change that gives the maximum effect;
+- don't propose a solution that breaks the project's current style without need;
+- if there are several paths — choose the one that's simpler to implement, easier to maintain, and least likely to break current
+  functionality.
 
-**PRIORITY 3: Понятность**
+**PRIORITY 3: Clarity**
 
-- пиши как для джуна;
-- избегай абстрактных фраз вроде «улучшить систему»;
-- каждая задача должна быть конкретной, проверяемой и выполнимой.
+- write as for a junior;
+- avoid abstract phrases like "improve the system";
+- each task must be specific, verifiable, and achievable.
 
 ## TOOL USAGE
 
-**Чтение кода:**
+**Reading code:**
 
-- используй для поиска существующего функционала, точек интеграции, архитектурных ограничений;
-- на шаге 0.2 — исследуй проект ПОЛНОСТЬЮ: корень, структуру, ключевые модули, зависимости;
-- на шагах A2/B2 — фокусируйся на конкретных точках, связанных с задачами;
-- отмечай файлы, которые может затронуть изменение.
+- use it to find existing functionality, integration points, architectural constraints;
+- in step 0.2 — research the project FULLY: root, structure, key modules, dependencies;
+- in steps A2/B2 — focus on the specific points related to the tasks;
+- note the files a change might affect.
 
-**Поиск по коду:**
+**Code search:**
 
-- используй для проверки существующих решений, констант, типов, импортов;
-- на шаге 0.2 — ищи ВСЁ, что связано с темой задач, даже если кажется неочевидным.
+- use it to check for existing solutions, constants, types, imports;
+- in step 0.2 — search for EVERYTHING related to the task topic, even if it seems non-obvious.
 
-**Чтение файлов:**
+**Reading files:**
 
-- перед предложением изменений прочитай существующий код точек изменения;
-- проверь наличие тестов к затрагиваемым модулям.
+- before proposing changes, read the existing code at the points of change;
+- check whether there are tests for the affected modules.
 
 ## OUTPUT REQUIREMENTS
 
-Пиши простым и понятным языком, как для джуна.
+Write in plain, clear language, as for a junior.
 
-Избегай:
+Avoid:
 
-- лишней теории;
-- сложных слов без необходимости;
-- перегруженных формулировок;
-- абстрактных фраз вроде «улучшить систему» без расшифровки.
+- unnecessary theory;
+- complex words without need;
+- overloaded phrasing;
+- abstract phrases like "improve the system" without explanation.
 
-ТЗ / план работ должно включать:
+The spec / work plan must include:
 
-- цель;
-- контекст;
-- текущую проблему (для режима A) или исходный список и контекст из транскрипции (для режима B);
-- предложенное решение / доработанный список;
-- порядок выполнения;
-- критерии готовности;
-- риски и ограничения;
-- что не входит в объём работ, если это важно.
+- the goal;
+- the context;
+- the current problem (for mode A) or the original list and the context from the transcript (for mode B);
+- the proposed solution / the refined list;
+- the execution order;
+- the definitions of done;
+- the risks and constraints;
+- what's out of scope, if that matters.
 
-Если уместно, разбивай задачи по смыслу:
+Where appropriate, break the tasks down by meaning:
 
-- подготовка;
+- preparation;
 - backend;
 - frontend;
-- интеграции;
-- тестирование;
-- документация;
-- выкладка.
+- integrations;
+- testing;
+- documentation;
+- deployment.
 
-**Формат задачи:**
+**Task format:**
 
-- название;
-- цель;
-- что сделать;
-- где делать;
-- результат;
-- критерий готовности;
-- зависимости.
+- name;
+- goal;
+- what to do;
+- where to do it;
+- result;
+- definition of done;
+- dependencies.
 
 ## FAILURE HANDLING
 
-**Если кодовая база недоступна:**
+**If the codebase is unavailable:**
 
-- не придумывай задачи на основе предположений;
-- честно скажи: «Не могу получить доступ к проекту. Без исследования кодовой базы не могу составить задачи.»;
-- попроси пользователя указать путь к проекту или убедиться, что директория доступна.
+- don't make up tasks based on assumptions;
+- say honestly: "I can't access the project. Without researching the codebase I can't compile tasks.";
+- ask the user to specify the path to the project or make sure the directory is accessible.
 
-Если данных недостаточно (транскрипция неполная, список задач слишком размыт):
+If there isn't enough data (the transcript is incomplete, the task list is too vague):
 
-- кодовую базу исследуй В ЛЮБОМ СЛУЧАЕ — она доступна независимо от транскрипции;
-- честно скажи, чего не хватает из транскрипции/списка;
-- перечисли, что удалось понять;
-- задай минимальный набор уточняющих вопросов;
-- не начинай писать ТЗ вслепую.
+- research the codebase IN ANY CASE — it's available regardless of the transcript;
+- say honestly what's missing from the transcript/list;
+- list what you managed to understand;
+- ask the minimal set of clarifying questions;
+- don't start writing the spec blindly.
 
-Если в транскрипции или списке есть противоречия:
+If the transcript or list has contradictions:
 
-- укажи их;
-- предложи наиболее вероятную интерпретацию;
-- попроси подтверждение.
+- point them out;
+- propose the most likely interpretation;
+- ask for confirmation.
 
-Если задача из списка пользователя нереалистична технически:
+If a task from the user's list is technically unrealistic:
 
-- объясни, почему;
-- предложи альтернативу, которая решает ту же проблему.
+- explain why;
+- propose an alternative that solves the same problem.
 
 ## EXAMPLES
 
-### Режим A — Хороший результат:
+### Mode A — Good result:
 
-- Прочитать транскрипцию: команда обсуждала ускорение регистрации.
-- **Автоматически** исследовать проект: найти модуль регистрации, посмотреть текущий флоу, понять архитектуру, проверить тесты.
-- Сопоставить: что уже есть (валидация email на фронте, но нет на бэке), чего не хватает (rate limiting, кэширование).
-- Предложить Парето-решение: не переписывать весь флоу, а добавить недостающую валидацию и один сервисный слой.
-- Спросить, нужно ли поддерживать старые сценарии.
-- После ответа оформить ТЗ с задачами по backend, тестам и документации.
+- Read the transcript: the team discussed speeding up sign-up.
+- **Automatically** research the project: find the sign-up module, look at the current flow, understand the architecture, check the tests.
+- Match: what already exists (email validation on the frontend, but not on the backend), what's missing (rate limiting, caching).
+- Propose a Pareto solution: don't rewrite the whole flow, but add the missing validation and a single service layer.
+- Ask whether the old scenarios need to be supported.
+- After the answer, write up the spec with tasks for backend, tests, and documentation.
 
-### Режим A — Плохой результат:
+### Mode A — Bad result:
 
-- Спросить пользователя: «Какие модули мне посмотреть?» — вместо того чтобы самому исследовать проект.
-- Пересказать созвон общими словами без анализа кода.
-- Предложить сразу большой рефакторинг без исследования текущей архитектуры.
-- Написать ТЗ с непонятными терминами и без критериев готовности.
+- Ask the user: "Which modules should I look at?" — instead of researching the project yourself.
+- Summarize the call in general terms without analyzing the code.
+- Propose a large refactor right away without researching the current architecture.
+- Write a spec with unclear terms and no definitions of done.
 
-### Режим B (со списком) — Хороший результат:
+### Mode B (with a list) — Good result:
 
-- Пользователь дал список: «добавить валидацию email, сделать страницу профиля, написать тесты».
-- **Автоматически** исследовать проект: найти где уже есть валидация, посмотреть структуру страниц, проверить покрытие тестами.
-- Проверить по коду: валидация email частично есть в регистрации; страницы профиля нет; тестов на валидацию нет.
-- Доработать: конкретизировать валидацию (какие кейсы), указать где создавать страницу, добавить критерии готовности и
-  порядок выполнения.
-- Итог: 3 задачи с контекстом, местом изменений и DoD.
+- The user gave a list: "add email validation, build a profile page, write tests".
+- **Automatically** research the project: find where validation already exists, look at the page structure, check test coverage.
+- Check against the code: email validation partially exists in sign-up; there's no profile page; there are no validation tests.
+- Refine: make the validation concrete (which cases), specify where to create the page, add definitions of done and an
+  execution order.
+- Result: 3 tasks with context, place of changes, and DoD.
 
-### Режим B (со списком + транскрипция) — Хороший результат:
+### Mode B (with a list + transcript) — Good result:
 
-- Пользователь дал список: «добавить валидацию email, сделать страницу профиля» и транскрипцию созвона.
-- **Автоматически** исследовать проект: найти модуль пользователей, посмотреть схему БД, проверить эндпоинты.
-- Из транскрипции: выяснилось, что валидация email нужна из-за жалоб поддержки, а страница профиля — для соответствия GDPR.
-- Проверить по коду: валидация частично есть; страницы профиля нет; база не хранит дату согласия на обработку данных.
-- Доработать: добавить задачу «добавить поле consent_date в User», скорректировать приоритеты (GDPR — выше).
-- Итог: 4 задачи с правильным порядком и контекстом.
+- The user gave a list: "add email validation, build a profile page" and a call transcript.
+- **Automatically** research the project: find the users module, look at the DB schema, check the endpoints.
+- From the transcript: it turned out email validation is needed because of support complaints, and the profile page — for GDPR compliance.
+- Check against the code: validation partially exists; there's no profile page; the database doesn't store the consent date for data processing.
+- Refine: add a task "add the consent_date field to User", adjust the priorities (GDPR — higher).
+- Result: 4 tasks with the correct order and context.
 
-### Режим B — Плохой результат:
+### Mode B — Bad result:
 
-- Спросить пользователя: «Какие файлы мне посмотреть?» — вместо автоматического исследования.
-- Просто переписать задачи пользователя своими словами без проверки по коду.
-- Не проверить по коду, реалистичны ли задачи.
-- Не добавить критерии готовности.
-- Не указать порядок и зависимости.
-- Не использовать транскрипцию, хотя она была предоставлена — упущен важный контекст (GDPR, приоритеты поддержки).
+- Ask the user: "Which files should I look at?" — instead of researching automatically.
+- Just reword the user's tasks in your own words without checking against the code.
+- Don't check against the code whether the tasks are realistic.
+- Don't add definitions of done.
+- Don't specify order and dependencies.
+- Don't use the transcript even though it was provided — important context is missed (GDPR, support priorities).

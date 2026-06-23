@@ -13,37 +13,37 @@ LDFLAGS := -s -w \
 	-X $(MODULE)/internal/buildinfo.Commit=$(COMMIT) \
 	-X $(MODULE)/internal/buildinfo.Date=$(DATE)
 
-# tree-sitter требует CGO.
+# tree-sitter requires CGO.
 export CGO_ENABLED := 1
 
 .PHONY: build
-build: ## Собрать бинарь в dist/
+build: ## Build the binary into dist/
 	@mkdir -p $(DIST)
 	go build -ldflags="$(LDFLAGS)" -o $(DIST)/$(BINARY) $(PKG)
 
 .PHONY: install
-install: ## Установить бинарь в $GOPATH/bin
+install: ## Install the binary into $GOPATH/bin
 	go install -ldflags="$(LDFLAGS)" $(PKG)
 
 .PHONY: test
-test: ## Прогнать тесты
+test: ## Run the tests
 	go test ./...
 
 .PHONY: lint
-lint: ## Статический анализ
+lint: ## Static analysis
 	gofmt -l . | tee /dev/stderr | (! read)
 	go vet ./...
 	golangci-lint run
 
 .PHONY: tidy
-tidy: ## Привести в порядок go.mod/go.sum
+tidy: ## Tidy up go.mod/go.sum
 	go mod tidy
 
 .PHONY: clean
-clean: ## Удалить артефакты сборки
+clean: ## Remove build artifacts
 	rm -rf $(DIST)
 
 .PHONY: help
-help: ## Показать список целей
+help: ## Show the list of targets
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'

@@ -14,7 +14,7 @@ func TestScaffoldAndReadConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !s.Exists(root) {
-		t.Fatal("config.json должен существовать")
+		t.Fatal("config.json should exist")
 	}
 	cfg, err := s.ReadConfig(root)
 	if err != nil {
@@ -27,8 +27,8 @@ func TestScaffoldAndReadConfig(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(md, "# Runbook: proj") || !strings.Contains(md, "## Стенд: dev") {
-		t.Fatalf("runbook.md без ожидаемых секций:\n%s", md)
+	if !strings.Contains(md, "# Runbook: proj") || !strings.Contains(md, "## Stand: dev") {
+		t.Fatalf("runbook.md is missing the expected sections:\n%s", md)
 	}
 }
 
@@ -42,7 +42,7 @@ func TestScaffoldKeepsExistingRunbook(t *testing.T) {
 	}
 	md, _ := s.ReadRunbook(root)
 	if md != "CUSTOM" {
-		t.Fatalf("существующий runbook.md перезаписан: %q", md)
+		t.Fatalf("existing runbook.md was overwritten: %q", md)
 	}
 }
 
@@ -51,29 +51,29 @@ func TestEnsureGitignore(t *testing.T) {
 	root := t.TempDir()
 	s := New()
 	if r, _ := s.EnsureGitignore(root); r != GitignoreNoGit {
-		t.Fatalf("без .git ожидал no-git, got %s", r)
+		t.Fatalf("without .git expected no-git, got %s", r)
 	}
 
 	// created
 	_ = os.MkdirAll(filepath.Join(root, ".git"), 0o755)
 	if r, _ := s.EnsureGitignore(root); r != GitignoreCreated {
-		t.Fatalf("ожидал created, got %s", r)
+		t.Fatalf("expected created, got %s", r)
 	}
-	// present (повторно)
+	// present (again)
 	if r, _ := s.EnsureGitignore(root); r != GitignorePresent {
-		t.Fatalf("ожидал present, got %s", r)
+		t.Fatalf("expected present, got %s", r)
 	}
 
-	// added (к существующему .gitignore)
+	// added (to an existing .gitignore)
 	root2 := t.TempDir()
 	_ = os.MkdirAll(filepath.Join(root2, ".git"), 0o755)
 	_ = os.WriteFile(filepath.Join(root2, ".gitignore"), []byte("node_modules\n"), 0o644)
 	if r, _ := s.EnsureGitignore(root2); r != GitignoreAdded {
-		t.Fatalf("ожидал added, got %s", r)
+		t.Fatalf("expected added, got %s", r)
 	}
 	content, _ := os.ReadFile(filepath.Join(root2, ".gitignore"))
 	if !strings.Contains(string(content), "/.runbook/") {
-		t.Fatalf(".gitignore без записи runbook: %s", content)
+		t.Fatalf(".gitignore is missing the runbook entry: %s", content)
 	}
 }
 

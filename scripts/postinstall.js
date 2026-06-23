@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Скачивает нативный бинарь kodu из GitHub Releases под текущую платформу.
-// При неудаче не валит установку — печатает подсказку (graceful degradation).
+// Downloads the native kodu binary for the current platform from GitHub Releases.
+// On failure it does not break the install — it prints a hint (graceful degradation).
 'use strict';
 
 const fs = require('node:fs');
@@ -16,14 +16,14 @@ const ARCHES = { x64: 'amd64', arm64: 'arm64' };
 
 function fail(msg) {
   console.warn(`\n[kodu] ${msg}`);
-  console.warn('[kodu] Установите вручную: go install github.com/uxname/kodu/cmd/kodu@latest');
-  console.warn(`[kodu] или скачайте бинарь: https://github.com/${REPO}/releases\n`);
-  process.exit(0); // не блокируем npm install
+  console.warn('[kodu] Install manually: go install github.com/uxname/kodu/cmd/kodu@latest');
+  console.warn(`[kodu] or download the binary: https://github.com/${REPO}/releases\n`);
+  process.exit(0); // do not block npm install
 }
 
 const goos = PLATFORMS[process.platform];
 const goarch = ARCHES[process.arch];
-if (!goos || !goarch) fail(`Платформа ${process.platform}/${process.arch} не поддерживается готовым бинарём.`);
+if (!goos || !goarch) fail(`Platform ${process.platform}/${process.arch} is not supported by a prebuilt binary.`);
 
 const ext = goos === 'windows' ? 'zip' : 'tar.gz';
 const binName = goos === 'windows' ? 'kodu.exe' : 'kodu';
@@ -41,7 +41,7 @@ function download(u, dest, redirects = 0) {
       }
       if (res.statusCode !== 200) {
         res.resume();
-        return reject(new Error(`HTTP ${res.statusCode} для ${u}`));
+        return reject(new Error(`HTTP ${res.statusCode} for ${u}`));
       }
       const file = fs.createWriteStream(dest);
       res.pipe(file);
@@ -56,14 +56,14 @@ function download(u, dest, redirects = 0) {
     fs.mkdirSync(binDir, { recursive: true });
     const archivePath = path.join(binDir, asset);
     await download(url, archivePath);
-    // bsdtar (tar) распаковывает и .tar.gz, и .zip на Linux/macOS/Win10+.
+    // bsdtar (tar) extracts both .tar.gz and .zip on Linux/macOS/Win10+.
     execFileSync('tar', ['-xf', archivePath, '-C', binDir], { stdio: 'ignore' });
     fs.rmSync(archivePath, { force: true });
     const binPath = path.join(binDir, binName);
-    if (!fs.existsSync(binPath)) throw new Error('бинарь не найден после распаковки');
+    if (!fs.existsSync(binPath)) throw new Error('binary not found after extraction');
     if (goos !== 'windows') fs.chmodSync(binPath, 0o755);
-    console.log(`[kodu] Установлен бинарь ${goos}/${goarch} v${pkg.version}`);
+    console.log(`[kodu] Installed binary ${goos}/${goarch} v${pkg.version}`);
   } catch (err) {
-    fail(`Не удалось скачать бинарь: ${err.message}`);
+    fail(`Failed to download the binary: ${err.message}`);
   }
 })();

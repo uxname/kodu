@@ -1,9 +1,9 @@
-// Package fsutil обходит проект и фильтрует файлы для упаковки/очистки.
+// Package fsutil walks the project and filters files for packing/cleaning.
 //
-// Паритет с src/core/file-system/fs.service.ts. Отличие реализации: вместо
-// связки tinyglobby + npm-пакета ignore используется один авторитетный
-// gitignore-матчер go-git (он покрывает и спецификацию gitignore, и
-// разворачивание паттернов, которое в TS делал buildGlobIgnorePatterns).
+// Parity with src/core/file-system/fs.service.ts. Implementation difference:
+// instead of the tinyglobby + npm ignore-package combo, it uses a single
+// authoritative go-git gitignore matcher (which covers both the gitignore
+// specification and the pattern expansion that buildGlobIgnorePatterns did in TS).
 package fsutil
 
 import (
@@ -21,30 +21,30 @@ import (
 	"github.com/uxname/kodu/internal/sortx"
 )
 
-// Finder ищет файлы проекта относительно корневой директории.
+// Finder locates project files relative to the root directory.
 type Finder struct {
-	Root string        // корень (обычно cwd)
-	Cfg  config.Config // конфиг для дефолтов packer
-	Warn func(string)  // опционально: предупреждения (крупные файлы)
+	Root string        // root (usually cwd)
+	Cfg  config.Config // config for packer defaults
+	Warn func(string)  // optional: warnings (large files)
 }
 
-// FindOptions переопределяют поведение поиска. nil-указатели означают
-// «использовать значение из конфига» (паритет оператора ?? в TS).
+// FindOptions override the search behavior. nil pointers mean
+// "use the value from the config" (parity with the ?? operator in TS).
 type FindOptions struct {
 	Ignore                      []string
 	UseGitignore                *bool
 	ExcludeBinary               *bool
 	ContentBasedBinaryDetection *bool
-	MaxFileSizeBytes            int64 // 0 → MaxFileSizeBytes по умолчанию
+	MaxFileSizeBytes            int64 // 0 → default MaxFileSizeBytes
 	RootPaths                   []string
 }
 
-// New создаёт Finder.
+// New creates a Finder.
 func New(root string, cfg config.Config, warn func(string)) *Finder {
 	return &Finder{Root: root, Cfg: cfg, Warn: warn}
 }
 
-// Find возвращает отсортированный список относительных POSIX-путей к текстовым файлам.
+// Find returns a sorted list of relative POSIX paths to text files.
 func (f *Finder) Find(opts FindOptions) ([]string, error) {
 	useGitignore := f.Cfg.Packer.UseGitignore
 	if opts.UseGitignore != nil {
@@ -92,7 +92,7 @@ func (f *Finder) Find(opts FindOptions) ([]string, error) {
 	var result []string
 	walkErr := filepath.WalkDir(f.Root, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			// Недоступную запись пропускаем, обход продолжаем.
+			// Skip an inaccessible entry and continue the walk.
 			if d != nil && d.IsDir() {
 				return fs.SkipDir
 			}
@@ -110,7 +110,7 @@ func (f *Finder) Find(opts FindOptions) ([]string, error) {
 		parts := strings.Split(rel, "/")
 
 		if d.IsDir() {
-			// .git всегда игнорируется (GLOB_IGNORE = ['.git/**']).
+			// .git is always ignored (GLOB_IGNORE = ['.git/**']).
 			if d.Name() == ".git" || matcher.Match(parts, true) {
 				return fs.SkipDir
 			}
@@ -150,7 +150,7 @@ func (f *Finder) Find(opts FindOptions) ([]string, error) {
 	return result, nil
 }
 
-// ReadFileRelative читает файл по относительному пути от корня.
+// ReadFileRelative reads a file at a path relative to the root.
 func (f *Finder) ReadFileRelative(rel string) (string, error) {
 	abs := filepath.Join(f.Root, filepath.FromSlash(rel))
 	b, err := os.ReadFile(abs)
@@ -160,7 +160,7 @@ func (f *Finder) ReadFileRelative(rel string) (string, error) {
 	return string(b), nil
 }
 
-// normalizeRootPaths приводит rootPaths к POSIX-префиксам (паритет `${p}/**`).
+// normalizeRootPaths converts rootPaths to POSIX prefixes (parity with `${p}/**`).
 func normalizeRootPaths(roots []string) []string {
 	if len(roots) == 0 {
 		return nil
@@ -169,15 +169,15 @@ func normalizeRootPaths(roots []string) []string {
 	for _, r := range roots {
 		r = filepath.ToSlash(strings.TrimSuffix(r, "/"))
 		if r == "" || r == "." {
-			return nil // эквивалент отсутствия ограничения
+			return nil // equivalent to having no restriction
 		}
 		out = append(out, r)
 	}
 	return out
 }
 
-// underRootPaths повторяет семантику паттерна `${p}/**`: файл должен лежать
-// строго внутри одного из rootPaths.
+// underRootPaths reproduces the semantics of the `${p}/**` pattern: the file
+// must reside strictly inside one of the rootPaths.
 func underRootPaths(rel string, prefixes []string) bool {
 	if len(prefixes) == 0 {
 		return true
@@ -256,8 +256,8 @@ func isKnownTextFile(rel string) bool {
 	return ok
 }
 
-// hasNullByte читает первые binaryProbeSize байт и ищет 0x00.
-// При ошибке чтения считает файл бинарным (как catch → true в TS).
+// hasNullByte reads the first binaryProbeSize bytes and looks for 0x00.
+// On a read error it treats the file as binary (like catch → true in TS).
 func hasNullByte(abs string) bool {
 	file, err := os.Open(abs)
 	if err != nil {
@@ -268,7 +268,7 @@ func hasNullByte(abs string) bool {
 	buf := make([]byte, binaryProbeSize)
 	n, err := file.Read(buf)
 	if err != nil && n == 0 {
-		// Пустой файл (EOF) — не бинарный; иная ошибка чтения — бинарный.
+		// Empty file (EOF) is not binary; any other read error is binary.
 		if errors.Is(err, io.EOF) {
 			return false
 		}

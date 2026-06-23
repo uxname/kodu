@@ -30,9 +30,9 @@ type initConfig struct {
 	Packer  initPacker  `json:"packer"`
 }
 
-// defaultKoduJSON — содержимое нового kodu.json (паритет init.command.ts).
-// URL схемы исправлен на актуальный репозиторий uxname/kodu (в оригинале был
-// устаревший anomalyco) — иначе у пользователя не работал бы автокомплит.
+// defaultKoduJSON — the contents of a new kodu.json (parity with init.command.ts).
+// The schema URL was fixed to point at the current uxname/kodu repository (the
+// original used the stale anomalyco) — otherwise autocomplete wouldn't work for users.
 func defaultKoduJSON() initConfig {
 	return initConfig{
 		Schema: "https://raw.githubusercontent.com/uxname/kodu/refs/heads/master/kodu.schema.json",
@@ -96,7 +96,7 @@ func updateGitignore(app *App, cwd string) error {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		app.UI.Warn(".gitignore not found, skipping.")
-		return nil //nolint:nilerr // отсутствие .gitignore — не ошибка
+		return nil //nolint:nilerr // a missing .gitignore is not an error
 	}
 	content := string(raw)
 	for _, line := range strings.Split(content, "\n") {

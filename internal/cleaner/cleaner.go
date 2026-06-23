@@ -1,20 +1,20 @@
-// Package cleaner удаляет комментарии из исходного кода (паритет cleaner.service.ts).
+// Package cleaner removes comments from source code (parity with cleaner.service.ts).
 //
-// Для ts/tsx/js/jsx и прочих C-подобных файлов используется tree-sitter
-// (грамматики typescript/tsx), что безопасно для строк, regex- и
-// template-литералов. Для .html/.htm комментарии `<!-- -->` вырезаются
-// регуляркой.
+// For ts/tsx/js/jsx and other C-like files it uses tree-sitter
+// (the typescript/tsx grammars), which is safe for strings, regex, and
+// template literals. For .html/.htm files, `<!-- -->` comments are stripped
+// with a regexp.
 //
-// Отличия от TS (намеренные, в пользу полноты и безопасности):
-//   - tree-sitter находит ВСЕ узлы-комментарии, тогда как ts-morph собирал их
-//     через leading/trailing-ranges узлов и пропускал некоторые позиции
-//     (комментарий после висячей запятой, одинокий комментарий в пустом блоке).
-//     Поэтому очистка полнее. То же касается синтаксически некорректного входа:
-//     tree-sitter восстанавливается и находит комментарии, на которых ts-morph
-//     сдаётся. Код остаётся валидным; whitelist/JSDoc уважаются.
-//   - для .html НЕ парсим содержимое как TypeScript (в оригинале это побочно
-//     ловило `//` внутри URL и могло портить разметку); удаляем только
-//     настоящие HTML-комментарии.
+// Differences from the TS version (intentional, favoring completeness and safety):
+//   - tree-sitter finds ALL comment nodes, whereas ts-morph collected them
+//     via the leading/trailing ranges of nodes and missed some positions
+//     (a comment after a trailing comma, a lone comment in an empty block).
+//     This makes the cleanup more complete. The same applies to syntactically
+//     invalid input: tree-sitter recovers and finds comments that ts-morph
+//     gives up on. The code stays valid; the whitelist/JSDoc are respected.
+//   - for .html we do NOT parse the contents as TypeScript (in the original this
+//     incidentally caught `//` inside URLs and could corrupt the markup); we
+//     remove only genuine HTML comments.
 package cleaner
 
 import (
@@ -28,8 +28,8 @@ import (
 	"github.com/smacker/go-tree-sitter/typescript/typescript"
 )
 
-// systemWhitelist — системные директивы, которые никогда не удаляются
-// (cleaner.service.ts:31). Хранятся в нижнем регистре.
+// systemWhitelist — system directives that are never removed
+// (cleaner.service.ts:31). Stored in lowercase.
 var systemWhitelist = []string{
 	"@ts-ignore",
 	"@ts-expect-error",
@@ -42,19 +42,19 @@ var systemWhitelist = []string{
 
 var htmlCommentRe = regexp.MustCompile(`(?s)<!--.*?-->`)
 
-// Result — итог очистки одного файла.
+// Result — the outcome of cleaning a single file.
 type Result struct {
 	Content  string
 	Removed  int
 	Previews []string
 }
 
-// Cleaner хранит whitelist и настройку JSDoc.
+// Cleaner holds the whitelist and the JSDoc setting.
 type Cleaner struct {
-	whitelist []string // нижний регистр, system + пользовательские
+	whitelist []string // lowercase, system + user-provided
 }
 
-// New создаёт Cleaner. userWhitelist дополняет системный список.
+// New creates a Cleaner. userWhitelist extends the system list.
 func New(userWhitelist []string) *Cleaner {
 	wl := make([]string, 0, len(systemWhitelist)+len(userWhitelist))
 	wl = append(wl, systemWhitelist...)
@@ -77,7 +77,7 @@ type removal struct {
 	kind       rangeKind
 }
 
-// Clean удаляет комментарии из content. keepJSDoc сохраняет блоки `/** */`.
+// Clean removes comments from content. keepJSDoc preserves `/** */` blocks.
 func (c *Cleaner) Clean(filename, content string, keepJSDoc bool) Result {
 	src := []byte(content)
 	var ranges []removal
@@ -103,7 +103,7 @@ func (c *Cleaner) Clean(filename, content string, keepJSDoc bool) Result {
 		previews[i] = normalizePreview(r.text)
 	}
 
-	// Удаляем с конца, чтобы индексы не съезжали.
+	// Remove from the end so indices don't shift.
 	sorted := make([]removal, len(candidates))
 	copy(sorted, candidates)
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].start > sorted[j].start })
@@ -131,7 +131,7 @@ func (c *Cleaner) shouldRemove(r removal, keepJSDoc bool) bool {
 	return true
 }
 
-// collectCodeRanges обходит AST и собирает комментарии и пустые JSX-выражения.
+// collectCodeRanges walks the AST and collects comments and empty JSX expressions.
 func collectCodeRanges(src []byte, lang *sitter.Language) []removal {
 	parser := sitter.NewParser()
 	parser.SetLanguage(lang)
@@ -151,7 +151,7 @@ func collectCodeRanges(src []byte, lang *sitter.Language) []removal {
 					start: int(n.StartByte()), end: int(n.EndByte()),
 					text: string(src[n.StartByte():n.EndByte()]), kind: kindJSX,
 				})
-				return // не спускаемся — внутренний комментарий уже покрыт
+				return // don't descend — the inner comment is already covered
 			}
 		case "comment":
 			ranges = append(ranges, removal{
@@ -168,8 +168,8 @@ func collectCodeRanges(src []byte, lang *sitter.Language) []removal {
 	return ranges
 }
 
-// isEmptyJSXComment истинно, если jsx_expression содержит только комментарии
-// (нет выражения) — тогда удаляется весь блок `{/* */}`.
+// isEmptyJSXComment is true if the jsx_expression contains only comments
+// (no expression) — in which case the entire `{/* */}` block is removed.
 func isEmptyJSXComment(n *sitter.Node) bool {
 	named := int(n.NamedChildCount())
 	if named == 0 {
@@ -195,9 +195,9 @@ func collectHTMLRanges(src []byte) []removal {
 	return ranges
 }
 
-// getReplacement возвращает строку-замену удаляемого диапазона.
-// Для JSX — пусто. Для прочих: пробел, если комментарий зажат между двумя
-// идентификаторными символами (иначе склеятся токены), иначе пусто.
+// getReplacement returns the replacement string for the removed range.
+// For JSX — empty. Otherwise: a space if the comment sits between two
+// identifier characters (otherwise the tokens would merge), else empty.
 func getReplacement(src []byte, r removal) string {
 	if r.kind == kindJSX {
 		return ""
@@ -234,7 +234,7 @@ func grammarFor(filename string) *sitter.Language {
 	case ".tsx", ".jsx":
 		return tsx.GetLanguage()
 	default:
-		// .ts/.js/.mjs/.cjs и любые прочие — как TS (паритет ts-morph).
+		// .ts/.js/.mjs/.cjs and anything else — treated as TS (parity with ts-morph).
 		return typescript.GetLanguage()
 	}
 }

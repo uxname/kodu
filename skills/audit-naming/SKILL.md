@@ -1,23 +1,23 @@
 ---
 name: audit-naming
 description: >
-  Аудит именования: читаемость кода, стандарты именования переменных, функций, классов, файлов.
-  Запускай при /audit-naming или запросе проверить code style / naming conventions.
+  Naming audit: code readability, naming standards for variables, functions, classes, and files.
+  Run on /audit-naming or a request to check code style / naming conventions.
 ---
 
-## Правило применимости (Relevance Rule)
+## Relevance Rule
 
-Этот аудит применим к любому коду с идентификаторами. Пропускай только автогенерированные файлы (миграции, protobuf-generated, build output). Для конфигурационных файлов без кода (JSON, YAML) — верни пустой ответ.
+This audit applies to any code with identifiers. Skip only auto-generated files (migrations, protobuf-generated, build output). For configuration files without code (JSON, YAML), return an empty response.
 
 ## Runtime Detection & Stack Profile
 
-Этот аудит стек-агностичен: проверки сформулированы нейтрально, а конкретика
-(инструменты, идиомы, анти-паттерны, примеры) берётся из профиля стека.
+This audit is stack-agnostic: the checks are framed neutrally, and the specifics
+(tools, idioms, anti-patterns, examples) come from the stack profile.
 
-1. **Профиль передан контекстом?** Если оркестратор `/audit` передал
-   `runtime=<id>` и/или содержимое профиля — используй его, шаги 2–3 пропусти.
+1. **Profile passed in context?** If the `/audit` orchestrator passed
+   `runtime=<id>` and/or the profile contents, use it and skip steps 2–3.
 
-2. **Иначе определи РОВНО ОДИН рантайм** этого каталога:
+2. **Otherwise, detect EXACTLY ONE runtime** for this directory:
    ```bash
    if   [ -f package.json ]; then echo "runtime=node"
    elif [ -f go.mod ]; then echo "runtime=go"
@@ -26,73 +26,73 @@ description: >
    elif [ -f pom.xml ] || ls build.gradle* settings.gradle* >/dev/null 2>&1; then echo "runtime=java"
    else echo "runtime=generic"; fi
    ```
-   Один запуск = один рантайм; не миксуй backend и frontend. Если найдено
-   несколько маркеров (монорепо) — выбери соответствующий текущему scope/анализируемым
-   файлам и зафиксируй выбор в разделе Audit Coverage.
+   One run = one runtime; do not mix backend and frontend. If several markers
+   are found (monorepo), pick the one matching the current scope / files under
+   analysis and record the choice in the Audit Coverage section.
 
-3. **Загрузи профиль** через Read: `./skills/audit/stacks/<runtime>.md`
-   (fallback `./skills/audit/stacks/_generic.md`, если файл не найден).
+3. **Load the profile** via Read: `./skills/audit/stacks/<runtime>.md`
+   (fallback `./skills/audit/stacks/_generic.md` if the file is not found).
 
-Дальше используй профиль:
-- **Инструменты** — из секции «Tooling by category» профиля (раздел
-  «Инструментальная поддержка» ниже ссылается на категории, а не на команды).
-- **Ожидания PASS** — из «Idioms»; **формулировки FAIL** — из «Anti-patterns».
-- **Точечные подсказки** — из «Check-ID hints» по префиксу `NAM-`.
-- Если профиль `tier: general` или `runtime=generic` → стек-специфичные находки
-  без однозначного evidence помечай `🔍 UNVERIFIED`, а не `❌ FAIL`. Проверки,
-  чей механизм в рантайме отсутствует, помечай `N/A`.
+Then use the profile:
+- **Tools** — from the profile's "Tooling by category" section (the
+  "Tooling Support" section below references categories, not commands).
+- **PASS expectations** — from "Idioms"; **FAIL wording** — from "Anti-patterns".
+- **Targeted hints** — from "Check-ID hints" by the prefix `NAM-`.
+- If the profile is `tier: general` or `runtime=generic`, mark stack-specific
+  findings without unambiguous evidence as `🔍 UNVERIFIED` rather than `❌ FAIL`.
+  Mark checks whose mechanism is absent in the runtime as `N/A`.
 
 ## Severity Guide
 
-| Severity | Критерий назначения |
+| Severity | Assignment criterion |
 |----------|---------------------|
-| 🔴 Critical | RCE, auth bypass, data corruption, необратимый финансовый риск |
-| 🟠 High | Падение production, privilege escalation, утечка данных |
-| 🟡 Medium | Деградация производительности или поддерживаемости без immediate outage |
-| 🟢 Low | Стиль, читаемость, слабое нарушение конвенции |
+| 🔴 Critical | RCE, auth bypass, data corruption, irreversible financial risk |
+| 🟠 High | production outage, privilege escalation, data leak |
+| 🟡 Medium | performance or maintainability degradation without an immediate outage |
+| 🟢 Low | style, readability, minor convention violation |
 
-Правило: severity = impact × exploitability × blast radius. Одинаковый паттерн → одинаковый severity между аудитами.
+Rule: severity = impact × exploitability × blast radius. The same pattern → the same severity across audits.
 
-## Чеклист
+## Checklist
 
-| Check ID | Проверка |
+| Check ID | Check |
 |----------|----------|
-| NAM-01 | Соглашение об именовании соблюдается консистентно (camelCase/snake_case) |
-| NAM-02 | Имена переменных, функций и классов описывают назначение, не реализацию |
-| NAM-03 | Boolean-переменные имеют предикативные имена (is/has/can/should) |
-| NAM-04 | Функции-читатели (get*/find*) не имеют side effects |
-| NAM-05 | Magic numbers и magic strings заменены именованными константами |
-| NAM-06 | Утилитные модули не являются свалкой несвязанного кода |
-| NAM-07 | Ключевые сущности названы в соответствии с доменным глоссарием проекта |
+| NAM-01 | Naming convention is followed consistently (camelCase/snake_case) |
+| NAM-02 | Variable, function, and class names describe purpose, not implementation |
+| NAM-03 | Boolean variables have predicate-style names (is/has/can/should) |
+| NAM-04 | Reader functions (get*/find*) have no side effects |
+| NAM-05 | Magic numbers and magic strings are replaced with named constants |
+| NAM-06 | Utility modules are not a dumping ground for unrelated code |
+| NAM-07 | Key entities are named in line with the project's domain glossary |
 
-## Правила верификации
+## Verification Rules
 
-1. **Только чеклист**: оценивай ТОЛЬКО проверки выше. Не добавляй новые.
-2. **Явная верификация = PASS**: ставь `✅ PASS` только если явно проверил механизм (нашёл схему, конфиг, guard) и подтвердил отсутствие нарушения — укажи что именно проверено.
-3. **Нет доказательства = UNVERIFIED**: не можешь указать `файл:строка` ни для нарушения, ни для подтверждения — ставь `🔍 UNVERIFIED`.
-4. **Baseline приоритетен**: check_id есть в `docs/audit-baseline.yml` → `⏸ ACCEPTED`.
-5. **Только 🔴/🟠 FAIL требуют решения**: 🟡/🟢 — решение необязательно.
+1. **Checklist only**: evaluate ONLY the checks above. Do not add new ones.
+2. **Explicit verification = PASS**: assign `✅ PASS` only if you explicitly verified the mechanism (found the schema, config, guard) and confirmed there is no violation — state exactly what was checked.
+3. **No evidence = UNVERIFIED**: if you cannot point to a `file:line` for either a violation or a confirmation, assign `🔍 UNVERIFIED`.
+4. **Baseline takes priority**: if the check_id is in `docs/audit-baseline.yml` → `⏸ ACCEPTED`.
+5. **Only 🔴/🟠 FAILs require a solution**: 🟡/🟢 — a solution is optional.
 
 ## Evidence Quality Rules
 
-Любой `❌ FAIL` обязан содержать:
-- Точный `file:line`
-- Минимальный код-фрагмент (1–3 строки)
-- Causal chain: почему именно это нарушение → какой риск возникает
+Every `❌ FAIL` must include:
+- An exact `file:line`
+- A minimal code snippet (1–3 lines)
+- Causal chain: why this specific violation → what risk it creates
 
-Запрещено:
-- Предполагать runtime behavior без evidence в коде
-- Предполагать prod-конфигурацию по dev-конфигу
-- Предполагать отсутствие middleware без проверки всей router chain
-- Если вывод основан на предположении — только `🔍 UNVERIFIED`
+Not allowed:
+- Assuming runtime behavior without evidence in the code
+- Inferring the prod configuration from the dev configuration
+- Assuming middleware is absent without checking the entire router chain
+- If a conclusion rests on an assumption — only `🔍 UNVERIFIED`
 
 ## Language Rule
 
-Результаты аудита должны быть написаны простым и понятным языком. Избегай сложных терминов, жаргона и абстрактных понятий без необходимости. Общепринятые технические термины (Docker, HTTP, API, JSON, URL) допустимы. Описывай проблемы так, чтобы они были понятны разработчику любого уровня, а не только узкому специалисту в данной области.
+Audit results must be written in plain, clear language. Avoid complex terms, jargon, and abstract concepts unless necessary. Common technical terms (Docker, HTTP, API, JSON, URL) are fine. Describe problems so they are understandable to a developer of any level, not only a narrow specialist in the area.
 
 ## Baseline
 
-До анализа:
+Before analysis:
 ```bash
 if [ ! -f ./docs/audit-baseline.yml ]; then
   mkdir -p ./docs
@@ -102,99 +102,99 @@ fi
 cat ./docs/audit-baseline.yml
 ```
 
-## Контекст анализа
+## Analysis Context
 
-**NAM-01 — Консистентность конвенции именования:**
-- Конкретная конвенция определяется рантаймом/профилем (секция Idioms): в Node/JS — camelCase для переменных/функций, в Go — PascalCase для экспортируемых и camelCase для приватных идентификаторов. Примеры ниже иллюстративны (Node).
-- Несоответствие конвенции языка/фреймворка (snake_case в JS, camelCase в Python)
-- Непоследовательное именование одной сущности в разных местах (`userId` vs `user_id` vs `uid`)
-- Смешение стилей в одном файле или модуле
+**NAM-01 — Naming convention consistency:**
+- The specific convention is determined by the runtime/profile (Idioms section): in Node/JS — camelCase for variables/functions, in Go — PascalCase for exported and camelCase for private identifiers. The examples below are illustrative (Node).
+- Mismatch with the language/framework convention (snake_case in JS, camelCase in Python)
+- Inconsistent naming of the same entity in different places (`userId` vs `user_id` vs `uid`)
+- Mixing styles within a single file or module
 
-**NAM-02 — Имена описывают назначение:**
-- Однобуквенные переменные вне циклов (`d`, `x`, `tmp`)
-- Аббревиатуры без расшифровки (`mgr`, `proc`, `srv`, `usr`)
-- Слишком общие имена (`data`, `info`, `manager`, `handler`, `util`)
-- Классы без существительного, функции без глагола
-- Имена отражают реализацию, а не назначение (`arrayOfUsers` вместо `users`)
+**NAM-02 — Names describe purpose:**
+- Single-letter variables outside loops (`d`, `x`, `tmp`)
+- Abbreviations without expansion (`mgr`, `proc`, `srv`, `usr`)
+- Overly generic names (`data`, `info`, `manager`, `handler`, `util`)
+- Classes without a noun, functions without a verb
+- Names that reflect the implementation rather than the purpose (`arrayOfUsers` instead of `users`)
 
-**NAM-03 — Boolean с предикативными именами:**
-- Boolean переменные без is/has/can/should префикса (`enabled`, `valid`, `error`)
-- Отрицательные булевы (`isNotValid`, `notDisabled`) — двойное отрицание в условии
-- Имена, не дающие понять ожидаемое значение при true
+**NAM-03 — Booleans with predicate-style names:**
+- Boolean variables without an is/has/can/should prefix (`enabled`, `valid`, `error`)
+- Negative booleans (`isNotValid`, `notDisabled`) — double negation in conditions
+- Names that do not make the expected value clear when true
 
-**NAM-04 — Функции-читатели без side effects:**
-- Функция `getUser` изменяет данные или имеет побочные эффекты
-- `find*`/`fetch*` методы выполняют запись/обновление
-- Нарушение принципа: читающее имя → чистая операция
+**NAM-04 — Reader functions without side effects:**
+- A `getUser` function mutates data or has side effects
+- `find*`/`fetch*` methods perform writes/updates
+- Violation of the principle: a reading name → a pure operation
 
-**NAM-05 — Именованные константы вместо magic values:**
-- Magic numbers без именованных констант (`timeout = 86400`, `limit = 100`)
-- Magic strings без константы (`status === 'active'` без enum/constant)
-- Повторяющиеся литеральные значения в разных местах кода
+**NAM-05 — Named constants instead of magic values:**
+- Magic numbers without named constants (`timeout = 86400`, `limit = 100`)
+- Magic strings without a constant (`status === 'active'` without an enum/constant)
+- Repeated literal values in different places in the code
 
-**NAM-06 — Утилитные модули не свалка:**
-- `utils.ts`, `helpers.ts` как свалка несвязанного кода
-- `index.ts` с экспортом несвязанных сущностей
-- Файлы с именами, не отражающими содержимое
+**NAM-06 — Utility modules are not a dumping ground:**
+- `utils.ts`, `helpers.ts` as a dumping ground for unrelated code
+- `index.ts` exporting unrelated entities
+- Files whose names do not reflect their contents
 
 **Ubiquitous Language:**
-- Если в проекте есть `GLOSSARY.md`, `SPEC.md`, `README.md` с бизнес-терминами — проверь соответствие
-- `client` в коде при `customer` в домене — расхождение ubiquitous language
-- Синонимы для одной сущности в разных слоях (`User` / `Account` / `Member`) без явного обоснования
-- При отсутствии глоссария — ставь `🔍 UNVERIFIED`
+- If the project has a `GLOSSARY.md`, `SPEC.md`, or `README.md` with business terms, check for consistency
+- `client` in the code while the domain uses `customer` — a ubiquitous language mismatch
+- Synonyms for one entity across different layers (`User` / `Account` / `Member`) without explicit justification
+- If there is no glossary, assign `🔍 UNVERIFIED`
 
-## Инструментальная поддержка
+## Tooling Support
 
-Для NAM-06 используй инструмент категории **unused-code** из профиля стека
-(секция «Tooling by category»): он находит неиспользуемые экспорты и мёртвый код
-в утилитных модулях (свалка несвязанного кода). Используй вывод как подсказку и
-верифицируй каждую находку вручную (`file:line`) перед занесением в FAIL. Если
-ячейка пустая (tier general/generic) — проверяй вручную и помечай находки
+For NAM-06, use the **unused-code** category tool from the stack profile
+("Tooling by category" section): it finds unused exports and dead code in
+utility modules (a dumping ground for unrelated code). Use the output as a hint
+and verify each finding manually (`file:line`) before recording it as a FAIL. If
+the cell is empty (tier general/generic), check manually and mark findings
 `🔍 UNVERIFIED`.
 
-## Формат вывода
+## Output Format
 
-| Check ID | Проверка | Статус | Уверенность | Доказательство | Решение | Исправлено |
+| Check ID | Check | Status | Confidence | Evidence | Solution | Fixed |
 |----------|----------|--------|-------------|----------------|---------|------------|
-| NAM-01 | Соглашение об именовании соблюдается консистентно (camelCase/snake_case) | ✅ PASS | High | `src/` — стиль camelCase консистентен | — | — |
-| NAM-05 | Magic numbers и magic strings заменены именованными константами | ❌ FAIL 🟡 | High | `utils/date.ts:18` | **1. Вынести в `const MAX_RETRY_ATTEMPTS = 3`** \\ 2. Добавить объяснение в комментарий рядом \\ 3. Переместить в конфиг | Нет |
-| NAM-06 | Утилитные модули не являются свалкой несвязанного кода | ⏸ ACCEPTED | Medium | `src/utils.ts` | В baseline: рефактор запланирован | — |
-| NAM-07 | Ключевые сущности названы в соответствии с доменным глоссарием проекта | 🔍 UNVERIFIED | Low | — | — | — |
+| NAM-01 | Naming convention is followed consistently (camelCase/snake_case) | ✅ PASS | High | `src/` — camelCase style is consistent | — | — |
+| NAM-05 | Magic numbers and magic strings are replaced with named constants | ❌ FAIL 🟡 | High | `utils/date.ts:18` | **1. Extract into `const MAX_RETRY_ATTEMPTS = 3`** \\ 2. Add an explanation in a comment nearby \\ 3. Move to config | No |
+| NAM-06 | Utility modules are not a dumping ground for unrelated code | ⏸ ACCEPTED | Medium | `src/utils.ts` | In baseline: refactor planned | — |
+| NAM-07 | Key entities are named in line with the project's domain glossary | 🔍 UNVERIFIED | Low | — | — | — |
 
-Статусы: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED` / `🔍 UNVERIFIED`
+Statuses: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED` / `🔍 UNVERIFIED`
 
-Уверенность: `High` — проверил несколько ключевых файлов, паттерн очевиден / `Medium` — проверил выборочно, паттерн вероятен / `Low` — ограниченный контекст, полная уверенность невозможна
+Confidence: `High` — checked several key files, the pattern is obvious / `Medium` — checked selectively, the pattern is likely / `Low` — limited context, full certainty is impossible
 
-Для `❌ FAIL`: ровно 3 варианта решения, разделитель `\\`, вариант 1 жирным.
+For `❌ FAIL`: exactly 3 solution options, separated by `\\`, with option 1 in bold.
 
-`Исправлено`: FAIL → `Нет` (разработчик меняет на `✅ Да` вручную после фикса). PASS / ACCEPTED / UNVERIFIED → `—`.
+`Fixed`: FAIL → `No` (the developer changes it to `✅ Yes` manually after the fix). PASS / ACCEPTED / UNVERIFIED → `—`.
 
-Требования к решениям:
-- Взаимно исключающие (не перефразировки одного и того же)
-- Соответствуют текущему стеку проекта (не предлагать смену фреймворка)
-- Не требуют переписать всю систему — realistic migration cost
-- Вариант 3 может быть «оставить, задокументировать причину» при наличии обоснования
+Solution requirements:
+- Mutually exclusive (not rephrasings of the same thing)
+- Match the project's current stack (do not propose switching frameworks)
+- Do not require rewriting the whole system — realistic migration cost
+- Option 3 may be "keep it, document the reason" if there is justification
 
-В конце отчёта добавь раздел покрытия:
+At the end of the report, add a coverage section:
 ```
 ## Audit Coverage
-Проверено: src/module1/**, src/module2/**
-Пропущено: scripts/**, migrations/**, tests/**
-Файлов проверено: N | Пропущено: N
+Checked: src/module1/**, src/module2/**
+Skipped: scripts/**, migrations/**, tests/**
+Files checked: N | Skipped: N
 ```
 
-Если все PASS — выведи: `✅ Стандарты именования соблюдены.`
+If everything is PASS, output: `✅ Naming standards are followed.`
 
-## Сохранение результатов
+## Saving Results
 
-1. Найди папку сессии:
+1. Find the session folder:
    ```bash
    ls -dt ./docs/audits/[0-9]*/ 2>/dev/null | head -1 | sed 's|/$||'
    ```
-   Если пусто — создай: `mkdir -p ./docs/audits/$(date +"%Y-%m-%d_%H-%M")`
-2. Сохрани через Write: `<AUDIT_DIR>/audit-naming.md`
+   If empty, create it: `mkdir -p ./docs/audits/$(date +"%Y-%m-%d_%H-%M")`
+2. Save via Write: `<AUDIT_DIR>/audit-naming.md`
 
 ```
 # Audit Report: Naming — <YYYY-MM-DD HH:MM>
-<таблица>
+<table>
 ```

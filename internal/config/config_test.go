@@ -12,7 +12,7 @@ func TestDefaultWhenNoFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !cfg.Cleaner.KeepJSDoc || !cfg.Cleaner.UseGitignore {
-		t.Fatal("ожидал дефолты cleaner true")
+		t.Fatal("expected cleaner defaults to be true")
 	}
 	if len(cfg.Cleaner.Whitelist) != 1 || cfg.Cleaner.Whitelist[0] != "//!" {
 		t.Fatalf("whitelist = %v", cfg.Cleaner.Whitelist)
@@ -22,7 +22,7 @@ func TestDefaultWhenNoFile(t *testing.T) {
 	}
 }
 
-// Частичный конфиг: заданные поля переопределяют, остальные сохраняют дефолт.
+// Partial config: specified fields override, the rest keep their defaults.
 func TestPartialConfigKeepsPerFieldDefaults(t *testing.T) {
 	dir := t.TempDir()
 	write(t, dir, `{"$schema":"x","cleaner":{"keepJSDoc":false}}`)
@@ -32,33 +32,33 @@ func TestPartialConfigKeepsPerFieldDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 	if cfg.Cleaner.KeepJSDoc {
-		t.Fatal("keepJSDoc должен стать false")
+		t.Fatal("keepJSDoc should become false")
 	}
 	if !cfg.Cleaner.UseGitignore {
-		t.Fatal("useGitignore должен остаться дефолтным true")
+		t.Fatal("useGitignore should remain the default true")
 	}
 	if cfg.Cleaner.Whitelist[0] != "//!" {
-		t.Fatal("whitelist должен остаться дефолтным")
+		t.Fatal("whitelist should remain the default")
 	}
 	if cfg.Schema != "x" {
-		t.Fatal("$schema должен читаться")
+		t.Fatal("$schema should be read")
 	}
 }
 
-// Неизвестные ключи игнорируются (нестрогий разбор, как zod без .strict()).
+// Unknown keys are ignored (non-strict parsing, like zod without .strict()).
 func TestUnknownKeysIgnored(t *testing.T) {
 	dir := t.TempDir()
 	write(t, dir, `{"totallyUnknown":123,"packer":{"useGitignore":false}}`)
 	cfg, err := Load(dir)
 	if err != nil {
-		t.Fatalf("неизвестные ключи не должны быть ошибкой: %v", err)
+		t.Fatalf("unknown keys should not be an error: %v", err)
 	}
 	if cfg.Packer.UseGitignore {
-		t.Fatal("packer.useGitignore должен стать false")
+		t.Fatal("packer.useGitignore should become false")
 	}
 }
 
-// Явный пустой массив переопределяет дефолтный список.
+// An explicit empty array overrides the default list.
 func TestExplicitEmptyArrayOverrides(t *testing.T) {
 	dir := t.TempDir()
 	write(t, dir, `{"packer":{"ignore":[]}}`)
@@ -67,7 +67,7 @@ func TestExplicitEmptyArrayOverrides(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(cfg.Packer.Ignore) != 0 {
-		t.Fatalf("packer.ignore должен быть пустым, got %v", cfg.Packer.Ignore)
+		t.Fatalf("packer.ignore should be empty, got %v", cfg.Packer.Ignore)
 	}
 }
 
@@ -75,7 +75,7 @@ func TestInvalidTypeIsError(t *testing.T) {
 	dir := t.TempDir()
 	write(t, dir, `{"cleaner":{"whitelist":"not-an-array"}}`)
 	if _, err := Load(dir); err == nil {
-		t.Fatal("ожидал ошибку на неверном типе поля")
+		t.Fatal("expected an error on a wrong field type")
 	}
 }
 

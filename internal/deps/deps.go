@@ -1,10 +1,10 @@
-// Package deps строит граф импортов от входных файлов (паритет deps.service.ts).
+// Package deps builds an import graph starting from the entry files (parity with deps.service.ts).
 //
-// Реализация best-effort: модульные спецификаторы извлекаются через tree-sitter,
-// а пути разрешаются вручную — относительные импорты, расширения (.ts/.tsx/.d.ts
-// /.js/.jsx), index-файлы и алиасы tsconfig (paths/baseUrl). Не покрывается
-// экзотика (conditional exports, package.json "exports"); такие импорты, как и
-// node_modules, пропускаются.
+// The implementation is best-effort: module specifiers are extracted via tree-sitter,
+// and paths are resolved by hand — relative imports, extensions (.ts/.tsx/.d.ts
+// /.js/.jsx), index files, and tsconfig aliases (paths/baseUrl). Exotic cases
+// (conditional exports, package.json "exports") are not covered; such imports, like
+// node_modules, are skipped.
 package deps
 
 import (
@@ -19,16 +19,16 @@ import (
 	"github.com/smacker/go-tree-sitter/typescript/typescript"
 )
 
-// Options управляют обходом графа.
+// Options control the graph traversal.
 type Options struct {
-	MaxDepth     int  // <= 0 — без ограничения
-	IncludeTypes bool // включать ли import type
+	MaxDepth     int  // <= 0 — unlimited
+	IncludeTypes bool // whether to include import type
 }
 
-// Result — итог обхода.
+// Result — the outcome of the traversal.
 type Result struct {
-	Files   []string          // относительные POSIX-пути в порядке обхода
-	Explain map[string]string // abs-путь → причина включения
+	Files   []string          // relative POSIX paths in traversal order
+	Explain map[string]string // abs path → reason for inclusion
 }
 
 type collector struct {
@@ -42,7 +42,7 @@ type collector struct {
 	explain      map[string]string
 }
 
-// Collect обходит граф импортов от entryFiles.
+// Collect traverses the import graph starting from entryFiles.
 func Collect(entryFiles []string, projectRoot string, opts Options) Result {
 	c := &collector{
 		root:         projectRoot,
@@ -121,7 +121,7 @@ func importReason(imp importRef, relFrom string) string {
 
 var typeOnlyRe = regexp.MustCompile(`^(?:import|export)\s+type\b`)
 
-// extractImports достаёт спецификаторы из import/export ... from.
+// extractImports pulls specifiers out of import/export ... from statements.
 func extractImports(src []byte, filename string) []importRef {
 	parser := sitter.NewParser()
 	parser.SetLanguage(grammarFor(filename))
@@ -141,7 +141,7 @@ func extractImports(src []byte, filename string) []importRef {
 		}
 		srcNode := n.ChildByFieldName("source")
 		if srcNode == nil {
-			continue // export const ... — без источника
+			continue // export const ... — no source
 		}
 		spec := strings.Trim(string(src[srcNode.StartByte():srcNode.EndByte()]), "\"'`")
 		if spec == "" {
@@ -157,13 +157,13 @@ func extractImports(src []byte, filename string) []importRef {
 	return refs
 }
 
-// resolve превращает спецификатор в абсолютный путь к файлу или "".
+// resolve turns a specifier into an absolute file path, or "".
 func (c *collector) resolve(spec, fromFile string) string {
 	if strings.HasPrefix(spec, ".") {
 		base := filepath.Join(filepath.Dir(fromFile), spec)
 		return firstExisting(resolveCandidates(base))
 	}
-	// Алиасы tsconfig paths.
+	// tsconfig paths aliases.
 	if c.tsBaseDir != "" {
 		if p := c.resolveTSPaths(spec); p != "" {
 			return p
@@ -208,9 +208,9 @@ func (c *collector) resolveTSPaths(spec string) string {
 
 var resolveExts = []string{".ts", ".tsx", ".d.ts", ".js", ".jsx"}
 
-// sourceExts — расширения, которые считаем исходным кодом при точном совпадении
-// пути. .json и прочее намеренно исключены: ts-morph без resolveJsonModule их
-// не подхватывает, и для упаковки кода они не нужны.
+// sourceExts — extensions we treat as source code on an exact path match.
+// .json and the like are intentionally excluded: ts-morph without resolveJsonModule
+// doesn't pick them up, and they aren't needed for packing code.
 var sourceExts = map[string]bool{
 	".ts": true, ".tsx": true, ".js": true, ".jsx": true, ".mjs": true, ".cjs": true,
 }
@@ -222,10 +222,10 @@ func hasSourceExt(p string) bool {
 	return sourceExts[strings.ToLower(filepath.Ext(p))]
 }
 
-// resolveCandidates перечисляет возможные файлы для базового пути.
+// resolveCandidates lists the possible files for a base path.
 func resolveCandidates(p string) []string {
 	var cands []string
-	// Точный путь принимаем только если это исходный файл (не .json и т.п.).
+	// Accept the exact path only if it's a source file (not .json, etc.).
 	if hasSourceExt(p) {
 		cands = append(cands, p)
 	}
@@ -235,7 +235,7 @@ func resolveCandidates(p string) []string {
 	for _, e := range resolveExts {
 		cands = append(cands, filepath.Join(p, "index"+e))
 	}
-	// .js → .ts/.tsx сиблинг (NodeNext-стиль).
+	// .js → .ts/.tsx sibling (NodeNext style).
 	if strings.HasSuffix(p, ".js") {
 		base := strings.TrimSuffix(p, ".js")
 		cands = append(cands, base+".ts", base+".tsx")

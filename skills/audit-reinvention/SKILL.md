@@ -1,29 +1,29 @@
 ---
 name: audit-reinvention
 description: >
-  Аудит переизобретения велосипедов: ручная реализация того, что уже есть в stdlib/языке,
-  в установленных зависимостях или дублируется внутри проекта; предлагает зрелое готовое решение.
-  Запускай при /audit-reinvention или запросе найти переизобретённые велосипеды.
+  Reinventing-the-wheel audit: hand-rolled implementations of things already provided by the stdlib/language,
+  by installed dependencies, or duplicated within the project; proposes a mature off-the-shelf solution.
+  Run on /audit-reinvention or a request to find reinvented wheels.
 ---
 
-## Правило применимости (Relevance Rule)
+## Relevance Rule
 
-Применим к любому production-коду, где есть прикладная логика. Для тонких клеевых модулей (конфиги, чистые типы, сгенерированный код) — пропускай. Цель — найти код, который руками делает то, что уже умеет язык, рантайм, установленная библиотека или другая часть этого же проекта.
+Applies to any production code that contains application logic. Skip thin glue modules (configs, pure types, generated code). The goal is to find code that does by hand what the language, runtime, an installed library, or another part of this same project already does.
 
-**Не путать с соседними аудитами** (граница ответственности, чтобы не дублировать находки):
-- `audit-yagni` — про **лишнее**: ненужные абстракции, dead code, преждевременная оптимизация. Здесь — про **переизобретённое**: нужная функциональность, но написанная руками вместо готового решения.
-- `audit-architecture` (ARC-04 god-объекты) — про размер/ответственность модулей. REINV-03 — про **смысловое дублирование** одинаковой логики в разных местах.
-- Если нарушение лучше описывается соседним аудитом — отдай его туда и не дублируй.
+**Do not confuse with neighboring audits** (responsibility boundary, to avoid duplicating findings):
+- `audit-yagni` — about the **superfluous**: unnecessary abstractions, dead code, premature optimization. Here — about the **reinvented**: needed functionality, but written by hand instead of using a ready-made solution.
+- `audit-architecture` (ARC-04 god objects) — about module size/responsibility. REINV-03 — about **semantic duplication** of the same logic in different places.
+- If a violation is better described by a neighboring audit, hand it off there and do not duplicate.
 
 ## Runtime Detection & Stack Profile
 
-Этот аудит стек-агностичен: проверки сформулированы нейтрально, а конкретика
-(stdlib-аналоги, идиомы, анти-паттерны, примеры) берётся из профиля стека.
+This audit is stack-agnostic: the checks are framed neutrally, and the specifics
+(stdlib equivalents, idioms, anti-patterns, examples) come from the stack profile.
 
-1. **Профиль передан контекстом?** Если оркестратор `/audit` передал
-   `runtime=<id>` и/или содержимое профиля — используй его, шаги 2–3 пропусти.
+1. **Profile passed in context?** If the `/audit` orchestrator passed
+   `runtime=<id>` and/or the profile contents, use it and skip steps 2–3.
 
-2. **Иначе определи РОВНО ОДИН рантайм** этого каталога:
+2. **Otherwise, detect EXACTLY ONE runtime** for this directory:
    ```bash
    if   [ -f package.json ]; then echo "runtime=node"
    elif [ -f go.mod ]; then echo "runtime=go"
@@ -32,71 +32,71 @@ description: >
    elif [ -f pom.xml ] || ls build.gradle* settings.gradle* >/dev/null 2>&1; then echo "runtime=java"
    else echo "runtime=generic"; fi
    ```
-   Один запуск = один рантайм; не миксуй backend и frontend. При нескольких
-   маркерах (монорепо) — выбери по текущему scope и зафиксируй выбор в Audit Coverage.
+   One run = one runtime; do not mix backend and frontend. If there are several
+   markers (monorepo), pick the one matching the current scope and record the choice in Audit Coverage.
 
-3. **Загрузи профиль** через Read: `./skills/audit/stacks/<runtime>.md`
+3. **Load the profile** via Read: `./skills/audit/stacks/<runtime>.md`
    (fallback `./skills/audit/stacks/_generic.md`).
 
-Дальше: stdlib-аналоги и инструменты — из секций «Idioms»/«Tooling by category»
-профиля; формулировки FAIL — из «Anti-patterns»; точечные подсказки — из «Check-ID
-hints» по префиксу `REINV-`. Для `tier: general`/`generic` рекомендации без
-уверенности в наличии аналога помечай `🔍 UNVERIFIED`.
+Then: stdlib equivalents and tools — from the "Idioms"/"Tooling by category"
+sections of the profile; FAIL wording — from "Anti-patterns"; targeted hints — from
+"Check-ID hints" by the prefix `REINV-`. For `tier: general`/`generic`, mark
+recommendations where you are not sure an equivalent exists as `🔍 UNVERIFIED`.
 
-**Важно:** что считать «готовым решением», определяй ТОЛЬКО по манифесту
-зависимостей/lock-файлу и stdlib рантайма (см. профиль). Не предполагай наличие
-библиотеки без её записи в зависимостях.
+**Important:** what counts as a "ready-made solution" is determined ONLY by the
+dependency manifest/lock file and the runtime's stdlib (see the profile). Do not assume a
+library is present without its entry in the dependencies.
 
 ## Severity Guide
 
-| Severity | Критерий назначения |
+| Severity | Assignment criterion |
 |----------|---------------------|
-| 🔴 Critical | Самописная **безопасность**-примитива: своё хеширование паролей, своя крипта, свой JWT-парсер, своё SQL-экранирование, свой HTML-санитайзер. Ручная реализация почти всегда содержит уязвимость. |
-| 🟠 High | Переизобретение, дающее реальные баги в проде: самописный retry/таймаут без jitter, самописный парсер дат/таймзон, ручная конкурентная очередь, ручной деньги/decimal-арифметик на float. |
-| 🟡 Medium | Поддерживаемость: руками написано то, что есть в stdlib или установленной либе, но работает корректно (dedup, deepClone, debounce, groupBy). |
-| 🟢 Low | Мелочь: тривиальный однострочный аналог stdlib, читаемость не страдает. |
+| 🔴 Critical | A hand-rolled **security** primitive: your own password hashing, your own crypto, your own JWT parser, your own SQL escaping, your own HTML sanitizer. A manual implementation almost always contains a vulnerability. |
+| 🟠 High | Reinvention that causes real bugs in prod: hand-rolled retry/timeout without jitter, hand-rolled date/timezone parser, manual concurrent queue, manual money/decimal arithmetic on float. |
+| 🟡 Medium | Maintainability: something that exists in the stdlib or an installed library is hand-written but works correctly (dedup, deepClone, debounce, groupBy). |
+| 🟢 Low | Minor: a trivial one-line stdlib equivalent, readability is not harmed. |
 
-Правило: severity = impact × exploitability × blast radius. **Безопасность-примитивы всегда эскалируются** минимум до 🟠, чаще 🔴 — даже если «вроде работает». Одинаковый паттерн → одинаковый severity между аудитами.
+Rule: severity = impact × exploitability × blast radius. **Security primitives are always escalated** to at least 🟠, more often 🔴 — even if "it seems to work". The same pattern → the same severity across audits.
 
-## Чеклист
+## Checklist
 
-| Check ID | Проверка |
+| Check ID | Check |
 |----------|----------|
-| REINV-01 | Нет ручной реализации того, что есть в stdlib/языке/рантайме |
-| REINV-02 | Нет ручной реализации того, что уже умеет установленная зависимость |
-| REINV-03 | Нет смыслового дублирования: одинаковая логика не переписана в ≥2 местах вместо общей утилиты |
-| REINV-04 | Крупные механизмы (ORM, DI, scheduler, logger, job queue, валидатор) не написаны с нуля при наличии зрелого стандартного решения |
+| REINV-01 | No hand-rolled implementation of something the stdlib/language/runtime provides |
+| REINV-02 | No hand-rolled implementation of something an installed dependency already does |
+| REINV-03 | No semantic duplication: the same logic is not rewritten in ≥2 places instead of a shared utility |
+| REINV-04 | Large mechanisms (ORM, DI, scheduler, logger, job queue, validator) are not written from scratch when a mature standard solution exists |
 
-## Правила верификации
+## Verification Rules
 
-1. **Только чеклист**: оценивай ТОЛЬКО проверки выше. Не добавляй новые.
-2. **Явная верификация = PASS**: ставь `✅ PASS` только если просмотрел ключевые модули (utils, helpers, lib, core, services) и подтвердил отсутствие переизобретения — укажи что именно проверено.
-3. **Нет доказательства = UNVERIFIED**: не можешь указать `файл:строка` для самописной реализации И подтвердить наличие готового аналога — ставь `🔍 UNVERIFIED`.
-4. **Аналог обязан существовать**: `❌ FAIL` для REINV-01/02/04 валиден ТОЛЬКО если ты назвал конкретный готовый аналог (stdlib-API, пакет из `package.json`, или зрелую библиотеку) — иначе это не велосипед, а просто код.
-5. **Baseline приоритетен**: check_id есть в `docs/audit-baseline.yml` → `⏸ ACCEPTED`.
-6. **Только 🔴/🟠 FAIL требуют решения**: 🟡/🟢 — решение необязательно.
+1. **Checklist only**: evaluate ONLY the checks above. Do not add new ones.
+2. **Explicit verification = PASS**: assign `✅ PASS` only if you reviewed the key modules (utils, helpers, lib, core, services) and confirmed there is no reinvention — state exactly what was checked.
+3. **No evidence = UNVERIFIED**: if you cannot point to a `file:line` for a hand-rolled implementation AND confirm a ready-made equivalent exists, assign `🔍 UNVERIFIED`.
+4. **An equivalent must exist**: a `❌ FAIL` for REINV-01/02/04 is valid ONLY if you named a specific ready-made equivalent (a stdlib API, a package from `package.json`, or a mature library) — otherwise it is not a reinvented wheel, just code.
+5. **Baseline takes priority**: if the check_id is in `docs/audit-baseline.yml` → `⏸ ACCEPTED`.
+6. **Only 🔴/🟠 FAILs require a solution**: 🟡/🟢 — a solution is optional.
 
 ## Evidence Quality Rules
 
-Любой `❌ FAIL` обязан содержать:
-- Точный `file:line` самописной реализации
-- Минимальный код-фрагмент (1–3 строки)
-- **Имя готового аналога**: `crypto.randomUUID()`, `structuredClone`, `zod` (есть в deps), `date-fns` и т.п.
-- Causal chain: почему это велосипед → какой риск (баг/уязвимость/стоимость поддержки)
+Every `❌ FAIL` must include:
+- An exact `file:line` of the hand-rolled implementation
+- A minimal code snippet (1–3 lines)
+- **The name of the ready-made equivalent**: `crypto.randomUUID()`, `structuredClone`, `zod` (in deps), `date-fns`, etc.
+- Causal chain: why this is a reinvented wheel → what risk (bug/vulnerability/maintenance cost)
 
-Запрещено:
-- Помечать как велосипед код, для которого ты НЕ назвал конкретный готовый аналог
-- Предполагать наличие библиотеки без записи в манифесте зависимостей/lock
-- Считать «велосипедом» намеренно тонкую обёртку вокруг библиотеки (это адаптер, а не переизобретение)
-- Если вывод основан на предположении — только `🔍 UNVERIFIED`
+Not allowed:
+- Flagging as a reinvented wheel code for which you did NOT name a specific ready-made equivalent
+- Assuming a library is present without an entry in the dependency manifest/lock
+- Treating an intentionally thin wrapper around a library as a "reinvented wheel" (that is an adapter, not reinvention)
+- If a conclusion rests on an assumption — only `🔍 UNVERIFIED`
 
 ## Language Rule
 
-Результаты аудита должны быть написаны простым и понятным языком. Избегай сложных терминов, жаргона и абстрактных понятий без необходимости. Общепринятые технические термины (Docker, HTTP, API, JSON, URL) допустимы. Описывай проблемы так, чтобы они были понятны разработчику любого уровня, а не только узкому специалисту в данной области.
+Audit results must be written in plain, clear language. Avoid complex terms, jargon, and abstract concepts unless necessary. Common technical terms (Docker, HTTP, API, JSON, URL) are fine. Describe problems so they are understandable to a developer of any level, not only a narrow specialist in the area.
 
 ## Baseline
 
-До анализа:
+Before analysis:
 ```bash
 if [ ! -f ./docs/audit-baseline.yml ]; then
   mkdir -p ./docs
@@ -106,109 +106,110 @@ fi
 cat ./docs/audit-baseline.yml
 ```
 
-## Контекст анализа
+## Analysis Context
 
-> Примеры ниже — иллюстративные (Node/TS). Конкретные stdlib-аналоги и
-> установленные библиотеки для текущего рантайма бери из загруженного профиля
-> (`stacks/<runtime>.md`, секции Idioms/Anti-patterns/Check-ID hints). Например
-> для Go: `[...new Set()]` → `slices`/`maps`, самописный query builder →
-> `database/sql`/sqlc, ручная отмена → `context.Context`.
+> The examples below are illustrative (Node/TS). Take the specific stdlib
+> equivalents and installed libraries for the current runtime from the loaded profile
+> (`stacks/<runtime>.md`, the Idioms/Anti-patterns/Check-ID hints sections). For example,
+> for Go: `[...new Set()]` → `slices`/`maps`, a hand-rolled query builder →
+> `database/sql`/sqlc, manual cancellation → `context.Context`.
 
-**REINV-01 — Ре-имплементация stdlib/языка/рантайма:**
-- Дедупликация массива руками вместо `[...new Set(arr)]`
-- Самописный deep clone вместо `structuredClone()`
-- Генерация UUID руками вместо `crypto.randomUUID()`
-- Ручной base64 вместо `Buffer`/`btoa`/`atob`
-- Самописные `debounce`/`throttle`/`groupBy`/`flatten`, когда есть `Array.flat`, `Object.groupBy`, либо они уже в установленной либе (тогда это скорее REINV-02)
-- Цикл с аккумулятором вместо `Promise.all`/`Promise.allSettled` для независимых задач
-- Ручной парсинг query string вместо `URLSearchParams`
-- Самописное сравнение/сортировка дат вместо `Intl`/установленной date-либы
+**REINV-01 — Reimplementing stdlib/language/runtime:**
+- Deduplicating an array by hand instead of `[...new Set(arr)]`
+- A hand-rolled deep clone instead of `structuredClone()`
+- Generating UUIDs by hand instead of `crypto.randomUUID()`
+- Manual base64 instead of `Buffer`/`btoa`/`atob`
+- Hand-rolled `debounce`/`throttle`/`groupBy`/`flatten` when `Array.flat`, `Object.groupBy` exist, or they are already in an installed library (then it is more like REINV-02)
+- A loop with an accumulator instead of `Promise.all`/`Promise.allSettled` for independent tasks
+- Manual query string parsing instead of `URLSearchParams`
+- Hand-rolled date comparison/sorting instead of `Intl`/an installed date library
 
-**REINV-02 — Дублирование установленной зависимости:**
-- Самописный HTTP retry/backoff при наличии `axios-retry`/`p-retry`/`got` (retry встроен)
-- Ручная валидация полей при наличии `zod`/`yup`/`joi`/`class-validator`/`pydantic`
-- Самописный `deepEqual`/`cloneDeep`/`pick`/`omit` при наличии `lodash`/`ramda`
-- Ручная арифметика дат при наличии `date-fns`/`dayjs`/`luxon`
-- Своя реализация того, что уже даёт фреймворк (свой body-parser/роутер/CORS при наличии встроенного)
-- Свой in-memory кэш с TTL при наличии `lru-cache`/`node-cache` в deps
+**REINV-02 — Duplicating an installed dependency:**
+- A hand-rolled HTTP retry/backoff when `axios-retry`/`p-retry`/`got` (retry built in) is present
+- Manual field validation when `zod`/`yup`/`joi`/`class-validator`/`pydantic` is present
+- A hand-rolled `deepEqual`/`cloneDeep`/`pick`/`omit` when `lodash`/`ramda` is present
+- Manual date arithmetic when `date-fns`/`dayjs`/`luxon` is present
+- Reimplementing what the framework already provides (your own body-parser/router/CORS when a built-in one exists)
+- Your own in-memory cache with TTL when `lru-cache`/`node-cache` is in deps
 
-**REINV-03 — Внутренние смысловые дубликаты:**
-- Одинаковая по смыслу функция скопирована в ≥2 файлах вместо общей утилиты
-- Два хелпера под разными именами делают одно и то же
-- Повторяющийся inline-блок (форматирование, маппинг, guard), который должен быть единой функцией
-- Граница: если это про размер модуля — отдать в `audit-architecture` (ARC-04); если про мёртвый код — в `audit-yagni`
+**REINV-03 — Internal semantic duplicates:**
+- A semantically identical function copied into ≥2 files instead of a shared utility
+- Two helpers under different names that do the same thing
+- A repeated inline block (formatting, mapping, guard) that should be a single function
+- Boundary: if it is about module size, hand it to `audit-architecture` (ARC-04); if it is about dead code, to `audit-yagni`
 
-**REINV-04 — Самописный крупный механизм при наличии зрелого решения:**
-- Свой ORM/query builder, свой DI-контейнер, свой scheduler/cron, свой logger, своя job queue, свой state machine, свой event bus
-- Самописный механизм, для которого в экосистеме рантайма есть зрелое стандартное решение, ещё НЕ установленное в проект
-- Для такого FAIL обязательна **оценка стоимости миграции** в решении (реалистичная, без «переписать всё»)
+**REINV-04 — A hand-rolled large mechanism when a mature solution exists:**
+- Your own ORM/query builder, your own DI container, your own scheduler/cron, your own logger, your own job queue, your own state machine, your own event bus
+- A hand-rolled mechanism for which the runtime's ecosystem has a mature standard solution that is NOT yet installed in the project
+- For such a FAIL, the solution must include a **migration cost estimate** (realistic, without "rewrite everything")
 
-## Правила рекомендаций (политика новых зависимостей)
+## Recommendation Rules (new-dependency policy)
 
-Рекомендации **стек-агностичны**: опирайся на Runtime Detection, не привязывайся к конкретным шаблонам проекта.
+Recommendations are **stack-agnostic**: rely on Runtime Detection, do not tie yourself to specific project templates.
 
-Приоритет вариантов решения, сверху вниз:
-1. **stdlib/язык/рантайм** — всегда предпочтительнее, если аналог есть (нулевая стоимость).
-2. **Уже установленная зависимость** — если в манифесте зависимостей (см. профиль) есть подходящая либа, используй её.
-3. **Новая зависимость — осторожно**: предлагать ТОЛЬКО для зрелых/популярных библиотек (активная поддержка, высокая распространённость) И с обязательной оценкой стоимости миграции. Для мелочей (dedup, clone) новую либу НЕ предлагать — там хватает stdlib.
+Priority of solution options, top to bottom:
+1. **stdlib/language/runtime** — always preferred if an equivalent exists (zero cost).
+2. **An already installed dependency** — if the dependency manifest (see the profile) has a suitable library, use it.
+3. **A new dependency — with caution**: propose ONLY for mature/popular libraries (active maintenance, wide adoption) AND with a mandatory migration cost estimate. For minor things (dedup, clone) do NOT propose a new library — the stdlib is enough there.
 
-Для безопасности-примитивов (REINV-01/04 с severity 🔴): «оставить самописное» **не может** быть валидным вариантом — только переход на проверенное решение.
+For security primitives (REINV-01/04 with severity 🔴), "keep the hand-rolled version" **cannot** be a valid option — only a move to a proven solution.
 
-## Инструментальная поддержка
+## Tooling Support
 
-Для REINV-03 используй инструмент категории **clone-detection** из профиля стека
-(секция «Tooling by category»): он находит дублирующиеся блоки кода. Верифицируй
-каждое совпадение вручную перед занесением в FAIL (бывают ложные: сгенерированный
-код, похожие, но не идентичные по смыслу блоки). Если ячейка категории пустая
-(`tier: general`/`generic`) — ищи повторы вручную и помечай находки `🔍 UNVERIFIED`.
+For REINV-03, use the **clone-detection** category tool from the stack profile
+("Tooling by category" section): it finds duplicated code blocks. Verify each
+match manually before recording it as a FAIL (false positives happen: generated
+code, blocks that look alike but are not semantically identical). If the category
+cell is empty (`tier: general`/`generic`), search for duplicates manually and mark
+findings `🔍 UNVERIFIED`.
 
-Для REINV-02 сверяй найденные самописные реализации со списком установленных
-зависимостей (манифест/lock из профиля) — что реально доступно в проекте.
+For REINV-02, cross-check the hand-rolled implementations you find against the list of installed
+dependencies (manifest/lock from the profile) — what is actually available in the project.
 
-## Формат вывода
+## Output Format
 
-| Check ID | Проверка | Статус | Уверенность | Доказательство | Решение | Исправлено |
+| Check ID | Check | Status | Confidence | Evidence | Solution | Fixed |
 |----------|----------|--------|-------------|----------------|---------|------------|
-| REINV-01 | Нет ручной реализации того, что есть в stdlib/языке/рантайме | ❌ FAIL 🟡 | High | `src/utils/array.ts:12` — ручной dedup циклом; есть `[...new Set()]` | **1. Заменить на `[...new Set(arr)]`** \\ 2. Вынести в общий хелпер `unique()` \\ 3. Оставить, если важен порядок и кастомный компаратор — задокументировать | Нет |
-| REINV-02 | Нет ручной реализации того, что уже умеет установленная зависимость | ❌ FAIL 🟠 | High | `src/http/client.ts:40` — самописный retry-цикл; в deps есть `axios-retry` | **1. Подключить `axios-retry` с exponential backoff + jitter** \\ 2. Заменить на `p-retry` (уже в deps) \\ 3. Оставить, добавив jitter и тесты — обосновать | Нет |
-| REINV-04 | Крупные механизмы не написаны с нуля при наличии зрелого решения | ✅ PASS | Medium | `src/` — самописных ORM/DI/scheduler не найдено | — | — |
-| REINV-03 | Нет смыслового дублирования логики | ⏸ ACCEPTED | Medium | `src/a.ts`, `src/b.ts` | В baseline: дубли в legacy-модуле, трекается в Jira PROJ-456 | — |
+| REINV-01 | No hand-rolled implementation of something the stdlib/language/runtime provides | ❌ FAIL 🟡 | High | `src/utils/array.ts:12` — manual dedup with a loop; `[...new Set()]` exists | **1. Replace with `[...new Set(arr)]`** \\ 2. Extract into a shared helper `unique()` \\ 3. Keep it if order and a custom comparator matter — document it | No |
+| REINV-02 | No hand-rolled implementation of something an installed dependency already does | ❌ FAIL 🟠 | High | `src/http/client.ts:40` — hand-rolled retry loop; `axios-retry` is in deps | **1. Wire up `axios-retry` with exponential backoff + jitter** \\ 2. Replace with `p-retry` (already in deps) \\ 3. Keep it, adding jitter and tests — justify it | No |
+| REINV-04 | Large mechanisms are not written from scratch when a mature solution exists | ✅ PASS | Medium | `src/` — no hand-rolled ORM/DI/scheduler found | — | — |
+| REINV-03 | No semantic duplication of logic | ⏸ ACCEPTED | Medium | `src/a.ts`, `src/b.ts` | In baseline: duplicates in a legacy module, tracked in Jira PROJ-456 | — |
 
-Статусы: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED` / `🔍 UNVERIFIED`
+Statuses: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED` / `🔍 UNVERIFIED`
 
-Уверенность: `High` — нашёл самописную реализацию и подтвердил наличие аналога / `Medium` — паттерн вероятен, аналог есть, но контекст использования проверен выборочно / `Low` — ограниченный контекст, полная уверенность невозможна
+Confidence: `High` — found the hand-rolled implementation and confirmed an equivalent exists / `Medium` — the pattern is likely, an equivalent exists, but the usage context was checked selectively / `Low` — limited context, full certainty is impossible
 
-Для `❌ FAIL`: ровно 3 варианта решения, разделитель `\\`, вариант 1 жирным.
+For `❌ FAIL`: exactly 3 solution options, separated by `\\`, with option 1 in bold.
 
-`Исправлено`: FAIL → `Нет` (разработчик меняет на `✅ Да` вручную после фикса). PASS / ACCEPTED / UNVERIFIED → `—`.
+`Fixed`: FAIL → `No` (the developer changes it to `✅ Yes` manually after the fix). PASS / ACCEPTED / UNVERIFIED → `—`.
 
-Требования к решениям:
-- Каждый вариант называет **конкретный** готовый аналог (API stdlib или имя пакета)
-- Взаимно исключающие (не перефразировки одного и того же)
-- Соответствуют текущему рантайму и политике зависимостей выше
-- Не требуют переписать всю систему — realistic migration cost
-- Вариант 3 может быть «оставить, задокументировать причину» — НО запрещён для безопасности-примитивов (🔴)
+Solution requirements:
+- Each option names a **specific** ready-made equivalent (a stdlib API or a package name)
+- Mutually exclusive (not rephrasings of the same thing)
+- Match the current runtime and the dependency policy above
+- Do not require rewriting the whole system — realistic migration cost
+- Option 3 may be "keep it, document the reason" — BUT it is forbidden for security primitives (🔴)
 
-В конце отчёта добавь раздел покрытия:
+At the end of the report, add a coverage section:
 ```
 ## Audit Coverage
-Проверено: src/utils/**, src/services/**, src/http/**
-Пропущено: scripts/**, migrations/**, tests/**, generated/**
-Файлов проверено: N | Пропущено: N
+Checked: src/utils/**, src/services/**, src/http/**
+Skipped: scripts/**, migrations/**, tests/**, generated/**
+Files checked: N | Skipped: N
 ```
 
-Если все PASS — выведи: `✅ Переизобретённых велосипедов не обнаружено.`
+If everything is PASS, output: `✅ No reinvented wheels found.`
 
-## Сохранение результатов
+## Saving Results
 
-1. Найди папку сессии:
+1. Find the session folder:
    ```bash
    ls -dt ./docs/audits/[0-9]*/ 2>/dev/null | head -1 | sed 's|/$||'
    ```
-   Если пусто — создай: `mkdir -p ./docs/audits/$(date +"%Y-%m-%d_%H-%M")`
-2. Сохрани через Write: `<AUDIT_DIR>/audit-reinvention.md`
+   If empty, create it: `mkdir -p ./docs/audits/$(date +"%Y-%m-%d_%H-%M")`
+2. Save via Write: `<AUDIT_DIR>/audit-reinvention.md`
 
 ```
 # Audit Report: Reinventing the Wheel — <YYYY-MM-DD HH:MM>
-<таблица>
+<table>
 ```

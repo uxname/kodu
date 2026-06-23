@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Тонкий лаунчер: запускает нативный бинарь kodu, скачанный postinstall'ом.
+// Thin launcher: runs the native kodu binary downloaded by postinstall.
 'use strict';
 
 const path = require('node:path');
@@ -10,7 +10,7 @@ const binName = process.platform === 'win32' ? 'kodu.exe' : 'kodu';
 const binPath = path.join(__dirname, binName);
 
 if (!fs.existsSync(binPath)) {
-  console.error('[kodu] Нативный бинарь не найден. Переустановите пакет или соберите из исходников:');
+  console.error('[kodu] Native binary not found. Reinstall the package or build it from source:');
   console.error('[kodu]   go install github.com/uxname/kodu/cmd/kodu@latest');
   process.exit(1);
 }

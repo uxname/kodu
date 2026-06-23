@@ -1,23 +1,22 @@
 ---
 name: audit-errors
 description: >
-  Аудит обработки ошибок и отказоустойчивости: исключения, таймауты, retry policies,
-  circuit breakers, graceful degradation. Запускай при /audit-errors.
+  Error handling and resiliency audit: exceptions, timeouts, retry policies,
+  circuit breakers, graceful degradation. Run on /audit-errors.
 ---
 
-## Правило применимости (Relevance Rule)
+## Relevance Rule
 
-Применим к коду с внешними вызовами (HTTP, БД, очереди, файловая система), асинхронному коду, обработчикам событий. Для синхронных утилит без I/O — верни пустой ответ.
+Applies to code with external calls (HTTP, DB, queues, file system), asynchronous code, and event handlers. For synchronous utilities without I/O, return an empty response.
 
 ## Runtime Detection & Stack Profile
 
-Этот аудит стек-агностичен: проверки сформулированы нейтрально, а конкретика
-(инструменты, идиомы, анти-паттерны, примеры) берётся из профиля стека.
+This audit is stack-agnostic: the checks are framed neutrally, and the specifics (tools, idioms, anti-patterns, examples) come from the stack profile.
 
-1. **Профиль передан контекстом?** Если оркестратор `/audit` передал
-   `runtime=<id>` и/или содержимое профиля — используй его, шаги 2–3 пропусти.
+1. **Profile passed in context?** If the `/audit` orchestrator passed
+   `runtime=<id>` and/or the profile contents, use it and skip steps 2–3.
 
-2. **Иначе определи РОВНО ОДИН рантайм** этого каталога:
+2. **Otherwise, detect EXACTLY ONE runtime** for this directory:
    ```bash
    if   [ -f package.json ]; then echo "runtime=node"
    elif [ -f go.mod ]; then echo "runtime=go"
@@ -26,76 +25,74 @@ description: >
    elif [ -f pom.xml ] || ls build.gradle* settings.gradle* >/dev/null 2>&1; then echo "runtime=java"
    else echo "runtime=generic"; fi
    ```
-   Один запуск = один рантайм; не миксуй backend и frontend. Если найдено
-   несколько маркеров (монорепо) — выбери соответствующий текущему scope/анализируемым
-   файлам и зафиксируй выбор в разделе Audit Coverage.
+   One run = one runtime; do not mix backend and frontend. If several markers are found (monorepo), pick the one matching the current scope / files under analysis and record the choice in the Audit Coverage section.
 
-3. **Загрузи профиль** через Read: `./skills/audit/stacks/<runtime>.md`
-   (fallback `./skills/audit/stacks/_generic.md`, если файл не найден).
+3. **Load the profile** via Read: `./skills/audit/stacks/<runtime>.md`
+   (fallback `./skills/audit/stacks/_generic.md` if the file is not found).
 
-Дальше используй профиль:
-- **Инструменты** — из секции «Tooling by category» профиля (раздел
-  «Инструментальная поддержка» ниже ссылается на категории, а не на команды).
-- **Ожидания PASS** — из «Idioms»; **формулировки FAIL** — из «Anti-patterns».
-- **Точечные подсказки** — из «Check-ID hints» по префиксу `ERR-`.
-- Если профиль `tier: general` или `runtime=generic` → стек-специфичные находки
-  без однозначного evidence помечай `🔍 UNVERIFIED`, а не `❌ FAIL`. Проверки,
-  чей механизм в рантайме отсутствует, помечай `N/A`.
+Then use the profile:
+- **Tools** — from the profile's "Tooling by category" section (the
+  "Tooling Support" section below references categories, not commands).
+- **PASS expectations** — from "Idioms"; **FAIL wording** — from "Anti-patterns".
+- **Targeted hints** — from "Check-ID hints" by the prefix `ERR-`.
+- If the profile is `tier: general` or `runtime=generic`, mark stack-specific
+  findings without unambiguous evidence as `🔍 UNVERIFIED` rather than `❌ FAIL`.
+  Mark checks whose mechanism is absent in the runtime as `N/A`.
 
 ## Severity Guide
 
-| Severity | Критерий назначения |
+| Severity | Assignment criterion |
 |----------|---------------------|
-| 🔴 Critical | RCE, auth bypass, data corruption, необратимый финансовый риск |
-| 🟠 High | Падение production, privilege escalation, утечка данных |
-| 🟡 Medium | Деградация производительности или поддерживаемости без immediate outage |
-| 🟢 Low | Стиль, читаемость, слабое нарушение конвенции |
+| 🔴 Critical | RCE, auth bypass, data corruption, irreversible financial risk |
+| 🟠 High | production outage, privilege escalation, data leak |
+| 🟡 Medium | performance or maintainability degradation without an immediate outage |
+| 🟢 Low | style, readability, minor convention violation |
 
-Правило: severity = impact × exploitability × blast radius. Одинаковый паттерн → одинаковый severity между аудитами.
+Rule: severity = impact × exploitability × blast radius. The same pattern → the same severity across audits.
 
-## Чеклист
+## Checklist
 
-| Check ID | Проверка |
+| Check ID | Check |
 |----------|----------|
-| ERR-01 | Ошибки не проглатываются — возвращаемая ошибка не игнорируется (в т.ч. через `_`), catch-блоки обрабатывают или пробрасывают |
-| ERR-02 | Внутренние детали (stack trace, пути, версии) не попадают в ответы |
-| ERR-03 | Падения внутри обработчиков (panic/исключения) перехватываются и не роняют процесс/соединение |
-| ERR-04 | Непойманные сбои верхнего уровня (паники в фоновых задачах) логируются и не приводят к тихому падению |
-| ERR-05 | Внешние вызовы (HTTP-клиент, DB) имеют явные таймауты |
-| ERR-06 | Graceful shutdown реализован — SIGTERM обрабатывается |
-| ERR-07 | Error responses консистентны по структуре во всём приложении |
-| ERR-08 | Retry-стратегии используют exponential backoff с jitter |
-| ERR-09 | Контекст отмены пробрасывается во внешние вызовы и прерывает их [⚡ dynamic] |
+| ERR-01 | Errors are not swallowed — a returned error is not ignored (including via `_`), catch blocks handle or rethrow |
+| ERR-02 | Internal details (stack trace, paths, versions) do not leak into responses |
+| ERR-03 | Failures inside handlers (panics/exceptions) are caught and do not crash the process/connection |
+| ERR-04 | Uncaught top-level failures (panics in background tasks) are logged and do not lead to a silent crash |
+| ERR-05 | External calls (HTTP client, DB) have explicit timeouts |
+| ERR-06 | Graceful shutdown is implemented — SIGTERM is handled |
+| ERR-07 | Error responses are consistent in structure across the whole application |
+| ERR-08 | Retry strategies use exponential backoff with jitter |
+| ERR-09 | A cancellation context is propagated into external calls and aborts them [⚡ dynamic] |
 
-## Правила верификации
+## Verification Rules
 
-1. **Только чеклист**: оценивай ТОЛЬКО проверки выше. Не добавляй новые.
-2. **Явная верификация = PASS**: ставь `✅ PASS` только если явно проверил механизм (нашёл схему, конфиг, guard) и подтвердил отсутствие нарушения — укажи что именно проверено.
-3. **Нет доказательства = UNVERIFIED**: не можешь указать `файл:строка` ни для нарушения, ни для подтверждения — ставь `🔍 UNVERIFIED`.
-   - Проверки с `[⚡ dynamic]` нельзя статически подтвердить — только `🔍 UNVERIFIED` или `❌ FAIL` (при явном evidence), но не `✅ PASS`
-4. **Baseline приоритетен**: check_id есть в `docs/audit-baseline.yml` → `⏸ ACCEPTED`.
-5. **Только 🔴/🟠 FAIL требуют решения**: 🟡/🟢 — решение необязательно.
+1. **Checklist only**: evaluate ONLY the checks above. Do not add new ones.
+2. **Explicit verification = PASS**: assign `✅ PASS` only if you explicitly verified the mechanism (found the schema, config, guard) and confirmed there is no violation — state exactly what was checked.
+3. **No evidence = UNVERIFIED**: if you cannot point to a `file:line` for either a violation or a confirmation, assign `🔍 UNVERIFIED`.
+   - Checks marked `[⚡ dynamic]` cannot be confirmed statically — only `🔍 UNVERIFIED` or `❌ FAIL` (with explicit evidence), never `✅ PASS`
+4. **Baseline takes priority**: if the check_id is in `docs/audit-baseline.yml` → `⏸ ACCEPTED`.
+5. **Only 🔴/🟠 FAILs require a solution**: 🟡/🟢 — a solution is optional.
 
 ## Evidence Quality Rules
 
-Любой `❌ FAIL` обязан содержать:
-- Точный `file:line`
-- Минимальный код-фрагмент (1–3 строки)
-- Causal chain: почему именно это нарушение → какой риск возникает
+Every `❌ FAIL` must include:
+- An exact `file:line`
+- A minimal code snippet (1–3 lines)
+- Causal chain: why this specific violation → what risk it creates
 
-Запрещено:
-- Предполагать runtime behavior без evidence в коде
-- Предполагать prod-конфигурацию по dev-конфигу
-- Предполагать отсутствие middleware без проверки всей router chain
-- Если вывод основан на предположении — только `🔍 UNVERIFIED`
+Not allowed:
+- Assuming runtime behavior without evidence in the code
+- Inferring the prod configuration from the dev configuration
+- Assuming middleware is absent without checking the entire router chain
+- If a conclusion rests on an assumption — only `🔍 UNVERIFIED`
 
 ## Language Rule
 
-Результаты аудита должны быть написаны простым и понятным языком. Избегай сложных терминов, жаргона и абстрактных понятий без необходимости. Общепринятые технические термины (Docker, HTTP, API, JSON, URL) допустимы. Описывай проблемы так, чтобы они были понятны разработчику любого уровня, а не только узкому специалисту в данной области.
+Audit results must be written in plain, clear language. Avoid complex terms, jargon, and abstract concepts unless necessary. Common technical terms (Docker, HTTP, API, JSON, URL) are fine. Describe problems so they are understandable to a developer of any level, not only a narrow specialist in the area.
 
 ## Baseline
 
-До анализа:
+Before analysis:
 ```bash
 if [ ! -f ./docs/audit-baseline.yml ]; then
   mkdir -p ./docs
@@ -105,112 +102,112 @@ fi
 cat ./docs/audit-baseline.yml
 ```
 
-## Контекст анализа
+## Analysis Context
 
-> Примеры ниже — иллюстративные (Node/TS). Конкретику текущего рантайма бери из
-> загруженного профиля (`stacks/<runtime>.md`, секции Idioms/Anti-patterns/Check-ID hints).
+> The examples below are illustrative (Node/TS). Take the specifics of the current runtime from
+> the loaded profile (`stacks/<runtime>.md`, the Idioms/Anti-patterns/Check-ID hints sections).
 
-**ERR-01 — Ошибки не проглатываются:**
-- Возвращаемая ошибка игнорируется (в т.ч. через `_`) и не обрабатывается
-- Пустые catch-блоки (`catch(e) {}`)
-- `catch` только с логом без восстановления и re-throw
-- Promise без `.catch()` или `try/await` без `catch`
-- Unhandled promise rejections без обработки
-- В Go: `_ = f()` / `v, _ := f()` глотает ошибку; ловится `errcheck`/`golangci-lint`
+**ERR-01 — Errors are not swallowed:**
+- A returned error is ignored (including via `_`) and not handled
+- Empty catch blocks (`catch(e) {}`)
+- `catch` with only a log, without recovery or re-throw
+- A Promise without `.catch()`, or `try/await` without `catch`
+- Unhandled promise rejections with no handling
+- In Go: `_ = f()` / `v, _ := f()` swallows the error; caught by `errcheck`/`golangci-lint`
 
-**ERR-02 — Внутренние детали не в ответах:**
-- Stack trace в production API responses
-- Внутренние пути файловой системы в error messages
-- Версии зависимостей/фреймворка в заголовках или ответах
-- DB-специфичные сообщения об ошибках (SQL syntax error) в API responses
+**ERR-02 — Internal details not in responses:**
+- Stack trace in production API responses
+- Internal file system paths in error messages
+- Dependency/framework versions in headers or responses
+- DB-specific error messages (SQL syntax error) in API responses
 
-**ERR-03 — Падения внутри обработчиков перехватываются:**
-- Паника/исключение внутри обработчика роняет процесс или соединение вместо локального перехвата
-- Express async handlers без asyncHandler wrapper или Express 5
-- Promise rejection в middleware не пробрасывается в error middleware
-- Необработанные исключения в setTimeout/setInterval колбэках
-- В Go: нет recover-middleware (chi `middleware.Recoverer`), нет `RecoverFunc` в gqlgen, нет recover в обёртке задачи (asynq) — паника роняет соединение/процесс
+**ERR-03 — Failures inside handlers are caught:**
+- A panic/exception inside a handler crashes the process or connection instead of being caught locally
+- Express async handlers without an asyncHandler wrapper or Express 5
+- A Promise rejection in middleware is not propagated to the error middleware
+- Unhandled exceptions in setTimeout/setInterval callbacks
+- In Go: no recover middleware (chi `middleware.Recoverer`), no `RecoverFunc` in gqlgen, no recover in the task wrapper (asynq) — a panic crashes the connection/process
 
-**ERR-04 — Непойманные сбои верхнего уровня:**
-- Непойманный сбой верхнего уровня не логируется и приводит к тихому падению
-- Отсутствие `process.on('unhandledRejection')`
-- Отсутствие `process.on('uncaughtException')`
-- Нет логирования и корректного выхода при критических ошибках процесса
-- В Go: паника в фоновой goroutine/задаче без `defer recover()` роняет весь процесс — нужен `defer recover()` в каждой goroutine
+**ERR-04 — Uncaught top-level failures:**
+- An uncaught top-level failure is not logged and leads to a silent crash
+- No `process.on('unhandledRejection')`
+- No `process.on('uncaughtException')`
+- No logging and clean exit on critical process errors
+- In Go: a panic in a background goroutine/task without `defer recover()` crashes the whole process — a `defer recover()` is needed in every goroutine
 
-**ERR-05 — Явные таймауты для внешних вызовов:**
-- HTTP-клиент / DB-вызов без явного timeout
-- БД-запросы без query timeout / statement timeout
-- Отсутствие timeout для очередей сообщений и внешних gRPC вызовов
-- Бесконечные retry без exponential backoff и max attempts
-- В Go: `http.Client{Timeout: ...}`, `context.WithTimeout` для запросов к БД/внешним сервисам
+**ERR-05 — Explicit timeouts for external calls:**
+- HTTP client / DB call without an explicit timeout
+- DB queries without a query timeout / statement timeout
+- No timeout for message queues and external gRPC calls
+- Infinite retries without exponential backoff and max attempts
+- In Go: `http.Client{Timeout: ...}`, `context.WithTimeout` for requests to the DB/external services
 
 **ERR-06 — Graceful shutdown:**
-- Отсутствие обработки сигнала завершения (SIGTERM)
-- Нет закрытия DB-пула и HTTP-сервера при shutdown
-- Незавершённые запросы не дожидаются окончания при shutdown
-- В Go: `signal.NotifyContext` + `server.Shutdown(ctx)` + закрытие пулов (pgx), воркеров (asynq), redis
+- No handling of the termination signal (SIGTERM)
+- DB pool and HTTP server not closed on shutdown
+- In-flight requests are not awaited to completion on shutdown
+- In Go: `signal.NotifyContext` + `server.Shutdown(ctx)` + closing pools (pgx), workers (asynq), redis
 
-**ERR-07 — Консистентная структура error responses:**
-- Разный формат ошибок в разных endpoint'ах (нет единого error shape)
-- Отсутствие machine-readable error code (только human-readable message)
-- HTTP статус 200 при ошибке (должен быть 4xx/5xx)
+**ERR-07 — Consistent error response structure:**
+- Different error formats across endpoints (no single error shape)
+- No machine-readable error code (only a human-readable message)
+- HTTP status 200 on error (should be 4xx/5xx)
 
 **Retry & Cancellation (ERR-08 / ERR-09):**
-- HTTP-retry без задержки или с фиксированной задержкой (нет exponential backoff)
-- Отсутствие jitter — все ретраи синхронизируются при массовом сбое
-- Внешний вызов без контекста отмены — висящие запросы после disconnect клиента (Node: fetch/axios без AbortSignal)
-- Контекст отмены не пробрасывается вглубь цепочки вызовов и не прерывает их
-- В Go: `context.Context` — первоклассный механизм отмены, пробрасывается во все внешние вызовы (pgx/HTTP/asynq)
+- HTTP retry without a delay or with a fixed delay (no exponential backoff)
+- No jitter — all retries synchronize during a mass failure
+- An external call without a cancellation context — hanging requests after the client disconnects (Node: fetch/axios without AbortSignal)
+- The cancellation context is not propagated deep into the call chain and does not abort it
+- In Go: `context.Context` is the first-class cancellation mechanism, propagated into all external calls (pgx/HTTP/asynq)
 
-## Граница с другими аудитами
+## Boundary With Other Audits
 
-- **Stack trace в ответах** — этот скилл первичный (ERR-02). `audit-owasp` и `audit-api-contracts` ссылаются сюда.
-- **Идемпотентность handlers** — первичный: `audit-concurrency` (CON-05). Здесь не дублируй.
-- **Таймауты HTTP-клиентов** — ERR-05 первичный. `audit-performance` не дублирует.
+- **Stack trace in responses** — this skill is primary (ERR-02). `audit-owasp` and `audit-api-contracts` refer here.
+- **Handler idempotency** — primary: `audit-concurrency` (CON-05). Do not duplicate here.
+- **HTTP client timeouts** — ERR-05 is primary. `audit-performance` does not duplicate it.
 
-## Формат вывода
+## Output Format
 
-| Check ID | Проверка | Статус | Уверенность | Доказательство | Решение | Исправлено |
+| Check ID | Check | Status | Confidence | Evidence | Solution | Fixed |
 |----------|----------|--------|-------------|----------------|---------|------------|
-| ERR-01 | Ошибки не проглатываются — возвращаемая ошибка не игнорируется (в т.ч. через `_`), catch-блоки обрабатывают или пробрасывают | ✅ PASS | High | `src/` — все catch-блоки логируют или пробрасывают | — | — |
-| ERR-05 | Внешние вызовы (HTTP-клиент, DB) имеют явные таймауты | ❌ FAIL 🟠 | High | `services/api.ts:18` | **1. Добавить timeout в axios: `{ timeout: 5000 }`** \\ 2. Использовать AbortController с setTimeout \\ 3. Установить глобальный default timeout | Нет |
-| ERR-06 | Graceful shutdown реализован — SIGTERM обрабатывается | ⏸ ACCEPTED | Medium | `server.ts:5` | В baseline: управляется оркестратором | — |
+| ERR-01 | Errors are not swallowed — a returned error is not ignored (including via `_`), catch blocks handle or rethrow | ✅ PASS | High | `src/` — all catch blocks log or rethrow | — | — |
+| ERR-05 | External calls (HTTP client, DB) have explicit timeouts | ❌ FAIL 🟠 | High | `services/api.ts:18` | **1. Add a timeout to axios: `{ timeout: 5000 }`** \\ 2. Use an AbortController with setTimeout \\ 3. Set a global default timeout | No |
+| ERR-06 | Graceful shutdown is implemented — SIGTERM is handled | ⏸ ACCEPTED | Medium | `server.ts:5` | In baseline: managed by the orchestrator | — |
 
-Статусы: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED` / `🔍 UNVERIFIED`
+Statuses: `✅ PASS` / `❌ FAIL 🔴` / `❌ FAIL 🟠` / `❌ FAIL 🟡` / `❌ FAIL 🟢` / `⏸ ACCEPTED` / `🔍 UNVERIFIED`
 
-Уверенность: `High` — проверил несколько ключевых файлов, паттерн очевиден / `Medium` — проверил выборочно, паттерн вероятен / `Low` — ограниченный контекст, полная уверенность невозможна
+Confidence: `High` — checked several key files, the pattern is obvious / `Medium` — checked selectively, the pattern is likely / `Low` — limited context, full certainty is impossible
 
-Для `❌ FAIL`: ровно 3 варианта решения, разделитель `\\`, вариант 1 жирным.
+For `❌ FAIL`: exactly 3 solution options, separated by `\\`, with option 1 in bold.
 
-`Исправлено`: FAIL → `Нет` (разработчик меняет на `✅ Да` вручную после фикса). PASS / ACCEPTED / UNVERIFIED → `—`.
+`Fixed`: FAIL → `No` (the developer changes it to `✅ Yes` manually after the fix). PASS / ACCEPTED / UNVERIFIED → `—`.
 
-Требования к решениям:
-- Взаимно исключающие (не перефразировки одного и того же)
-- Соответствуют текущему стеку проекта (не предлагать смену фреймворка)
-- Не требуют переписать всю систему — realistic migration cost
-- Вариант 3 может быть «оставить, задокументировать причину» при наличии обоснования
+Solution requirements:
+- Mutually exclusive (not rephrasings of the same thing)
+- Match the project's current stack (do not propose switching frameworks)
+- Do not require rewriting the whole system — realistic migration cost
+- Option 3 may be "keep it, document the reason" if there is justification
 
-В конце отчёта добавь раздел покрытия:
+At the end of the report, add a coverage section:
 ```
 ## Audit Coverage
-Проверено: src/module1/**, src/module2/**
-Пропущено: scripts/**, migrations/**, tests/**
-Файлов проверено: N | Пропущено: N
+Checked: src/module1/**, src/module2/**
+Skipped: scripts/**, migrations/**, tests/**
+Files checked: N | Skipped: N
 ```
 
-Если все PASS — выведи: `✅ Обработка ошибок реализована корректно.`
+If everything is PASS, output: `✅ Error handling is implemented correctly.`
 
-## Сохранение результатов
+## Saving Results
 
-1. Найди папку сессии:
+1. Find the session folder:
    ```bash
    ls -dt ./docs/audits/[0-9]*/ 2>/dev/null | head -1 | sed 's|/$||'
    ```
-   Если пусто — создай: `mkdir -p ./docs/audits/$(date +"%Y-%m-%d_%H-%M")`
-2. Сохрани через Write: `<AUDIT_DIR>/audit-errors.md`
+   If empty, create it: `mkdir -p ./docs/audits/$(date +"%Y-%m-%d_%H-%M")`
+2. Save via Write: `<AUDIT_DIR>/audit-errors.md`
 
 ```
 # Audit Report: Error Handling & Resiliency — <YYYY-MM-DD HH:MM>
-<таблица>
+<table>
 ```

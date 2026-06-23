@@ -1,490 +1,490 @@
 ---
 name: doc-gen
-description: Генерирует документацию продукта уровня MVP+. Запускай когда пользователь явно планирует новый продукт/сервис/приложение или просит помочь со структурой проекта. НЕ запускай при вопросах о существующем коде, разовых задачах («напиши скрипт», «исправь баг») или учебных упражнениях.
+description: Generates MVP+ level product documentation. Run when the user is explicitly planning a new product/service/application or asks for help with project structure. Do NOT run for questions about existing code, one-off tasks ("write a script", "fix a bug"), or learning exercises.
 license: MIT
 compatibility: opencode
 metadata:
   level: multi
-  output: папка с markdown-файлами
+  output: folder with markdown files
 ---
 
-## Назначение
+## Purpose
 
-Скилл создаёт два документа, которые полностью описывают продукт для разработки:
-- **Концепция** (VISION.md) — зачем создаётся продукт и для кого
-- **Спецификация** (SPEC.md) — из чего состоит продукт, достаточно для начала разработки
+The skill creates two documents that fully describe a product for development:
+- **Vision** (VISION.md) — why the product is being built and for whom
+- **Specification** (SPEC.md) — what the product consists of, enough to begin development
 
-**Когда запускать:**
-- Пользователь описывает **новый продукт** или **сервис** и планирует его строить
-- Пользователь просит **структурировать проект** или описать архитектуру
-- Пользователь говорит «хочу сделать X» в контексте продукта или сервиса
+**When to run:**
+- The user describes a **new product** or **service** and plans to build it
+- The user asks to **structure a project** or describe its architecture
+- The user says "I want to build X" in the context of a product or service
 
-**Когда НЕ запускать:**
-- Вопрос о коде существующего проекта
-- Разовая задача («напиши скрипт», «добавь функцию»)
-- Учебный или тестовый проект без цели развивать
-
----
-
-## Входные данные
-
-Пользователь предоставляет **минимальное описание**:
-1. Какую проблему решает продукт
-2. Кто будет пользоваться
-3. Что должно работать в первую очередь
-
-Если данных недостаточно — задать **не более 2 уточняющих вопросов**.
+**When NOT to run:**
+- A question about the code of an existing project
+- A one-off task ("write a script", "add a function")
+- A learning or test project with no intention to develop it further
 
 ---
 
-## Структура вывода
+## Inputs
+
+The user provides a **minimal description**:
+1. What problem the product solves
+2. Who will use it
+3. What needs to work first
+
+If there isn't enough information — ask **no more than 2 clarifying questions**.
+
+---
+
+## Output structure
 
 ```
-<имя проекта>/
-├── INDEX.md                             — оглавление
+<project name>/
+├── INDEX.md                             — table of contents
 ├── 1_PRODUCT_VISION/
-│   └── VISION.md                        — концепция продукта
+│   └── VISION.md                        — product vision
 ├── 2_PRODUCT_SPEC/
-│   └── SPEC.md                          — спецификация продукта
-└── 3_ARTIFACTS/                         — вспомогательные материалы
-    ├── legal/                           — юридические документы (договоры, оферты, политики конфиденциальности)
+│   └── SPEC.md                          — product specification
+└── 3_ARTIFACTS/                         — supporting materials
+    ├── legal/                           — legal documents (contracts, terms of service, privacy policies)
     ├── media/
-    │   ├── images/                      — изображения (логотипы, скриншоты, схемы, мокапы)
-    │   └── video/                       — видеоматериалы (демо, инструкции)
-    ├── content/                         — тексты для страниц и маркетинговые материалы
-    └── examples/                        — примеры контента, шаблоны, тестовые данные
+    │   ├── images/                      — images (logos, screenshots, diagrams, mockups)
+    │   └── video/                       — video materials (demos, tutorials)
+    ├── content/                         — page copy and marketing materials
+    └── examples/                        — content samples, templates, test data
 ```
 
 ---
 
-## Артефакты (3_ARTIFACTS/)
+## Artifacts (3_ARTIFACTS/)
 
-Артефакты — вспомогательные материалы, на которые ссылаются документы. Это не исходный код и не дополнительная документация — это конкретные файлы, нужные для разработки или запуска продукта.
+Artifacts are supporting materials that the documents reference. They are not source code and not additional documentation — they are concrete files needed to develop or launch the product.
 
-### Организация папок
+### Folder organization
 
-| Папка | Что хранить |
+| Folder | What to store |
 |-------|-------------|
-| `legal/` | Договоры, оферты, политики конфиденциальности, условия использования, лицензионные соглашения |
-| `media/images/` | Логотипы, брендинг, скриншоты интерфейсов, схемы архитектуры, мокапы страниц |
-| `media/video/` | Демо продукта, обучающие видео, презентации |
-| `content/` | Тексты для страниц сайта, маркетинговые тексты, email-шаблоны, FAQ |
-| `examples/` | Примеры заполнения форм, шаблоны контента, тестовые наборы данных |
+| `legal/` | Contracts, terms of service, privacy policies, terms of use, license agreements |
+| `media/images/` | Logos, branding, interface screenshots, architecture diagrams, page mockups |
+| `media/video/` | Product demos, tutorial videos, presentations |
+| `content/` | Site page copy, marketing copy, email templates, FAQs |
+| `examples/` | Sample form submissions, content templates, test data sets |
 
-### Правила работы с артефактами
+### Rules for working with artifacts
 
-- **Папку `3_ARTIFACTS/` и подпапки создавать только при наличии реального файла для размещения.** Пустые папки запрещены.
-- **Каждый артефакт** должен быть явно упомянут хотя бы в одном документе (VISION.md, SPEC.md или INDEX.md)
-- **SPEC.md** должен содержать раздел `## Артефакты` со ссылками на все файлы из `3_ARTIFACTS/`
-- **INDEX.md** должен содержать быстрые ссылки на ключевые артефакты
-- Ссылки — **относительные**, например `../3_ARTIFACTS/legal/privacy-policy.md`
-- Имена файлов — латинские буквы, дефисы, без пробелов: `privacy-policy.pdf`, `logo-main.svg`
-- **Не добавлять в SPEC.md ссылки-заглушки** на файлы, которых ещё не существует
+- **Create the `3_ARTIFACTS/` folder and its subfolders only when there is an actual file to place there.** Empty folders are not allowed.
+- **Every artifact** must be explicitly mentioned in at least one document (VISION.md, SPEC.md, or INDEX.md)
+- **SPEC.md** must contain an `## Artifacts` section with links to all files in `3_ARTIFACTS/`
+- **INDEX.md** must contain quick links to the key artifacts
+- Links are **relative**, for example `../3_ARTIFACTS/legal/privacy-policy.md`
+- File names use Latin letters and hyphens, no spaces: `privacy-policy.pdf`, `logo-main.svg`
+- **Do not add placeholder links** in SPEC.md to files that don't exist yet
 
 ---
 
-## Процесс работы
+## Workflow
 
-> **Скрипт:** `~/.config/opencode/skills/doc-gen/scripts/doc_gen.py`
-> Скрипт НЕ копируется в проект — используется напрямую из папки скилла.
-> Далее в примерах: `{DOC_GEN}` = полный путь выше.
+> **Script:** `~/.config/opencode/skills/doc-gen/scripts/doc_gen.py`
+> The script is NOT copied into the project — it is used directly from the skill folder.
+> In the examples below: `{DOC_GEN}` = the full path above.
 
-### Шаг 1. Сбор информации
-Задать не более **2 уточняющих вопросов**. Если заявленный функционал явно избыточен для первой версии — указать до начала генерации.
+### Step 1. Gather information
+Ask no more than **2 clarifying questions**. If the requested functionality is clearly excessive for the first version — point this out before starting generation.
 
-### Шаг 2. Создание структуры файлов
+### Step 2. Create the file structure
 ```bash
-python3 {DOC_GEN} generate "НазваниеПроекта"
+python3 {DOC_GEN} generate "ProjectName"
 
-# Только концепция (VISION.md):
-python3 {DOC_GEN} generate "НазваниеПроекта" --only L1
+# Vision only (VISION.md):
+python3 {DOC_GEN} generate "ProjectName" --only L1
 
-# Только спецификация (SPEC.md):
-python3 {DOC_GEN} generate "НазваниеПроекта" --only L2
+# Specification only (SPEC.md):
+python3 {DOC_GEN} generate "ProjectName" --only L2
 
-# Дополнение без перезаписи существующих файлов:
-python3 {DOC_GEN} generate "НазваниеПроекта" --update
+# Add to existing files without overwriting them:
+python3 {DOC_GEN} generate "ProjectName" --update
 ```
 
-Команда `generate` **не создаёт** папку `3_ARTIFACTS/` автоматически. Папка и подпапки создаются **только при размещении реального файла-артефакта**. Если артефактов нет — раздел `## Артефакты` в SPEC.md **должен присутствовать** с явной пометкой: «Артефактов нет.»
+The `generate` command does **not** create the `3_ARTIFACTS/` folder automatically. The folder and its subfolders are created **only when an actual artifact file is placed there**. If there are no artifacts — the `## Artifacts` section in SPEC.md **must still be present** with an explicit note: "No artifacts."
 
-### Шаг 3. Заполнение документов
-Заполнять **строго в порядке**: VISION.md → SPEC.md. Все ссылки — относительные.
+### Step 3. Fill in the documents
+Fill in **strictly in this order**: VISION.md → SPEC.md. All links are relative.
 
-**Обязательные правила заполнения:**
-- Незаполненных заглушек (текст в `[квадратных скобках]`) быть не должно
-- Каждый раздел либо **заполнен конкретным содержимым**, либо **явно содержит отрицание** (например: «Интеграций нет.»)
-- **Запрещено** писать «при необходимости», «опционально», «возможно» — только конкретные утверждения
-- Нет опциональных решений: либо что-то **есть** в продукте, либо **явно написано**, что его нет
+**Mandatory filling rules:**
+- There must be no unfilled placeholders (text in `[square brackets]`)
+- Each section is either **filled with concrete content** or **explicitly contains a negation** (for example: "No integrations.")
+- It is **forbidden** to write "if needed", "optionally", "possibly" — only concrete statements
+- No optional decisions: either something **is** in the product, or it's **explicitly stated** that it isn't
 
-### Шаг 4. Полная проверка: структура + согласованность **(обязательно)**
-После **любого** изменения документации запускать полную валидацию:
+### Step 4. Full check: structure + consistency **(mandatory)**
+After **any** change to the documentation, run the full validation:
 ```bash
-python3 {DOC_GEN} validate "НазваниеПроекта"
+python3 {DOC_GEN} validate "ProjectName"
 ```
-**Документация не считается готовой, пока валидация не пройдена без ошибок.**
+**The documentation is not considered ready until validation passes without errors.**
 
-Скрипт выполняет **два блока проверок последовательно**:
+The script runs **two blocks of checks in sequence**:
 
-**Блок 1 — Структура и содержимое:**
-- Все обязательные файлы существуют
-- Все обязательные разделы присутствуют в каждом файле
-- Строки **Статус** и **Дата** присутствуют
-- Незаполненных заглушек `[...]` нет
-- Запрещённые слова/фразы отсутствуют («возможно», «удобно», «быстро», «опционально» и др.)
-- Разделы VISION/SPEC не слишком короткие (минимум 60 символов)
-- Целевые значения в «Метрики успеха» содержат числа
-- Раздел `## Артефакты` присутствует в SPEC.md (либо с ссылками, либо с «Артефактов нет.»)
-- Каждый файл в `3_ARTIFACTS/` упомянут хотя бы в одном документе (нет «мёртвых» артефактов)
+**Block 1 — Structure and content:**
+- All mandatory files exist
+- All mandatory sections are present in each file
+- The **Status** and **Date** lines are present
+- There are no unfilled placeholders `[...]`
+- Forbidden words/phrases are absent ("possibly", "convenient", "fast", "optionally", etc.)
+- VISION/SPEC sections are not too short (minimum 60 characters)
+- Target values in "Success metrics" contain numbers
+- The `## Artifacts` section is present in SPEC.md (either with links or with "No artifacts.")
+- Every file in `3_ARTIFACTS/` is mentioned in at least one document (no "dead" artifacts)
 
-**Блок 2 — Согласованность и противоречия (автоматически):**
-- `[VISION]` Попарная проверка: «Что входит» ↔ «Что НЕ входит» (≥2 общих слова у пары → флаг)
-- `[VISION]` Попарно: «Цель» конфликтует с «Что НЕ входит»
-- `[VISION→SPEC]` Исключённые элементы VISION обнаружены в SPEC операциях/страницах
-- `[VISION→SPEC]` Ключевые возможности VISION не отражены в SPEC (<40% ключевых слов)
-- `[VISION→SPEC]` Пункты «Что входит» не покрыты в SPEC (<35% ключевых слов)
-- `[SPEC]` Сущности не упоминаются в «Ключевые операции»
-- `[SPEC]` Отсутствуют обязательные подразделы «Тестирование»
-- `[SPEC]` Термины глоссария нигде не используются
+**Block 2 — Consistency and contradictions (automatic):**
+- `[VISION]` Pairwise check: "What's included" ↔ "What's NOT included" (≥2 shared words in a pair → flag)
+- `[VISION]` Pairwise: "Goal" conflicts with "What's NOT included"
+- `[VISION→SPEC]` Excluded VISION items found in SPEC operations/pages
+- `[VISION→SPEC]` Key VISION capabilities not reflected in SPEC (<40% of keywords)
+- `[VISION→SPEC]` "What's included" items not covered in SPEC (<35% of keywords)
+- `[SPEC]` Entities not mentioned in "Key operations"
+- `[SPEC]` Mandatory "Testing" subsections missing
+- `[SPEC]` Glossary terms used nowhere
 
-Для изолированного запуска только анализа согласованности:
+To run only the consistency analysis in isolation:
 ```bash
-python3 {DOC_GEN} consistency "НазваниеПроекта"
+python3 {DOC_GEN} consistency "ProjectName"
 ```
 
-### Шаг 5. AI-проверка качества **(обязательно)**
-После успешного `validate` — выполнить вручную. Скрипт эти вещи не проверяет.
+### Step 5. AI quality check **(mandatory)**
+After a successful `validate` — perform this manually. The script does not check these things.
 
-**Читаемость и форматирование:**
-1. Каждая возможность в «Ключевые возможности» имеет **жирное название** (`**Название**:`) и стрелку `→` — формат «пользователь делает X → получает Y»
-2. Разделы «Проблема», «Целевая аудитория», «Цель», «Как устроена система» содержат хотя бы одно **жирное** ключевое утверждение для быстрого сканирования
-3. Нет монолитных абзацев — предложения разбиты; ни одно предложение не длиннее 2–3 строк
-4. Разделы «Ключевые возможности», «Что входит», «Что НЕ входит», «Ключевые операции» оформлены именно как списки, а не сплошной текст
-5. Жирным не выделено всё подряд — только ключевые слова/действия (не более 30% строк в разделе)
+**Readability and formatting:**
+1. Each capability in "Key capabilities" has a **bold name** (`**Name**:`) and an arrow `→` — the format "user does X → gets Y"
+2. The "Problem", "Target audience", "Goal", "How the system works" sections contain at least one **bold** key statement for quick scanning
+3. No monolithic paragraphs — sentences are broken up; no sentence is longer than 2–3 lines
+4. The "Key capabilities", "What's included", "What's NOT included", "Key operations" sections are formatted as lists, not solid text
+5. Bold is not applied to everything — only to key words/actions (no more than 30% of lines in a section)
 
-**Логика и смысл:**
-6. «Цель» конкретно решает «Проблему» — нет разрыва между описанием боли и описанием продукта
-7. Каждая метрика успеха измеряет именно заявленную «Цель», а не общий рост бизнеса
-8. «Что НЕ входит» не противоречит «Ключевым возможностям» по смыслу (не только по ключевым словам — проверить значение)
-9. Сценарии тестирования охватывают реальные риски данного домена, а не только шаблонные кейсы
+**Logic and meaning:**
+6. The "Goal" concretely solves the "Problem" — no gap between the pain described and the product described
+7. Each success metric measures the stated "Goal", not general business growth
+8. "What's NOT included" does not contradict the "Key capabilities" in meaning (not just by keywords — check the actual meaning)
+9. The test scenarios cover the real risks of this domain, not just boilerplate cases
 
-**Язык:**
-10. «Ключевые операции» описывают **результат для пользователя**, не технический процесс («пользователь видит список заказов», а не «система возвращает массив объектов»)
-11. Термины в «Глоссарии» действительно требуют пояснения — не добавлены очевидные слова типа «пользователь» или «система»
-12. Нигде нет технического жаргона (эндпоинт, CRUD, ORM, REST, JSON и т.п.) — исключение: продукт-API, там это допустимо в разделе «Страницы и экраны»
+**Language:**
+10. "Key operations" describe the **result for the user**, not a technical process ("the user sees a list of orders", not "the system returns an array of objects")
+11. The terms in the "Glossary" genuinely need explanation — don't add obvious words like "user" or "system"
+12. There is no technical jargon anywhere (endpoint, CRUD, ORM, REST, JSON, etc.) — exception: an API product, where this is acceptable in the "Pages and screens" section
 
-### Шаг 6. Git-коммит **(обязательно)**
-После каждого изменения документации создавать **коммит**:
+### Step 6. Git commit **(mandatory)**
+After every change to the documentation, create a **commit**:
 ```bash
 git add docs/
-git commit -m "docs: обновление документации <НазваниеПроекта>"
+git commit -m "docs: update documentation <ProjectName>"
 ```
-Если **git-репозитория нет** — создать его до первого коммита:
+If there is **no git repository** — create one before the first commit:
 ```bash
 git init
 git add .
-git commit -m "docs: начальная документация <НазваниеПроекта>"
+git commit -m "docs: initial documentation <ProjectName>"
 ```
-**Git-репозиторий обязателен.** Без него история изменений недоступна.
+**A git repository is required.** Without it, the change history is unavailable.
 
 ---
 
-## Команды управления
+## Management commands
 
-### Статус документации
+### Documentation status
 ```bash
-# Все проекты в папке docs/:
+# All projects in the docs/ folder:
 python3 {DOC_GEN} status
 
-# Конкретный проект:
-python3 {DOC_GEN} status "НазваниеПроекта"
+# A specific project:
+python3 {DOC_GEN} status "ProjectName"
 ```
-Выводит таблицу: проект / файл / статус / дата.
+Prints a table: project / file / status / date.
 
-### Обновление статуса
+### Status update
 ```bash
-python3 {DOC_GEN} update-status "НазваниеПроекта" "на ревью"
-python3 {DOC_GEN} update-status "НазваниеПроекта" "утверждён"
-python3 {DOC_GEN} update-status "НазваниеПроекта" "черновик"
+python3 {DOC_GEN} update-status "ProjectName" "in review"
+python3 {DOC_GEN} update-status "ProjectName" "approved"
+python3 {DOC_GEN} update-status "ProjectName" "draft"
 ```
-Атомарно обновляет **Статус** и **Дата** во всех трёх файлах (INDEX.md, VISION.md, SPEC.md). После — создать git-коммит.
+Atomically updates **Status** and **Date** in all three files (INDEX.md, VISION.md, SPEC.md). Afterwards — create a git commit.
 
-### Только анализ согласованности
+### Consistency analysis only
 ```bash
-python3 {DOC_GEN} consistency "НазваниеПроекта"
+python3 {DOC_GEN} consistency "ProjectName"
 ```
-Запускает только Блок 2 без структурной проверки. Полезно при итеративной правке содержимого.
+Runs only Block 2 without the structural check. Useful during iterative content edits.
 
 ---
 
-## Управление статусом документов
+## Managing document status
 
-Каждый документ содержит строку статуса в начале:
+Each document contains a status line at the top:
 ```
-**Статус:** черновик | **Дата:** YYYY-MM-DD
+**Status:** draft | **Date:** YYYY-MM-DD
 ```
 
-| Статус | Условие перехода |
+| Status | Transition condition |
 |--------|-----------------|
-| `черновик` | Документ создан, не проверен командой |
-| `на ревью` | Документ отправлен на проверку |
-| `утверждён` | Документ согласован и готов к разработке |
+| `draft` | Document created, not reviewed by the team |
+| `in review` | Document submitted for review |
+| `approved` | Document agreed upon and ready for development |
 
-**Дату** обновлять при каждом значимом изменении. История изменений — `git log -- <файл>`.
+Update the **Date** on every significant change. Change history — `git log -- <file>`.
 
 ---
 
-## Правила написания концепции (VISION.md)
+## Rules for writing the vision (VISION.md)
 
-**Плохой пример:**
-- «Сделать авторизацию»
-- «Приложение для заметок»
+**Bad example:**
+- "Build authentication"
+- "An app for notes"
 
-**Хороший пример:**
-- «Вход через внешние сервисы (Google, GitHub) без хранения паролей»
-- «Мобильное приложение для заметок с работой без интернета для пользователей с нестабильным подключением»
+**Good example:**
+- "Sign-in via external services (Google, GitHub) without storing passwords"
+- "A mobile notes app with offline support for users with unstable connectivity"
 
-### Обязательная структура VISION.md
+### Mandatory structure of VISION.md
 
 ```markdown
-# <Название продукта>
+# <Product name>
 
-**Статус:** черновик | **Дата:** YYYY-MM-DD
+**Status:** draft | **Date:** YYYY-MM-DD
 
-## Проблема
-Что конкретно неудобно или не работает. Контекст. 2–4 предложения.
+## Problem
+What exactly is inconvenient or doesn't work. The context. 2–4 sentences.
 
-## Целевая аудитория
-Роль и контекст работы пользователя. Не «все пользователи», а конкретный тип. 2–4 предложения.
+## Target audience
+The user's role and work context. Not "all users", but a specific type. 2–4 sentences.
 
-## Цель
-Что именно создаём и для кого. 2–4 предложения.
+## Goal
+What exactly we're building and for whom. 2–4 sentences.
 
-## Ключевые возможности
-1. **<Название>**: пользователь выполняет X → получает Y
+## Key capabilities
+1. **<Name>**: the user does X → gets Y
 2. ...
 
-## Метрики успеха
-| Метрика | Целевое значение |
+## Success metrics
+| Metric | Target value |
 |---------|------------------|
-| ... | конкретное число |
+| ... | a specific number |
 
-## Что входит (границы проекта)
-Функциональность, которая будет реализована:
+## What's included (project scope)
+Functionality that will be implemented:
 1. ...
 
-## Что НЕ входит
-Явные исключения для предотвращения расширения границ проекта:
-- Не включает X
-- Не включает Y
+## What's NOT included
+Explicit exclusions to prevent scope creep:
+- Does not include X
+- Does not include Y
 ```
 
-### Правила раздела
+### Section rules
 
-- Без упоминания **технологий и стека** разработки
-- **Конкретные метрики** с числами (не «быстрее» — а «менее 2 секунд»)
-- Каждая возможность объясняет **ценность для пользователя**
-- Оба раздела границ проекта заполнены
+- No mention of **development technologies or stack**
+- **Concrete metrics** with numbers (not "faster" — but "under 2 seconds")
+- Each capability explains the **value to the user**
+- Both project-scope sections are filled in
 
 ---
 
-## Правила написания спецификации (SPEC.md)
+## Rules for writing the specification (SPEC.md)
 
-Документ описывает **из чего состоит продукт** в терминах бизнеса. Без технических деталей реализации — но **достаточно конкретно**, чтобы разработчик мог начать без дополнительных вопросов.
+The document describes **what the product consists of** in business terms. No technical implementation details — but **concrete enough** that a developer can start without additional questions.
 
-**Обязательные разделы:** Ссылки, Как устроена система, Глоссарий, Сущности, Страницы и экраны, Ключевые операции, Интеграции, Тестирование.
+**Mandatory sections:** Links, How the system works, Glossary, Entities, Pages and screens, Key operations, Integrations, Testing.
 
-### Обязательная структура SPEC.md
+### Mandatory structure of SPEC.md
 
 ```markdown
-# Продуктовая спецификация: <Название продукта>
+# Product specification: <Product name>
 
-**Статус:** черновик | **Дата:** YYYY-MM-DD
+**Status:** draft | **Date:** YYYY-MM-DD
 
-## Ссылки
-- Концепция: [VISION.md](../1_PRODUCT_VISION/VISION.md)
+## Links
+- Vision: [VISION.md](../1_PRODUCT_VISION/VISION.md)
 
-## Как устроена система
-Краткое описание из каких частей состоит продукт и как они взаимодействуют.
-Пример: «Веб-приложение с личным кабинетом и административной панелью. Данные хранятся
-централизованно, доступ — через браузер без установки приложений.»
+## How the system works
+A brief description of what parts the product consists of and how they interact.
+Example: "A web application with a personal dashboard and an admin panel. Data is stored
+centrally, access is through a browser with no app installation required."
 
-## Глоссарий
-Ключевые понятия продукта. Каждый термин имеет одно точное определение без синонимов.
+## Glossary
+The product's key concepts. Each term has one precise definition with no synonyms.
 
-| Термин | Определение |
+| Term | Definition |
 |--------|-------------|
 | ... | ... |
 
-## Сущности
-Основные объекты, с которыми работает система. В терминах бизнеса, не базы данных.
+## Entities
+The main objects the system works with. In business terms, not database terms.
 
-| Сущность | Описание | Ключевые свойства |
+| Entity | Description | Key properties |
 |----------|----------|-------------------|
-| Пользователь | Зарегистрированный участник системы | Имя, email, роль, дата регистрации |
+| User | A registered participant in the system | Name, email, role, registration date |
 | ... | ... | ... |
 
-### Жизненный цикл сущностей
-Для каждой ключевой сущности — допустимые статусы и переходы между ними.
+### Entity lifecycle
+For each key entity — the allowed statuses and the transitions between them.
 
-| Сущность | Статусы | Переходы |
+| Entity | Statuses | Transitions |
 |----------|---------|----------|
-| Заказ | черновик → подтверждён → выполнен → отменён | черновик→подтверждён: пользователь нажимает «Оформить» |
+| Order | draft → confirmed → completed → cancelled | draft→confirmed: the user clicks "Place order" |
 
-## Страницы и экраны
-Исчерпывающий список страниц и экранов, которые должны быть созданы.
+## Pages and screens
+An exhaustive list of the pages and screens that must be built.
 
-| Страница | Назначение | Ключевые элементы |
+| Page | Purpose | Key elements |
 |----------|------------|-------------------|
-| Главная | Точка входа, обзор возможностей | Навигация, блок преимуществ, кнопка действия |
-| Регистрация | Создание аккаунта | Форма, валидация, подтверждение email |
+| Home | Entry point, overview of capabilities | Navigation, benefits block, call-to-action button |
+| Sign-up | Account creation | Form, validation, email confirmation |
 | ... | ... | ... |
 
-## Ключевые операции
-Что пользователи могут делать в системе. Группировать по ролям при наличии нескольких типов.
+## Key operations
+What users can do in the system. Group by role when there are several types.
 
-**<Роль или «Все пользователи»>:**
-- Операция 1: краткое описание результата
-- Операция 2: краткое описание результата
+**<Role or "All users">:**
+- Operation 1: a brief description of the result
+- Operation 2: a brief description of the result
 
-## Интеграции
-Внешние сервисы, без которых продукт не работает.
-Если интеграций нет — написать: «Интеграций нет.»
+## Integrations
+External services without which the product doesn't work.
+If there are no integrations — write: "No integrations."
 
-| Сервис | Назначение |
+| Service | Purpose |
 |--------|------------|
 | ... | ... |
 
-## Тестирование
-Функциональность, покрытая тестами.
+## Testing
+Functionality covered by tests.
 
-**Критические сценарии** (обязаны работать без ошибок):
-- Пользователь регистрируется и входит в систему
+**Critical scenarios** (must work without errors):
+- The user signs up and logs into the system
 - ...
 
-**Бизнес-правила** (корректность расчётов и ограничений):
-- Расчёт X при условии Y
-- Валидация Z
+**Business rules** (correctness of calculations and constraints):
+- Calculation of X under condition Y
+- Validation of Z
 - ...
 
-**Негативные сценарии** (поведение системы при ошибках и отменах):
-- Пользователь вводит неверный пароль → система отображает «Неверный логин или пароль», доступ не предоставляется
-- Пользователь отменяет заказ → статус меняется на «отменён», деньги возвращаются в течение 3 рабочих дней
+**Negative scenarios** (system behavior on errors and cancellations):
+- The user enters a wrong password → the system shows "Invalid login or password", access is denied
+- The user cancels an order → the status changes to "cancelled", the money is refunded within 3 business days
 - ...
 
-## Артефакты
-Вспомогательные материалы для разработки и запуска продукта.
-Если артефактов нет — написать: «Артефактов нет.»
+## Artifacts
+Supporting materials for developing and launching the product.
+If there are no artifacts — write: "No artifacts."
 
-| Файл | Тип | Назначение |
+| File | Type | Purpose |
 |------|-----|-----------|
-| [privacy-policy.md](../3_ARTIFACTS/legal/privacy-policy.md) | Юридический | Политика конфиденциальности |
-| [logo-main.svg](../3_ARTIFACTS/media/images/logo-main.svg) | Изображение | Основной логотип продукта |
-| [homepage-copy.md](../3_ARTIFACTS/content/homepage-copy.md) | Контент | Тексты для главной страницы |
+| [privacy-policy.md](../3_ARTIFACTS/legal/privacy-policy.md) | Legal | Privacy policy |
+| [logo-main.svg](../3_ARTIFACTS/media/images/logo-main.svg) | Image | The product's main logo |
+| [homepage-copy.md](../3_ARTIFACTS/content/homepage-copy.md) | Content | Copy for the home page |
 | ... | ... | ... |
 ```
 
-### Правила раздела
+### Section rules
 
-- Язык бизнеса, не разработчика: «список товаров», не «массив объектов»
-- Страницы — **исчерпывающий** список, ни одна не пропущена
-- Сущности — только те, что **реально нужны** продукту
-- Операции описывают **результат**, не техническую реализацию
-- Тестирование описывает **что проверять**, не как это реализовать
-- Без стека, фреймворков, архитектурных паттернов
-- **Негативные сценарии обязательны**: что происходит при ошибках, отменах, конфликтах
+- Business language, not developer language: "list of products", not "array of objects"
+- Pages — an **exhaustive** list, none omitted
+- Entities — only those the product **actually needs**
+- Operations describe the **result**, not the technical implementation
+- Testing describes **what to verify**, not how to implement it
+- No stack, frameworks, or architectural patterns
+- **Negative scenarios are mandatory**: what happens on errors, cancellations, conflicts
 
 ---
 
-## INDEX.md — Оглавление
+## INDEX.md — Table of contents
 
 ```markdown
-# Документация продукта: <Название>
+# Product documentation: <Name>
 
-**Статус:** черновик | **Дата:** YYYY-MM-DD
+**Status:** draft | **Date:** YYYY-MM-DD
 
-## Навигация
+## Navigation
 
-| Документ | Описание |
+| Document | Description |
 |----------|----------|
-| [Концепция](./1_PRODUCT_VISION/VISION.md) | Проблема, аудитория, цель, границы проекта |
-| [Спецификация](./2_PRODUCT_SPEC/SPEC.md) | Сущности, страницы, операции, тестирование |
+| [Vision](./1_PRODUCT_VISION/VISION.md) | Problem, audience, goal, project scope |
+| [Specification](./2_PRODUCT_SPEC/SPEC.md) | Entities, pages, operations, testing |
 
-## Быстрые ссылки
+## Quick links
 
-- [Ключевые возможности](./1_PRODUCT_VISION/VISION.md#ключевые-возможности)
-- [Страницы и экраны](./2_PRODUCT_SPEC/SPEC.md#страницы-и-экраны)
-- [Тестирование](./2_PRODUCT_SPEC/SPEC.md#тестирование)
-- [Артефакты](./2_PRODUCT_SPEC/SPEC.md#артефакты)
+- [Key capabilities](./1_PRODUCT_VISION/VISION.md#key-capabilities)
+- [Pages and screens](./2_PRODUCT_SPEC/SPEC.md#pages-and-screens)
+- [Testing](./2_PRODUCT_SPEC/SPEC.md#testing)
+- [Artifacts](./2_PRODUCT_SPEC/SPEC.md#artifacts)
 
-## Артефакты
+## Artifacts
 
-| Файл | Описание |
+| File | Description |
 |------|----------|
-| [Политика конфиденциальности](./3_ARTIFACTS/legal/privacy-policy.md) | Условия обработки персональных данных |
+| [Privacy policy](./3_ARTIFACTS/legal/privacy-policy.md) | Terms of personal data processing |
 | ... | ... |
 ```
 
-*Если артефактов нет, раздел «Артефакты» и таблицу удалить. В «Быстрых ссылках» строку «Артефакты» тоже удалить.*
+*If there are no artifacts, delete the "Artifacts" section and its table. Also delete the "Artifacts" line from "Quick links".*
 
 ---
 
 ## Edge Cases
 
-### Продукт без UI (API, CLI, библиотека)
-Раздел «Страницы и экраны» заменить на «Эндпоинты и команды» с аналогичной структурой таблицы. В начале SPEC.md явно указать: «Продукт не имеет пользовательского интерфейса.» Валидатор пропускает переименованный раздел — обязательный заголовок `## Страницы и экраны` всё равно должен присутствовать, содержание заменяется.
+### Product without a UI (API, CLI, library)
+Replace the "Pages and screens" section with "Endpoints and commands" using a similar table structure. At the top of SPEC.md, state explicitly: "The product has no user interface." The validator accepts the renamed section — the mandatory `## Pages and screens` heading must still be present, with the content replaced.
 
-### Несколько типов пользователей (ролей)
-В «Ключевые операции» — подраздел для каждой роли. В Глоссарии — определение каждой роли. Сущность «Пользователь» отражает разделение ролей (свойство «роль»). Метрики успеха — для каждой роли отдельно.
+### Multiple user types (roles)
+In "Key operations" — a subsection for each role. In the Glossary — a definition of each role. The "User" entity reflects the role split (a "role" property). Success metrics — separately for each role.
 
-### Противоречие между VISION.md и SPEC.md
-Скрипт (`validate` / `consistency`) обнаруживает противоречия автоматически. Приоритет разрешения — VISION.md. Уточнить с пользователем до финализации SPEC.md. Нельзя считать документацию готовой, если `validate` завершается с ошибками блока «Согласованность».
+### Contradiction between VISION.md and SPEC.md
+The script (`validate` / `consistency`) detects contradictions automatically. Resolution priority — VISION.md. Clarify with the user before finalizing SPEC.md. The documentation cannot be considered ready if `validate` finishes with errors in the "Consistency" block.
 
-### Пользователь меняет требования после генерации
-1. Обновить VISION.md.
-2. Проверить согласованность с SPEC.md (чеклист из Шага 5).
-3. Запустить валидацию.
-4. Создать коммит с описанием что и почему изменилось.
-Не пересоздавать файлы — использовать `--update` или редактировать напрямую.
+### The user changes requirements after generation
+1. Update VISION.md.
+2. Check consistency with SPEC.md (the checklist from Step 5).
+3. Run the validation.
+4. Create a commit describing what changed and why.
+Do not regenerate the files — use `--update` or edit them directly.
 
-### Имя проекта с пробелами или спецсимволами
-Использовать CamelCase или дефис: `МойПроект`, `my-project`. Пробелы и символы `/ \ : * ? " < > |` недопустимы — doc_gen.py откажет с ошибкой.
+### Project name with spaces or special characters
+Use CamelCase or a hyphen: `MyProject`, `my-project`. Spaces and the characters `/ \ : * ? " < > |` are not allowed — doc_gen.py will reject them with an error.
 
-### Продукт без интеграций
-Удалить таблицу. Написать явно: «Интеграций нет.» Это единственный раздел, где допустимо явное отрицание вместо таблицы.
+### Product without integrations
+Delete the table. State explicitly: "No integrations." This is the only section where an explicit negation is acceptable instead of a table.
 
-### Продукт с несколькими подпродуктами (монорепо)
-Запускать `doc_gen.py generate` отдельно для каждого подпродукта с разными именами. Общий INDEX.md на верхнем уровне создаётся вручную со ссылками на каждую папку.
+### Product with multiple sub-products (monorepo)
+Run `doc_gen.py generate` separately for each sub-product with different names. The shared top-level INDEX.md is created manually with links to each folder.
 
-### Смена концепции (pivot)
-Создать ветку git. Переписать VISION.md с нуля. Пересмотреть SPEC.md полностью. Не смешивать старую и новую концепции в одном документе — старая версия хранится в git-истории.
+### Concept change (pivot)
+Create a git branch. Rewrite VISION.md from scratch. Revise SPEC.md completely. Don't mix the old and new concepts in one document — the old version is kept in the git history.
 
-### Артефакты ещё не созданы
-Пока файл не создан физически в `3_ARTIFACTS/` — **не упоминать его в SPEC.md и не создавать подпапку под него**. Раздел `## Артефакты` содержит только уже существующие ссылки или «Артефактов нет.». Правило: сначала есть реальный файл — потом создаётся папка и добавляется ссылка. Никак не наоборот.
+### Artifacts not yet created
+Until a file physically exists in `3_ARTIFACTS/` — **do not mention it in SPEC.md and do not create a subfolder for it**. The `## Artifacts` section contains only existing links or "No artifacts." The rule: first there's a real file — then a folder is created and a link is added. Never the other way around.
 
-### Слишком много артефактов одного типа
-При большом количестве файлов одного типа — создавать вложенные подпапки внутри стандартных:
+### Too many artifacts of one type
+When there are many files of one type — create nested subfolders inside the standard ones:
 `media/images/screenshots/`, `media/images/mockups/`, `legal/agreements/`, `content/emails/`.
-Структура должна быть очевидной без объяснений — не создавать подпапку ради одного файла.
+The structure should be self-evident without explanation — don't create a subfolder for a single file.
 
-### Артефакты без документации
-Артефакт не может существовать без упоминания в документе. Если файл в `3_ARTIFACTS/` нигде не ссылается — либо удалить его, либо добавить ссылку в SPEC.md. «Мёртвые» артефакты не допускаются.
+### Artifacts without documentation
+An artifact cannot exist without being mentioned in a document. If a file in `3_ARTIFACTS/` is referenced nowhere — either delete it or add a link in SPEC.md. "Dead" artifacts are not allowed.
 
-### Ложные срабатывания валидатора на заглушки
-Паттерн `[текст]` без следующей `(` считается заглушкой. Исключения: ссылки `[текст](url)` — не заглушка. Если в содержимом нужны квадратные скобки не как заглушка (например, `[RFC 7231]`), использовать HTML-эскейп: `&#91;RFC 7231&#93;`.
+### Validator false positives on placeholders
+A `[text]` pattern not followed by `(` is treated as a placeholder. Exceptions: links `[text](url)` — not a placeholder. If the content genuinely needs square brackets not as a placeholder (for example, `[RFC 7231]`), use HTML escapes: `&#91;RFC 7231&#93;`.
 
 ---
 
-## Ключевые ограничения
+## Key constraints
 
-- Без технологий и стека — документ реализуем на **любом** языке и платформе
-- Язык понятен владельцу бизнеса **без технического образования**
-- Каждая страница в SPEC.md **связана** с возможностью из VISION.md
-- Незаполненных заглушек быть не должно
-- **Нет опциональных решений**: либо явно описано, либо явно сказано «нет»
-- Язык документации — **русский**
-- Все ссылки — **относительные**
-- После каждого изменения — **валидация** (`{DOC_GEN} validate`) и **git-коммит**
-- **`3_ARTIFACTS/` не создаётся автоматически** — только при размещении реального файла
-- **Каждый артефакт** в `3_ARTIFACTS/` упомянут хотя бы в одном документе
-- **SPEC.md обязан** содержать раздел `## Артефакты` (либо с таблицей ссылок, либо с «Артефактов нет.»)
+- No technologies or stack — the document is implementable in **any** language and platform
+- The language is understandable to a business owner **without a technical background**
+- Each page in SPEC.md is **linked** to a capability from VISION.md
+- There must be no unfilled placeholders
+- **No optional decisions**: either it's explicitly described, or it's explicitly stated as "no"
+- The documentation language is **Russian**
+- All links are **relative**
+- After every change — **validation** (`{DOC_GEN} validate`) and a **git commit**
+- **`3_ARTIFACTS/` is not created automatically** — only when an actual file is placed there
+- **Every artifact** in `3_ARTIFACTS/` is mentioned in at least one document
+- **SPEC.md must** contain an `## Artifacts` section (either with a table of links or with "No artifacts.")

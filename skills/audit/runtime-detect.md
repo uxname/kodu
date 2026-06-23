@@ -1,35 +1,35 @@
-# Runtime Detection & Stack Profile (общий канон)
+# Runtime Detection & Stack Profile (shared canon)
 
-Этот файл — единый источник правды для того, как аудит-скилл определяет рантайм
-проекта и подгружает соответствующий **профиль стека** из `./skills/audit/stacks/`.
+This file is the single source of truth for how the audit skill detects a project's
+runtime and loads the corresponding **stack profile** from `./skills/audit/stacks/`.
 
-Каждый кодовый аудит-скилл содержит инлайн-копию блока ниже (раздел
-«Runtime Detection & Stack Profile»). Инлайн-копия обязательна — она гарантирует,
-что скилл работает автономно (`/audit-<name>`), даже если оркестратор `/audit`
-не запускался. Этот файл — справочник и место для синхронной правки канона.
+Every code-audit skill carries an inline copy of the block below (the
+"Runtime Detection & Stack Profile" section). The inline copy is required — it guarantees
+the skill works standalone (`/audit-<name>`), even when the `/audit` orchestrator
+was not run. This file is the reference and the place to edit the canon in sync.
 
-## Принцип
+## Principle
 
-Один запуск аудита = **ровно один рантайм**. Скилл:
-1. принимает рантайм, инъектированный оркестратором, ЕСЛИ он передан; иначе
-2. определяет ровно один рантайм текущего каталога; затем
-3. читает профиль и использует его инструменты/идиомы/анти-паттерны.
+One audit run = **exactly one runtime**. The skill:
+1. accepts the runtime injected by the orchestrator IF it was passed; otherwise
+2. detects exactly one runtime in the current directory; then
+3. reads the profile and uses its tools/idioms/anti-patterns.
 
-Полиглот-репозитории (например Go-бэкенд + Node-фронтенд в одном дереве)
-аудитятся по подпроектам: запусти аудит отдельно внутри каждого подкаталога.
+Polyglot repositories (e.g. a Go backend + a Node frontend in one tree)
+are audited per subproject: run the audit separately inside each subdirectory.
 
-## Канонический блок (вставляется в каждый кодовый скилл)
+## Canonical block (embedded into every code skill)
 
 ```
 ## Runtime Detection & Stack Profile
 
-Этот аудит стек-агностичен: проверки сформулированы нейтрально, а конкретика
-(инструменты, идиомы, анти-паттерны, примеры) берётся из профиля стека.
+This audit is stack-agnostic: the checks are phrased neutrally, while the specifics
+(tools, idioms, anti-patterns, examples) come from the stack profile.
 
-1. **Профиль передан контекстом?** Если оркестратор `/audit` передал
-   `runtime=<id>` и/или содержимое профиля — используй его, шаги 2–3 пропусти.
+1. **Profile passed as context?** If the `/audit` orchestrator passed
+   `runtime=<id>` and/or the profile contents — use it, skip steps 2–3.
 
-2. **Иначе определи РОВНО ОДИН рантайм** этого каталога:
+2. **Otherwise detect EXACTLY ONE runtime** for this directory:
    ```bash
    if   [ -f package.json ]; then echo "runtime=node"
    elif [ -f go.mod ]; then echo "runtime=go"
@@ -38,27 +38,27 @@
    elif [ -f pom.xml ] || ls build.gradle* settings.gradle* >/dev/null 2>&1; then echo "runtime=java"
    else echo "runtime=generic"; fi
    ```
-   Один запуск = один рантайм; не миксуй backend и frontend. Если найдено
-   несколько маркеров (монорепо) — выбери соответствующий текущему scope/анализируемым
-   файлам и зафиксируй выбор в разделе Audit Coverage.
+   One run = one runtime; do not mix backend and frontend. If several
+   markers are found (monorepo) — pick the one matching the current scope/analyzed
+   files and record the choice in the Audit Coverage section.
 
-3. **Загрузи профиль** через Read: `./skills/audit/stacks/<runtime>.md`
-   (fallback `./skills/audit/stacks/_generic.md`, если файл не найден).
+3. **Load the profile** via Read: `./skills/audit/stacks/<runtime>.md`
+   (fallback `./skills/audit/stacks/_generic.md` if the file is not found).
 
-Дальше используй профиль:
-- **Инструменты** — из секции «Tooling by category» профиля (раздел
-  «Инструментальная поддержка» ниже ссылается на категории, а не на команды).
-- **Ожидания PASS** — из «Idioms»; **формулировки FAIL** — из «Anti-patterns».
-- **Точечные подсказки** — из «Check-ID hints» по префиксу этого аудита.
-- Если профиль `tier: general` или `runtime=generic` → стек-специфичные находки
-  без однозначного evidence помечай `🔍 UNVERIFIED`, а не `❌ FAIL`. Проверки,
-  чей механизм в рантайме отсутствует, помечай `N/A`.
+Then use the profile:
+- **Tools** — from the profile's "Tooling by category" section (the
+  "Tooling support" section below refers to categories, not commands).
+- **PASS expectations** — from "Idioms"; **FAIL phrasings** — from "Anti-patterns".
+- **Targeted hints** — from "Check-ID hints" by this audit's prefix.
+- If the profile is `tier: general` or `runtime=generic` → mark stack-specific findings
+  without unambiguous evidence as `🔍 UNVERIFIED`, not `❌ FAIL`. Checks
+  whose mechanism does not exist in the runtime should be marked `N/A`.
 ```
 
-## Инъекция из оркестратора
+## Injection from the orchestrator
 
-Мастер-скилл `audit/SKILL.md` определяет рантайм один раз (Шаг 0), читает профиль
-один раз и передаёт `runtime=<id>` + содержимое профиля каждому `Skill()` тем же
-каналом, что и baseline. Саб-скиллы видят это в шаге 1 и пропускают собственный
-детект. Автономность при этом не теряется: инлайн-блок отрабатывает сам, если
-инъекции нет.
+The master skill `audit/SKILL.md` detects the runtime once (Step 0), reads the profile
+once, and passes `runtime=<id>` + the profile contents to every `Skill()` through the same
+channel as the baseline. The sub-skills see this in step 1 and skip their own
+detection. Standalone operation is not lost: the inline block runs on its own if
+there is no injection.

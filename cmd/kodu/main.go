@@ -1,4 +1,4 @@
-// Command kodu — CLI для подготовки кодовой базы под LLM.
+// Command kodu — a CLI for preparing a codebase for LLMs.
 package main
 
 import (
