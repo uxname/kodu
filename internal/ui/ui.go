@@ -54,17 +54,17 @@ func (u *UI) Out() io.Writer { return u.out }
 func (u *UI) IsTTY() bool { return u.tty }
 
 // Print пишет данные в stdout без префиксов и перевода строки.
-func (u *UI) Print(s string) { fmt.Fprint(u.out, s) }
+func (u *UI) Print(s string) { _, _ = fmt.Fprint(u.out, s) }
 
 // Println пишет строку данных в stdout с переводом строки.
-func (u *UI) Println(s string) { fmt.Fprintln(u.out, s) }
+func (u *UI) Println(s string) { _, _ = fmt.Fprintln(u.out, s) }
 
 func (u *UI) status(c *color.Color, symbol, msg string) {
 	if u.color {
-		fmt.Fprintf(u.err, "%s %s\n", c.Sprint(symbol), msg)
+		_, _ = fmt.Fprintf(u.err, "%s %s\n", c.Sprint(symbol), msg)
 		return
 	}
-	fmt.Fprintf(u.err, "%s %s\n", symbol, msg)
+	_, _ = fmt.Fprintf(u.err, "%s %s\n", symbol, msg)
 }
 
 // Success — зелёная галочка в stderr.

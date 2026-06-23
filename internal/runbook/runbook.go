@@ -23,6 +23,7 @@ var gitignoreEquivalents = map[string]bool{
 // GitignoreResult — итог настройки .gitignore.
 type GitignoreResult string
 
+// Возможные исходы EnsureGitignore.
 const (
 	GitignoreCreated GitignoreResult = "created"
 	GitignoreAdded   GitignoreResult = "added"
@@ -44,10 +45,15 @@ type Service struct{}
 // New создаёт сервис.
 func New() *Service { return &Service{} }
 
+// DirPath возвращает путь к .runbook/.
 func (s *Service) DirPath(root string) string { return filepath.Join(root, runbookDir) }
+
+// ConfigPath возвращает путь к .runbook/config.json.
 func (s *Service) ConfigPath(root string) string {
 	return filepath.Join(root, runbookDir, "config.json")
 }
+
+// RunbookPath возвращает путь к .runbook/runbook.md.
 func (s *Service) RunbookPath(root string) string {
 	return filepath.Join(root, runbookDir, "runbook.md")
 }

@@ -1,0 +1,33 @@
+version: "2"
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - ineffassign
+    - unused
+    - misspell
+    - revive
+  settings:
+    revive:
+      rules:
+        # Ошибки здесь — локализованные сообщения для пользователя (паритет с
+        # TS-версией), поэтому правило о капитализации/пунктуации не применяем.
+        - name: error-strings
+          disabled: true
+    staticcheck:
+      checks:
+        - all
+        - -ST1005 # error strings should not be capitalized — см. выше
+  exclusions:
+    rules:
+      # В тестах допускаем непроверенные ошибки вспомогательных вызовов.
+      - path: _test\.go
+        linters:
+          - errcheck
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

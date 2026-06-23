@@ -165,7 +165,7 @@ func (c *collector) resolve(spec, fromFile string) string {
 	}
 	// Алиасы tsconfig paths.
 	if c.tsBaseDir != "" {
-		if p := c.resolveTsPaths(spec); p != "" {
+		if p := c.resolveTSPaths(spec); p != "" {
 			return p
 		}
 		// baseUrl: import "src/foo" → <baseDir>/src/foo
@@ -177,7 +177,7 @@ func (c *collector) resolve(spec, fromFile string) string {
 	return ""
 }
 
-func (c *collector) resolveTsPaths(spec string) string {
+func (c *collector) resolveTSPaths(spec string) string {
 	for pattern, targets := range c.tsPaths {
 		star := strings.IndexByte(pattern, '*')
 		if star < 0 {

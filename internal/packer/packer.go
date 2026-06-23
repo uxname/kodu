@@ -9,6 +9,7 @@ import (
 // Format — формат вывода контекста.
 type Format string
 
+// Поддерживаемые форматы вывода.
 const (
 	FormatXML  Format = "xml"
 	FormatText Format = "text"
