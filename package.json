@@ -1,6 +1,6 @@
 {
   "name": "kodu",
-  "version": "2.2.0",
+  "version": "3.0.0",
   "description": "High-performance CLI to prepare a codebase for LLMs, automate reviews, and draft commits. Native Go binary.",
   "repository": {
     "type": "git",
