@@ -46,6 +46,8 @@ func newRootCommand() *cobra.Command {
 
 // registerCommands добавляет все подкоманды к корню.
 func registerCommands(root *cobra.Command, app *App) {
+	root.AddCommand(newInitCommand(app))
 	root.AddCommand(newPackCommand(app))
 	root.AddCommand(newCleanCommand(app))
+	root.AddCommand(newOpsCommand(app))
 }
