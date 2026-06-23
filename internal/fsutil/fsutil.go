@@ -14,11 +14,11 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	gitignore "github.com/go-git/go-git/v5/plumbing/format/gitignore"
 	"github.com/uxname/kodu/internal/config"
+	"github.com/uxname/kodu/internal/sortx"
 )
 
 // Finder ищет файлы проекта относительно корневой директории.
@@ -146,7 +146,7 @@ func (f *Finder) Find(opts FindOptions) ([]string, error) {
 		return nil, walkErr
 	}
 
-	sort.Strings(result)
+	sortx.LocaleStrings(result)
 	return result, nil
 }
 

@@ -3,6 +3,7 @@ module github.com/uxname/kodu
 go 1.26.4
 
 require (
+	github.com/atotto/clipboard v0.1.4
 	github.com/fatih/color v1.19.0
 	github.com/go-git/go-git/v5 v5.19.1
 	github.com/mattn/go-isatty v0.0.22
@@ -12,6 +13,8 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/theckman/yacspin v0.13.12
 	github.com/tidwall/jsonc v0.3.3
+	golang.org/x/sync v0.21.0
+	golang.org/x/text v0.38.0
 )
 
 require (
