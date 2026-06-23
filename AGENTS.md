@@ -1,214 +1,83 @@
 # AGENTS.md
 
-This file provides guidelines and instructions for AI assistants working on the Kodu project.
+Guidelines for AI assistants working on the Kodu project.
 
 ## 1. Project Overview
 
-**Kodu** is a high-performance CLI utility that bridges local development environments with LLMs. It automates context preparation and code cleaning.
+**Kodu** is a high-performance CLI that bridges local development with LLMs:
+it bundles project context (`pack`), strips comments deterministically (`clean`),
+initializes config (`init`), and manages a registry of projects/stands (`ops`).
 
-- **Key Goals:** Speed (<0.5s startup), Determinism (no AI for critical file ops), DX (Developer Experience)
-- **Available Commands:** `pack`, `clean`
+- **Key goals:** fast startup, deterministic file ops (no AI for critical paths), good DX.
+- **Commands:** `init`, `pack`, `clean`, `ops` (+ subcommands).
 
-## 2. Technology Stack (Enforced)
+## 2. Technology Stack
 
-| Category | USE | DO NOT USE |
-|----------|-----|------------|
-| Framework | NestJS + nest-commander | Pure Node.js, Oclif |
-| File System | node:fs/promises + tinyglobby | fs-extra, glob, rimraf |
-| Config | lilconfig | cosmiconfig, rc |
-| Validation | zod | class-validator, joi |
-| CLI UI | @inquirer/prompts + picocolors | inquirer (legacy), chalk |
-| Spinners | yocto-spinner | ora, cli-spinners |
-| AST/Parsing | ts-morph | Regex, babel |
-| Tokens | js-tiktoken | gpt-3-encoder |
-| Clipboard | clipboardy | Native APIs |
+Single native Go binary. CGO is required (tree-sitter C grammars).
+
+| Category | Library |
+|----------|---------|
+| CLI engine | `spf13/cobra` |
+| Config | `encoding/json` (defaults via `config.Default()`, non-strict) |
+| File walk / ignore | `filepath.WalkDir` + `go-git/.../gitignore` matcher |
+| AST / comment removal | `smacker/go-tree-sitter` (typescript/tsx grammars) |
+| Import graph (`--deps`) | tree-sitter + manual resolver (best-effort) |
+| Tokens | `pkoukk/tiktoken-go` + offline loader (o200k_base) |
+| Sorting (file order) | `x/text/collate` (matches JS `localeCompare`) |
+| Clipboard | `atotto/clipboard` |
+| Spinner | `theckman/yacspin` (TTY-gated) |
+| Color | `fatih/color` (respects `NO_COLOR` / `--no-color` / non-TTY) |
+| Git | `os/exec` wrapper |
 
 ## 3. Architecture
 
 ```
-src/
-├── app.module.ts           # Root Orchestrator
-├── main.ts                 # Entry Point
-├── core/                   # Global Infrastructure
-│   ├── config/             # ConfigModule (Zod + lilconfig)
-│   ├── file-system/        # FsModule (tinyglobby)
-│   └── ui/                 # UiModule (spinners, loggers)
-├── shared/                 # Shared Business Logic
-│   ├── tokenizer/          # TokenizerModule
-│   ├── git/                # GitModule
-│   └── cleaner/            # CleanerService (AST)
-└── commands/               # Feature Commands
-    ├── pack/               # kodu pack
-    └── clean/              # kodu clean
+cmd/kodu/main.go          # entry point
+internal/
+  cli/                    # cobra commands: root, init, pack, clean, ops
+  config/                 # kodu.json loader + defaults
+  fsutil/                 # project file finder (walk + gitignore + binary detect)
+  cleaner/                # tree-sitter comment removal
+  deps/                   # best-effort import graph
+  tokenizer/              # tiktoken-go
+  packer/                 # xml/text context formatting + templates
+  prompt/                 # .kodu/prompts template loading
+  git/                    # git wrapper
+  registry/               # ~/.config/kodu/registry.json (XDG, atomic write)
+  runbook/                # .runbook/ scaffold + templates
+  ui/                     # logger (stderr) + spinner; data goes to stdout
+  sortx/                  # locale-aware sorting
+  buildinfo/              # version vars (set via -ldflags -X)
+scripts/parity-check.sh   # parity sweep vs the legacy Node build
 ```
 
-## 4. Build, Lint & Test Commands
+Dependencies are wired by hand via constructors in `internal/cli` (no DI container).
 
-### Essential Commands
-```bash
-# Build the project
-npm run build              # Full build (Nest build) + make executable
+## 4. Conventions
 
-# Run the built artifact
-npm run start:prod         # Run from dist/
+- **Streams:** status/logs/spinner → **stderr** (`ui.UI.Success/Warn/Error/Info`);
+  machine-readable data (file lists, paths, cleaned code) → **stdout** (`ui.UI.Println`).
+  Keep `pack -l`, `ops path`, `clean --stdin` free of logs/ANSI.
+- **Determinism:** file order uses `sortx.LocaleStrings` (collate), not byte sort.
+- **CGO:** build/test/vet with `CGO_ENABLED=1`. tree-sitter parsers do not cross-compile
+  trivially — releases build natively per platform (see `.github/workflows/release.yml`).
+- **Errors shown to users** may be capitalized/localized (Russian for `ops`/registry);
+  `ST1005`/revive `error-strings` are disabled for this reason in `.golangci.yml`.
 
-# Type check
-npm run ts:check           # TypeScript compilation check
+## 5. Workflow
 
-# Lint and format
-npm run lint               # Run Biome linter
-npm run lint:fix           # Biome with auto-fix
-
-# Full check (required before commit)
-npm run check              # TypeCheck + Biome + Knip
+```
+make build    # CGO_ENABLED=1 go build -ldflags=... → dist/kodu
+make test     # go test ./...
+make lint     # gofmt + go vet + golangci-lint
 ```
 
-## 5. Code Style Guidelines
+Local git hooks (lefthook): `gofmt` + `go vet` on pre-commit, `go test` on pre-push.
 
-### General
-- **ESM Only:** Use `import` statements (nodenext mode)
-- **Strict Mode:** `strictNullChecks` is ON. Avoid `any`; use `unknown` with narrowing
-- **Quotes:** Single quotes preferred
-- **Indentation:** 2 spaces
-- **No Comments:** Unless explicitly requested by user
+## 6. Parity with the former TypeScript version
 
-### Imports
-- Use explicit relative imports: `import { Foo } from './foo'`
-- Avoid barrel exports (`index.ts`) unless necessary
-- No circular dependencies (NestJS module structure enforces this)
-
-### Types
-- Prefer explicit types over `any`
-- Use `unknown` and narrow with type guards or Zod validation
-- Interface over type for object shapes
-- Use readonly for immutable data
-
-### Naming Conventions
-- **Files:** kebab-case (`my-file.ts`)
-- **Classes:** PascalCase (`MyClass`)
-- **Functions:** camelCase (`myFunction`)
-- **Constants:** UPPER_SNAKE_CASE for compile-time constants
-- **Interfaces:** PascalCase, no `I` prefix (`User` not `IUser`)
-
-### Error Handling
-- Use custom error classes extending `Error`
-- Never swallow errors silently
-- Provide meaningful error messages
-- Use try/catch with specific error types
-- Validate inputs with Zod schemas
-
-### NestJS Specifics
-- All commands extend `CommandRunner` from `nest-commander`
-- Use Dependency Injection - never import services directly
-- Register modules in `app.module.ts`
-- Use `@Injectable()` decorator for services
-
-## 6. Configuration (kodu.json)
-
-```json
-{
-  "cleaner": {
-    "whitelist": ["//!"],
-    "keepJSDoc": true,
-    "useGitignore": true
-  },
-  "packer": {
-    "ignore": ["*.lock", "node_modules", "dist"],
-    "useGitignore": true
-  }
-}
-```
-
-- Config validated via Zod on startup
-- `kodu.json` must be in current working directory
-
-## 7. Commands Reference
-
-### `kodu init`
-
-Add `.kodu/context.txt` to `.gitignore` (if `.gitignore` exists). Run once after cloning or setting up a project.
-
-### `kodu pack`
-
-Bundle project files into a single context file for LLMs.
-
-| Option | Description |
-|--------|-------------|
-| `-c, --copy` | Copy result to clipboard |
-| `-o, --out <path>` | Path to save result (default: `.kodu/context.txt`) |
-| `-p, --path <path>` | Directory or glob to include (repeatable) |
-| `-e, --exclude <pattern>` | Additional exclude pattern (repeatable) |
-| `-l, --list` | Print file list only, without content |
-| `-f, --format <format>` | Output format: `xml` (default) or `text` |
-| `-t, --template <name>` | Template name from `.kodu/prompts` |
-
-Output format `xml` wraps each file in `<file path="...">` tags — recommended for LLM consumption. Format `text` uses `// file: ...` header comments.
-
-### `kodu clean`
-
-Remove comments from source files using AST-based parsing (deterministic, no AI).
-
-| Option | Description |
-|--------|-------------|
-| `-d, --dry-run` | Show what will be removed without modifying files |
-| `-c, --changed` | Clean only git-changed files |
-
-## 8. Critical Constraints
-
-1. **No AI:** Both commands are deterministic — no AI integration
-2. **Validation First:** Invalid `kodu.json` causes graceful crash with Zod error
-3. **Performance:** Mindful of import costs. Use lightweight libraries
-4. **Config Location:** `kodu.json` must be in current working directory
-
-## 9. Development Workflow
-
-### Adding a New Command
-1. Create `src/commands/<name>/`
-2. Create `<name>.command.ts` and `<name>.module.ts`
-3. Implement `run()` extending `CommandRunner`
-4. Decorate with `@Command()` from `nest-commander`
-5. Register module in `app.module.ts`
-6. Test: `npm run build && node dist/src/main.js <name>`
-
-### Before Commit
-Always run:
-```bash
-npm run check
-```
-
-This executes: TypeScript check + Biome lint + Knip dead code detection.
-
-## 10. Testing Strategy
-
-- **Primary Gate:** Static analysis (TypeScript + Biome + Knip)
-- **No Legacy Tests:** Project relies on strict static typing
-- If tests exist: place in `__tests__/` or `*.test.ts` files
-
-## 11. Release Process
-
-### Prerequisites
-- Working directory must be clean (`git status` — no dirty files)
-- All changes committed and pushed
-- You have npm publish access
-
-### Steps
-```bash
-# 1. Ensure clean working directory
-git status
-
-# 2. Bump version, build, publish
-npm version patch && npm run build && npm publish --access public
-
-# 3. Push the version bump commit and tag
-git push && git push --tags
-```
-
-- Use `npm version minor` for new features, `npm version major` for breaking changes
-- The `npm version` command creates a git tag automatically (e.g. `v2.1.3`)
-
-## 12. Handling Uncertainties
-
-- Unclear requirements? Ask the user first
-- Library not in Tech Stack section? Prefer native Node.js APIs
-- New dependency? Ensure it follows "Fresh & Modern" strategy
-- Breaking changes? Create an OpenSpec proposal
+Kodu was migrated from NestJS/TypeScript to Go. Behavior is byte-for-byte compatible
+for `pack` (xml/text/clean/deps), `clean` (stdin/in-place), `init`, and `ops`. Two
+intentional improvements: the comment cleaner is more thorough (tree-sitter finds
+comments ts-morph's range-walk missed), and HTML is not parsed as TypeScript (no URL
+corruption). See `internal/cleaner/cleaner.go` for the documented differences.

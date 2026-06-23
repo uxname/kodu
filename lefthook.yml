@@ -1,11 +1,15 @@
 pre-commit:
   parallel: false
   commands:
-    check:
-      run: npm run check
+    fmt:
+      glob: "*.go"
+      run: gofmt -w {staged_files}
+      stage_fixed: true
+    vet:
+      run: CGO_ENABLED=1 go vet ./...
 
 pre-push:
   parallel: false
   commands:
     test:
-      run: npm run test
+      run: CGO_ENABLED=1 go test ./...

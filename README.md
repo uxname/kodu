@@ -23,14 +23,32 @@
 
 ## Install
 
+Kodu is a single native binary (written in Go). Pick any channel:
+
 ```bash
+# npm (downloads the prebuilt binary for your platform on install)
 npm install -g kodu
+
+# Go toolchain
+go install github.com/uxname/kodu/cmd/kodu@latest
+
+# Prebuilt binaries (linux/macOS/windows × amd64/arm64)
+# https://github.com/uxname/kodu/releases
 ```
 
-Or run without installing:
+> The npm package ships a thin launcher whose `postinstall` fetches the matching
+> binary from GitHub Releases. If the download fails (offline, proxy), it prints
+> a hint to use `go install` instead — `npm install` itself never breaks.
+
+### Build from source
+
+Requires Go 1.25+ and a C toolchain (CGO is used for the tree-sitter parsers).
 
 ```bash
-npx kodu pack --copy
+git clone https://github.com/uxname/kodu.git && cd kodu
+make build      # → dist/kodu
+make test       # run the test suite
+make lint       # gofmt + go vet + golangci-lint
 ```
 
 ---
@@ -101,7 +119,10 @@ src/core/config/config.service.ts  ← import from src/core/config/config.module
 src/shared/constants.ts  ← import from src/core/file-system/fs.service.ts
 ```
 
-`--deps` uses `ts-morph` to resolve the TypeScript import graph, so it correctly handles tsconfig path aliases, re-exports, index files, and type-only imports. `node_modules` are excluded automatically.
+`--deps` resolves the TypeScript/JavaScript import graph (relative imports, file
+extensions, index files, `tsconfig` path aliases, re-exports, and type-only
+imports), excluding `node_modules`. Resolution is best-effort and does not cover
+exotic cases like package.json `exports` maps.
 
 ### Output format
 
