@@ -63,3 +63,9 @@ __pycache__/
 /vendor/
 *.out
 coverage.txt
+
+# Native binary downloaded by postinstall / built locally.
+# Only bin/kodu.js (the launcher) is tracked; the platform-specific
+# binary is fetched per-platform from GitHub Releases.
+/bin/kodu
+/bin/kodu.exe
