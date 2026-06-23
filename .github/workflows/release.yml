@@ -2,6 +2,9 @@ name: Release
 
 # Native build on each platform (CGO+tree-sitter does not cross-compile
 # trivially, so we use native runners — the fallback from the migration plan).
+# Each matrix leg builds AND uploads its own asset directly to the release, so
+# a single queued/failed leg (e.g. an unavailable runner) never blocks the
+# others — users on the working platforms still get a binary.
 on:
   push:
     tags: ["v*"]
@@ -12,6 +15,7 @@ permissions:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         include:
           - { os: ubuntu-latest,    goos: linux,   goarch: amd64 }
@@ -44,24 +48,12 @@ jobs:
           else
             tar -czf "${NAME}.tar.gz" "$BIN"
           fi
-      - uses: actions/upload-artifact@v4
+          (sha256sum "${NAME}".* > "${NAME}.sha256" 2>/dev/null || true)
+      - name: Upload assets to release
+        uses: softprops/action-gh-release@v2
         with:
-          name: kodu-${{ matrix.goos }}-${{ matrix.goarch }}
-          path: |
+          files: |
             kodu_*.tar.gz
             kodu_*.zip
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          path: dist
-          merge-multiple: true
-      - name: Checksums
-        run: cd dist && sha256sum kodu_* > checksums.txt
-      - uses: softprops/action-gh-release@v2
-        with:
-          files: dist/*
+            kodu_*.sha256
           generate_release_notes: true

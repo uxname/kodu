@@ -1,69 +1,22 @@
 #!/usr/bin/env node
 // Downloads the native kodu binary for the current platform from GitHub Releases.
 // On failure it does not break the install — it prints a hint (graceful degradation).
+// The launcher (bin/kodu.js) will also download lazily on first run if this hook
+// was skipped (bun) or failed, so a missing binary here is never fatal.
 'use strict';
 
-const fs = require('node:fs');
 const path = require('node:path');
-const https = require('node:https');
-const { execFileSync } = require('node:child_process');
+const { install, REPO } = require('./install');
 
-const REPO = 'uxname/kodu';
-const pkg = require('../package.json');
-
-const PLATFORMS = { linux: 'linux', darwin: 'darwin', win32: 'windows' };
-const ARCHES = { x64: 'amd64', arm64: 'arm64' };
-
-function fail(msg) {
-  console.warn(`\n[kodu] ${msg}`);
-  console.warn('[kodu] Install manually: go install github.com/uxname/kodu/cmd/kodu@latest');
-  console.warn(`[kodu] or download the binary: https://github.com/${REPO}/releases\n`);
-  process.exit(0); // do not block npm install
-}
-
-const goos = PLATFORMS[process.platform];
-const goarch = ARCHES[process.arch];
-if (!goos || !goarch) fail(`Platform ${process.platform}/${process.arch} is not supported by a prebuilt binary.`);
-
-const ext = goos === 'windows' ? 'zip' : 'tar.gz';
-const binName = goos === 'windows' ? 'kodu.exe' : 'kodu';
-const asset = `kodu_v${pkg.version}_${goos}_${goarch}.${ext}`;
-const url = `https://github.com/${REPO}/releases/download/v${pkg.version}/${asset}`;
 const binDir = path.join(__dirname, '..', 'bin');
 
-function download(u, dest, redirects = 0) {
-  return new Promise((resolve, reject) => {
-    if (redirects > 5) return reject(new Error('too many redirects'));
-    https.get(u, (res) => {
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        res.resume();
-        return resolve(download(res.headers.location, dest, redirects + 1));
-      }
-      if (res.statusCode !== 200) {
-        res.resume();
-        return reject(new Error(`HTTP ${res.statusCode} for ${u}`));
-      }
-      const file = fs.createWriteStream(dest);
-      res.pipe(file);
-      file.on('finish', () => file.close(resolve));
-      file.on('error', reject);
-    }).on('error', reject);
+install(binDir)
+  .then(({ goos, goarch, version }) =>
+    console.log(`[kodu] Installed binary ${goos}/${goarch} v${version}`))
+  .catch((err) => {
+    console.warn(`\n[kodu] Failed to download the binary: ${err.message}`);
+    console.warn('[kodu] It will be downloaded automatically on first run, or install manually:');
+    console.warn('[kodu]   go install github.com/uxname/kodu/cmd/kodu@latest');
+    console.warn(`[kodu]   https://github.com/${REPO}/releases\n`);
+    process.exit(0); // do not block npm install
   });
-}
-
-(async () => {
-  try {
-    fs.mkdirSync(binDir, { recursive: true });
-    const archivePath = path.join(binDir, asset);
-    await download(url, archivePath);
-    // bsdtar (tar) extracts both .tar.gz and .zip on Linux/macOS/Win10+.
-    execFileSync('tar', ['-xf', archivePath, '-C', binDir], { stdio: 'ignore' });
-    fs.rmSync(archivePath, { force: true });
-    const binPath = path.join(binDir, binName);
-    if (!fs.existsSync(binPath)) throw new Error('binary not found after extraction');
-    if (goos !== 'windows') fs.chmodSync(binPath, 0o755);
-    console.log(`[kodu] Installed binary ${goos}/${goarch} v${pkg.version}`);
-  } catch (err) {
-    fail(`Failed to download the binary: ${err.message}`);
-  }
-})();

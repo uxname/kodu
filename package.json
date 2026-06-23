@@ -1,6 +1,6 @@
 {
   "name": "kodu",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "description": "High-performance CLI to prepare a codebase for LLMs, automate reviews, and draft commits. Native Go binary.",
   "repository": {
     "type": "git",
@@ -29,7 +29,8 @@
   },
   "files": [
     "bin/kodu.js",
-    "scripts/postinstall.js"
+    "scripts/postinstall.js",
+    "scripts/install.js"
   ],
   "scripts": {
     "postinstall": "node scripts/postinstall.js"
