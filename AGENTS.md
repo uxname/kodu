@@ -67,10 +67,12 @@ Dependencies are wired by hand via constructors in `internal/cli` (no DI contain
 ## 5. Workflow
 
 ```
-make build    # CGO_ENABLED=1 go build -ldflags=... → dist/kodu
-make test     # go test ./...
-make lint     # gofmt + go vet + golangci-lint
+task build    # CGO_ENABLED=1 go build -ldflags=... → dist/kodu
+task test     # go test -race -cover ./...
+task lint     # gofmt + go vet + golangci-lint
 ```
+
+Tasks live in `Taskfile.yml` (run with [Task](https://taskfile.dev)); `task --list` shows all targets.
 
 Local git hooks (lefthook): `gofmt` + `go vet` on pre-commit, `go test` on pre-push.
 

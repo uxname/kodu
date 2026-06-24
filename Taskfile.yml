@@ -1,0 +1,63 @@
+# Kodu — Go build (https://taskfile.dev)
+version: '3'
+
+vars:
+  BINARY: kodu
+  PKG: ./cmd/kodu
+  DIST: dist
+  MODULE: github.com/uxname/kodu
+  VERSION:
+    sh: git describe --tags --always --dirty 2>/dev/null || echo dev
+  COMMIT:
+    sh: git rev-parse --short HEAD 2>/dev/null || echo none
+  DATE:
+    sh: date -u +%Y-%m-%dT%H:%M:%SZ
+  LDFLAGS: >-
+    -s -w
+    -X {{.MODULE}}/internal/buildinfo.Version={{.VERSION}}
+    -X {{.MODULE}}/internal/buildinfo.Commit={{.COMMIT}}
+    -X {{.MODULE}}/internal/buildinfo.Date={{.DATE}}
+
+env:
+  # tree-sitter requires CGO.
+  CGO_ENABLED: '1'
+
+tasks:
+  default:
+    desc: Show the list of tasks
+    cmds:
+      - task --list
+    silent: true
+
+  build:
+    desc: Build the binary into dist/
+    cmds:
+      - mkdir -p {{.DIST}}
+      - go build -ldflags="{{.LDFLAGS}}" -o {{.DIST}}/{{.BINARY}} {{.PKG}}
+
+  install:
+    desc: Install the binary into $GOPATH/bin
+    cmds:
+      - go install -ldflags="{{.LDFLAGS}}" {{.PKG}}
+
+  test:
+    desc: Run the tests with the race detector and coverage
+    cmds:
+      - go test -race -cover ./...
+
+  lint:
+    desc: Static analysis (gofmt + go vet + golangci-lint)
+    cmds:
+      - gofmt -l . | tee /dev/stderr | (! read)
+      - go vet ./...
+      - golangci-lint run
+
+  tidy:
+    desc: Tidy up go.mod/go.sum
+    cmds:
+      - go mod tidy
+
+  clean:
+    desc: Remove build artifacts
+    cmds:
+      - rm -rf {{.DIST}}

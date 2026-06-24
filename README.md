@@ -46,10 +46,13 @@ Requires Go 1.25+ and a C toolchain (CGO is used for the tree-sitter parsers).
 
 ```bash
 git clone https://github.com/uxname/kodu.git && cd kodu
-make build      # → dist/kodu
-make test       # run the test suite
-make lint       # gofmt + go vet + golangci-lint
+task build      # → dist/kodu
+task test       # run the test suite
+task lint       # gofmt + go vet + golangci-lint
 ```
+
+> Tasks are defined in `Taskfile.yml` and run with [Task](https://taskfile.dev).
+> Run `task` (or `task --list`) to see all available targets.
 
 ---
 
