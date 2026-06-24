@@ -3,6 +3,7 @@ package registry
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -82,5 +83,75 @@ func TestSaveAtomicAndStandsDefault(t *testing.T) {
 	}
 	if filepath.Base(s.FilePath()) != "registry.json" {
 		t.Fatalf("unexpected file name: %s", s.FilePath())
+	}
+}
+
+func TestDefaultStands(t *testing.T) {
+	want := []string{"local", "dev", "stage", "prod"}
+	got := DefaultStands()
+	if len(got) != len(want) {
+		t.Fatalf("DefaultStands = %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("DefaultStands[%d] = %q, want %q", i, got[i], want[i])
+		}
+	}
+}
+
+func TestList(t *testing.T) {
+	s := isolate(t)
+	_ = s.Add("a", ProjectEntry{Path: "/a", Stands: DefaultStands()}, false)
+	_ = s.Add("b", ProjectEntry{Path: "/b", Stands: DefaultStands()}, false)
+	projects, err := s.List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(projects) != 2 || projects["a"].Path != "/a" || projects["b"].Path != "/b" {
+		t.Fatalf("List = %+v", projects)
+	}
+}
+
+func TestLoadInvalidJSON(t *testing.T) {
+	s := isolate(t)
+	if err := os.MkdirAll(filepath.Dir(s.FilePath()), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(s.FilePath(), []byte("{not valid json"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Load(); err == nil {
+		t.Fatal("expected error for invalid JSON")
+	}
+}
+
+// A project entry without a path is a schema violation.
+func TestLoadMissingPathField(t *testing.T) {
+	s := isolate(t)
+	if err := os.MkdirAll(filepath.Dir(s.FilePath()), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := `{"projects":{"broken":{"stands":["local"]}}}`
+	if err := os.WriteFile(s.FilePath(), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := s.Load()
+	if err == nil {
+		t.Fatal("expected error for missing path field")
+	}
+	if !strings.Contains(err.Error(), "path") {
+		t.Fatalf("error = %v, want mention of 'path'", err)
+	}
+}
+
+// Without XDG_CONFIG_HOME the registry lives under the user's home .config dir.
+func TestNewUsesHomeWithoutXDG(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", "")
+	t.Setenv("HOME", home)
+	s := New()
+	want := filepath.Join(home, ".config", "kodu", "registry.json")
+	if s.FilePath() != want {
+		t.Fatalf("FilePath = %q, want %q", s.FilePath(), want)
 	}
 }

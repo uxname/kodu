@@ -64,8 +64,7 @@ func runClean(app *App, args []string, opts *cleanOptions) error {
 	}
 	cfg, err := config.Load(cwd)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		return err
 	}
 	cl := cleaner.New(cfg.Cleaner.Whitelist)
 	keepJSDoc := cfg.Cleaner.KeepJSDoc
@@ -76,8 +75,7 @@ func runClean(app *App, args []string, opts *cleanOptions) error {
 	if opts.stdin {
 		input, rerr := io.ReadAll(os.Stdin)
 		if rerr != nil {
-			app.UI.Error(rerr.Error())
-			os.Exit(1)
+			return rerr
 		}
 		res := cl.Clean("stdin.ts", string(input), keepJSDoc)
 		app.UI.Print(res.Content)
@@ -92,15 +90,13 @@ func runClean(app *App, args []string, opts *cleanOptions) error {
 	allFiles, err := finder.Find(fsutil.FindOptions{UseGitignore: &ug, Ignore: ignore})
 	if err != nil {
 		sp.Fail("Error during cleaning")
-		app.UI.Error(err.Error())
-		os.Exit(1)
+		return err
 	}
 
 	targets, err := collectCleanTargets(cwd, allFiles, args, opts)
 	if err != nil {
 		sp.Fail("Error during cleaning")
-		app.UI.Error(err.Error())
-		os.Exit(1)
+		return err
 	}
 
 	if len(targets) == 0 {

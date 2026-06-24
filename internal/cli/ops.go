@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -66,11 +67,6 @@ func resolveProjectRoot(reg *registry.Service, name string) (string, error) {
 	return entry.Path, nil
 }
 
-func fail(app *App, msg string) {
-	app.UI.Error(msg)
-	os.Exit(1)
-}
-
 // --- ops init ---
 
 func newOpsInitCommand(app *App) *cobra.Command {
@@ -100,7 +96,7 @@ func newOpsInitCommand(app *App) *cobra.Command {
 			}
 
 			if err := rb.Scaffold(projectName, stands, activeStand, cwd); err != nil {
-				fail(app, err.Error())
+				return err
 			}
 			app.UI.Success(fmt.Sprintf("Created .runbook/ for project %q.", projectName))
 			app.UI.Info("Active stand: " + activeStand)
@@ -108,12 +104,11 @@ func newOpsInitCommand(app *App) *cobra.Command {
 
 			res, err := rb.EnsureGitignore(cwd)
 			if err != nil {
-				fail(app, err.Error())
+				return err
 			}
 			reportGitignore(app, res)
 
-			registerProject(app, reg, projectName, cwd, stands)
-			return nil
+			return registerProject(app, reg, projectName, cwd, stands)
 		},
 	}
 	cmd.Flags().StringVarP(&name, "name", "n", "", "Unique project name (defaults to the folder name)")
@@ -135,23 +130,24 @@ func reportGitignore(app *App, res runbook.GitignoreResult) {
 	}
 }
 
-func registerProject(app *App, reg *registry.Service, name, root string, stands []string) {
+func registerProject(app *App, reg *registry.Service, name, root string, stands []string) error {
 	existing, ok, err := reg.Get(name)
 	if err != nil {
-		fail(app, err.Error())
+		return err
 	}
 	if !ok {
 		if err := reg.Add(name, registry.ProjectEntry{Path: root, Stands: stands}, false); err != nil {
-			fail(app, err.Error())
+			return err
 		}
 		app.UI.Success(fmt.Sprintf("Project %q added to the registry.", name))
-		return
+		return nil
 	}
 	if existing.Path == root {
 		app.UI.Info(fmt.Sprintf("Project %q is already in the registry.", name))
-		return
+		return nil
 	}
 	app.UI.Warn(fmt.Sprintf("Name %q is already taken by a different path (%s). Re-run with a different name: kodu ops init --name <other-name>", name, existing.Path))
+	return nil
 }
 
 // --- ops list ---
@@ -165,7 +161,7 @@ func newOpsListCommand(app *App) *cobra.Command {
 			reg, rb := registry.New(), runbook.New()
 			projects, err := reg.List()
 			if err != nil {
-				fail(app, err.Error())
+				return err
 			}
 			names := make([]string, 0, len(projects))
 			for n := range projects {
@@ -214,7 +210,7 @@ func newOpsAddCommand(app *App) *cobra.Command {
 		Short: "Register a project in the global registry under a unique name",
 		RunE: func(_ *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				fail(app, "Specify a project name: kodu ops add <name> [--path <dir>]")
+				return errors.New("specify a project name: kodu ops add <name> [--path <dir>]")
 			}
 			name := args[0]
 			reg := registry.New()
@@ -229,7 +225,7 @@ func newOpsAddCommand(app *App) *cobra.Command {
 				stands = registry.DefaultStands()
 			}
 			if err := reg.Add(name, registry.ProjectEntry{Path: projectPath, Repo: repo, Stands: stands}, false); err != nil {
-				fail(app, err.Error())
+				return err
 			}
 			app.UI.Success(fmt.Sprintf("Project %q added to the registry.", name))
 			app.UI.Info("Path: " + projectPath)
@@ -256,17 +252,16 @@ func newOpsStatusCommand(app *App) *cobra.Command {
 			if len(args) > 0 {
 				r, err := resolveProjectRoot(reg, args[0])
 				if err != nil {
-					fail(app, err.Error())
+					return err
 				}
 				root = r
 			}
 			if !rb.Exists(root) {
-				app.UI.Warn(fmt.Sprintf("%s has no .runbook/. Initialize the project: kodu ops init", root))
-				os.Exit(1)
+				return fmt.Errorf("%s has no .runbook/. Initialize the project: kodu ops init", root)
 			}
 			cfg, err := rb.ReadConfig(root)
 			if err != nil {
-				fail(app, err.Error())
+				return err
 			}
 			app.UI.Info("Project:      " + cfg.Project)
 			app.UI.Info("Active stand: " + cfg.ActiveStand)
@@ -292,7 +287,7 @@ func newOpsUseCommand(app *App) *cobra.Command {
 			if len(args) >= 2 {
 				r, err := resolveProjectRoot(reg, args[0])
 				if err != nil {
-					fail(app, err.Error())
+					return err
 				}
 				root, stand = r, args[1]
 			} else if len(args) == 1 {
@@ -300,15 +295,14 @@ func newOpsUseCommand(app *App) *cobra.Command {
 			}
 
 			if stand == "" {
-				fail(app, "Specify a stand: kodu ops use <stand> or kodu ops use <name> <stand>")
+				return errors.New("specify a stand: kodu ops use <stand> or kodu ops use <name> <stand>")
 			}
 			if !rb.Exists(root) {
-				app.UI.Warn(fmt.Sprintf("%s has no .runbook/. Initialize the project: kodu ops init", root))
-				os.Exit(1)
+				return fmt.Errorf("%s has no .runbook/. Initialize the project: kodu ops init", root)
 			}
 			cfg, err := rb.ReadConfig(root)
 			if err != nil {
-				fail(app, err.Error())
+				return err
 			}
 			if !contains(cfg.Stands, stand) {
 				cfg.Stands = append(cfg.Stands, stand)
@@ -316,7 +310,7 @@ func newOpsUseCommand(app *App) *cobra.Command {
 			}
 			cfg.ActiveStand = stand
 			if err := rb.WriteConfig(cfg, root); err != nil {
-				fail(app, err.Error())
+				return err
 			}
 			app.UI.Success(fmt.Sprintf("Active stand for project %q → %s", cfg.Project, stand))
 			return nil
@@ -333,12 +327,12 @@ func newOpsPathCommand(app *App) *cobra.Command {
 		ValidArgsFunction: completeFirstArgProjects,
 		RunE: func(_ *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				fail(app, "Specify a project name: kodu ops path <name>")
+				return errors.New("specify a project name: kodu ops path <name>")
 			}
 			reg := registry.New()
 			root, err := resolveProjectRoot(reg, args[0])
 			if err != nil {
-				fail(app, err.Error())
+				return err
 			}
 			app.UI.Println(root) // clean stdout for command substitution
 			return nil
@@ -355,7 +349,7 @@ func newOpsRunbookCommand(app *App) *cobra.Command {
 		ValidArgsFunction: completeFirstArgProjects,
 		RunE: func(_ *cobra.Command, args []string) error {
 			if len(args) == 0 {
-				fail(app, "Specify a project name: kodu ops runbook <name> [stand]")
+				return errors.New("specify a project name: kodu ops runbook <name> [stand]")
 			}
 			name := args[0]
 			var stand string
@@ -365,22 +359,20 @@ func newOpsRunbookCommand(app *App) *cobra.Command {
 			reg, rb := registry.New(), runbook.New()
 			root, err := resolveProjectRoot(reg, name)
 			if err != nil {
-				fail(app, err.Error())
+				return err
 			}
 			if !rb.Exists(root) {
-				app.UI.Warn(fmt.Sprintf("Project %q has no .runbook/. Run: kodu ops init", name))
-				os.Exit(1)
+				return fmt.Errorf("project %q has no .runbook/. Run: kodu ops init", name)
 			}
 			md, err := rb.ReadRunbook(root)
 			if err != nil {
-				fail(app, err.Error())
+				return err
 			}
 			output := md
 			if stand != "" {
 				output = extractStand(md, stand)
 				if output == "" {
-					app.UI.Warn(fmt.Sprintf("No section for stand %q found in the runbook.", stand))
-					os.Exit(1)
+					return fmt.Errorf("no section for stand %q found in the runbook", stand)
 				}
 			}
 			app.UI.Println(strings.TrimRight(output, "\n \t"))

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -71,8 +72,7 @@ func runPack(cmd *cobra.Command, app *App, args []string, opts *packOptions) err
 	}
 	cfg, err := config.Load(cwd)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		return err
 	}
 
 	sp := app.UI.NewSpinner("Collecting files...").Start()
@@ -83,8 +83,7 @@ func runPack(cmd *cobra.Command, app *App, args []string, opts *packOptions) err
 	if opts.deps {
 		if len(args) == 0 {
 			sp.Fail("--deps requires at least one entry file as argument")
-			app.UI.Error("Usage: kodu pack <entry.ts> [more.ts...] --deps")
-			os.Exit(1)
+			return errors.New("usage: kodu pack <entry.ts> [more.ts...] --deps")
 		}
 		sp.SetText("Resolving dependency graph...")
 		maxDepth := opts.depsDepth
@@ -112,8 +111,7 @@ func runPack(cmd *cobra.Command, app *App, args []string, opts *packOptions) err
 		})
 		if err != nil {
 			sp.Fail("Error collecting context")
-			app.UI.Error(err.Error())
-			os.Exit(1)
+			return err
 		}
 	}
 
@@ -145,16 +143,14 @@ func runPack(cmd *cobra.Command, app *App, args []string, opts *packOptions) err
 	context, err := buildContext(app, cwd, cfg, files, format, opts.clean)
 	if err != nil {
 		sp.Fail("Error collecting context")
-		app.UI.Error(err.Error())
-		os.Exit(1)
+		return err
 	}
 
 	tk := tokenizer.New()
 	est, err := tk.Count(context)
 	if err != nil {
 		sp.Fail("Error collecting context")
-		app.UI.Error(err.Error())
-		os.Exit(1)
+		return err
 	}
 
 	fileList := strings.Join(files, "\n")
@@ -171,8 +167,7 @@ func runPack(cmd *cobra.Command, app *App, args []string, opts *packOptions) err
 		tmpl, terr := ps.LoadFromPromptsDir(opts.template)
 		if terr != nil {
 			sp.Fail("Error collecting context")
-			app.UI.Error(terr.Error())
-			os.Exit(1)
+			return terr
 		}
 		output = packer.FillTemplate(tmpl, tctx)
 	}
@@ -180,8 +175,7 @@ func runPack(cmd *cobra.Command, app *App, args []string, opts *packOptions) err
 	outputPath, err := writeOutput(cwd, output, opts.out)
 	if err != nil {
 		sp.Fail("Error collecting context")
-		app.UI.Error(err.Error())
-		os.Exit(1)
+		return err
 	}
 
 	copied := false

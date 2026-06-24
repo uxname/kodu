@@ -37,10 +37,12 @@ type Options struct {
 // Color is enabled only if stderr is a terminal, NO_COLOR is not set
 // (https://no-color.org), and --no-color was not passed.
 func New(opts Options) *UI {
-	return newWith(os.Stdout, os.Stderr, opts)
+	return NewWith(os.Stdout, os.Stderr, opts)
 }
 
-func newWith(out, errw io.Writer, opts Options) *UI {
+// NewWith creates a UI over the given writers. It is used by New for the real
+// os.Stdout/os.Stderr streams and by tests to capture output into buffers.
+func NewWith(out, errw io.Writer, opts Options) *UI {
 	tty := isWriterTTY(errw)
 	_, noColorEnv := os.LookupEnv("NO_COLOR")
 	useColor := tty && !noColorEnv && !opts.NoColor
